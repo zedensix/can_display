@@ -1,4 +1,4 @@
-module orochibraru/can_display
+module zedensix/can_display
 
 go 1.26.3
 

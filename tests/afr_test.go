@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"orochibraru/can_display/internal/canbus"
-	"orochibraru/can_display/internal/canbus/gt86"
-	"orochibraru/can_display/internal/canbus/obd2"
-	"orochibraru/can_display/internal/signals"
+	"zedensix/can_display/internal/canbus"
+	"zedensix/can_display/internal/canbus/gt86"
+	"zedensix/can_display/internal/canbus/obd2"
+	"zedensix/can_display/internal/signals"
 )
 
 func TestAFRPollerSendsExpectedRequest(t *testing.T) {

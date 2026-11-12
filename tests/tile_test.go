@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"orochibraru/can_display/internal/ui"
+	"zedensix/can_display/internal/ui"
 )
 
 func TestRangeColorFor(t *testing.T) {

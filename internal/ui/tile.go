@@ -8,8 +8,8 @@ import (
 	"tinygo.org/x/tinyfont"
 	"tinygo.org/x/tinyfont/freesans"
 
-	"orochibraru/can_display/internal/display"
-	"orochibraru/can_display/internal/signals"
+	"zedensix/can_display/internal/display"
+	"zedensix/can_display/internal/signals"
 )
 
 // labelFont/valueFonts are shared across every tile so the whole

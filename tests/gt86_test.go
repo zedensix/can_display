@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"orochibraru/can_display/internal/canbus"
-	"orochibraru/can_display/internal/canbus/gt86"
-	"orochibraru/can_display/internal/signals"
+	"zedensix/can_display/internal/canbus"
+	"zedensix/can_display/internal/canbus/gt86"
+	"zedensix/can_display/internal/signals"
 )
 
 func TestDecodeTemperatures(t *testing.T) {

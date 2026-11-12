@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"orochibraru/can_display/internal/canbus/obd2"
+	"zedensix/can_display/internal/canbus/obd2"
 )
 
 func TestEquivalenceRatio(t *testing.T) {

@@ -13,7 +13,7 @@ package obd2
 import (
 	"time"
 
-	"orochibraru/can_display/internal/canbus"
+	"zedensix/can_display/internal/canbus"
 )
 
 const (

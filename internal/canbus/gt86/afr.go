@@ -3,9 +3,9 @@ package gt86
 import (
 	"time"
 
-	"orochibraru/can_display/internal/canbus"
-	"orochibraru/can_display/internal/canbus/obd2"
-	"orochibraru/can_display/internal/signals"
+	"zedensix/can_display/internal/canbus"
+	"zedensix/can_display/internal/canbus/obd2"
+	"zedensix/can_display/internal/signals"
 )
 
 // AFR comes from the factory wide-range A/F sensor via standard OBD-II

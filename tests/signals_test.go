@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"orochibraru/can_display/internal/signals"
+	"zedensix/can_display/internal/signals"
 )
 
 func TestReadingStale(t *testing.T) {

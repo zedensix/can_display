@@ -19,11 +19,11 @@ import (
 	"tinygo.org/x/drivers/mcp2515"
 	"tinygo.org/x/drivers/st7789"
 
-	"orochibraru/can_display/internal/canbus"
-	"orochibraru/can_display/internal/canbus/gt86"
-	"orochibraru/can_display/internal/sensors"
-	"orochibraru/can_display/internal/signals"
-	"orochibraru/can_display/internal/ui"
+	"zedensix/can_display/internal/canbus"
+	"zedensix/can_display/internal/canbus/gt86"
+	"zedensix/can_display/internal/sensors"
+	"zedensix/can_display/internal/signals"
+	"zedensix/can_display/internal/ui"
 )
 
 // Pin wiring -- adjust these to match your actual breadboard/PCB layout;

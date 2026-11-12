@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"orochibraru/can_display/internal/sensors"
+	"zedensix/can_display/internal/sensors"
 )
 
 func approxEqual(a, b, tolerance float32) bool {

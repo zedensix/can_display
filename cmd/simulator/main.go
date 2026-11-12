@@ -12,9 +12,9 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"orochibraru/can_display/internal/signals"
-	"orochibraru/can_display/internal/sim"
-	"orochibraru/can_display/internal/ui"
+	"zedensix/can_display/internal/signals"
+	"zedensix/can_display/internal/sim"
+	"zedensix/can_display/internal/ui"
 )
 
 // panelWidth/panelHeight match the real ST7789 2.0" 240x320 panel this

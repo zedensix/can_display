@@ -17,8 +17,8 @@ package gt86
 import (
 	"time"
 
-	"orochibraru/can_display/internal/canbus"
-	"orochibraru/can_display/internal/signals"
+	"zedensix/can_display/internal/canbus"
+	"zedensix/can_display/internal/signals"
 )
 
 // IDTemperatures (0x360, ~20Hz) carries oil and coolant temperature

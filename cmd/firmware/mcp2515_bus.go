@@ -7,7 +7,7 @@ import (
 
 	"tinygo.org/x/drivers/mcp2515"
 
-	"orochibraru/can_display/internal/canbus"
+	"zedensix/can_display/internal/canbus"
 )
 
 // mcp2515Bus adapts an *mcp2515.Device -- which exposes polling methods,

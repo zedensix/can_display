@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"time"
 
-	"orochibraru/can_display/internal/signals"
+	"zedensix/can_display/internal/signals"
 )
 
 // Generator writes fake readings straight into a signals.State on every

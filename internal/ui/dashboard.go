@@ -1,8 +1,8 @@
 package ui
 
 import (
-	"orochibraru/can_display/internal/display"
-	"orochibraru/can_display/internal/signals"
+	"zedensix/can_display/internal/display"
+	"zedensix/can_display/internal/signals"
 )
 
 // DashTile pairs a Tile's look with the accessor that pulls its current
