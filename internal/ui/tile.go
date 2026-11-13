@@ -126,7 +126,16 @@ func (t Tile) Draw(d display.Display, theme Theme, rect Rect, reading signals.Re
 	drawBar(d, barRect, frac, valColor, theme.Stale)
 }
 
+// rectFiller is implemented by displays that fill a rectangle faster
+// than pixel by pixel: the firmware's framebuffer, the ST7789 driver.
+type rectFiller interface {
+	FillRectangle(x, y, width, height int16, c color.RGBA) error
+}
+
 func fillRect(d display.Display, r Rect, c color.RGBA) {
+	if filler, ok := d.(rectFiller); ok && filler.FillRectangle(r.X, r.Y, r.W, r.H, c) == nil {
+		return
+	}
 	for y := r.Y; y < r.Y+r.H; y++ {
 		for x := r.X; x < r.X+r.W; x++ {
 			d.SetPixel(x, y, c)

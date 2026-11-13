@@ -18,35 +18,35 @@ import "time"
 // sensor or a car that's been switched off within a couple of seconds.
 const DefaultStaleAfter = 2 * time.Second
 
-// RPMRange: FA20 redline is ~7000-7600 RPM; WarnHigh/DangerHigh give a
+// RPMRange thresholds. FA20 redline is ~7000-7600 RPM; WarnHigh/DangerHigh give a
 // shift-light-style ramp into the rev limiter. No meaningful "too low"
 // danger while running, so the low thresholds are set below the
 // gauge's own range to never trigger.
 var RPMRange = Range{Min: 0, Max: 8000, WarnLow: -1, WarnHigh: 7000, DangerLow: -1, DangerHigh: 7400}
 
-// CoolantRange: normal operating range for the FA20 is roughly
+// CoolantRange thresholds. Normal operating range for the FA20 is roughly
 // 85-105°C; danger thresholds sit outside that with a small buffer so
 // a brief blip (e.g. sitting in traffic before the fan kicks in) isn't
 // immediately alarming.
 var CoolantRange = Range{Min: 40, Max: 130, WarnLow: 60, WarnHigh: 105, DangerLow: 50, DangerHigh: 115}
 
-// OilTempRange: broader safe band than coolant since oil temp swings
+// OilTempRange thresholds. Broader safe band than coolant since oil temp swings
 // more with driving style (track use runs hotter than commuting) and
 // takes longer to stabilize.
 var OilTempRange = Range{Min: 40, Max: 150, WarnLow: 60, WarnHigh: 110, DangerLow: 50, DangerHigh: 120}
 
-// BatteryRange: a healthy 12V system idles around 12.6-12.8V
+// BatteryRange thresholds. A healthy 12V system idles around 12.6-12.8V
 // (engine off) or ~14-14.5V (alternator charging). Below ~11.5V or
 // above ~15.5V both indicate a real electrical problem, not normal
 // variation.
 var BatteryRange = Range{Min: 10, Max: 16, WarnLow: 12, WarnHigh: 15, DangerLow: 11.5, DangerHigh: 15.5}
 
-// AFRRange: centered on stoichiometric (14.7) with warning bands
+// AFRRange thresholds. Centered on stoichiometric (14.7) with warning bands
 // opening up toward the rich/lean extremes a naturally-aspirated
 // engine might actually see.
 var AFRRange = Range{Min: 10, Max: 18, WarnLow: 12, WarnHigh: 16, DangerLow: 11, DangerHigh: 17}
 
-// EthanolRange: no meaningful "danger" zone for ethanol content by
+// EthanolRange thresholds. No meaningful "danger" zone for ethanol content by
 // itself (it's informational, used to judge fueling/timing, not a
 // safety cutoff) -- thresholds sit outside [0, 100] so they never
 // trigger.

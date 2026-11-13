@@ -119,6 +119,7 @@ func connectELMBLE(state *signals.State) (*elm327.Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	dongle = &dev
 
 	state.SetStatus(statusTitle + "reading services of\n" + deviceName(found))
 	notify, write, err := findELMCharacteristics(dev)
@@ -132,6 +133,10 @@ func connectELMBLE(state *signals.State) (*elm327.Client, error) {
 	}
 	return client, nil
 }
+
+// dongle is the open BLE connection, closed before rebooting: a dongle
+// left on a connection that vanished can stop answering for a while.
+var dongle *bluetooth.Device
 
 // statusTitle heads every status screen of this source.
 const statusTitle = "OBD DONGLE\n"
@@ -225,6 +230,11 @@ func (w bleWriter) Write(p []byte) (int, error) {
 func rebootAfter(state *signals.State, step string, err error) {
 	println("fatal:", step+":", err.Error(), "-- rebooting")
 	state.SetStatus(statusTitle + step + " failed:\n" + err.Error() + "\nrebooting...")
+	if dongle != nil {
+		if err := dongle.Disconnect(); err != nil {
+			println("ble: disconnect:", err.Error())
+		}
+	}
 	time.Sleep(5 * time.Second)
 	arm.SystemReset()
 }

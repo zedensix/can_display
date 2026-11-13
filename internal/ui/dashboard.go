@@ -1,6 +1,9 @@
+// Package ui draws the dashboard (tiles, status screen, boot animation)
+// on any TinyGo display, the real panel and the simulator alike.
 package ui
 
 import (
+	"image/color"
 	"math"
 	"time"
 
@@ -94,21 +97,35 @@ func (dash Dashboard) Render(d display.Display, snap signals.Snapshot) error {
 	return d.Display()
 }
 
-// BootDuration is how long RenderBoot's animation lasts.
-const BootDuration = 2 * time.Second
+const (
+	splashDuration = 1500 * time.Millisecond
+	splashFade     = 300 * time.Millisecond
+	sweepDuration  = 2 * time.Second
 
-// RenderBoot draws the boot animation, elapsed into it: every gauge
-// sweeps up to its max and back down, like a car cluster's self-test at
-// ignition. It reports false, without drawing, once BootDuration is over.
+	// BootDuration is how long RenderBoot's animation lasts.
+	BootDuration = splashDuration + sweepDuration
+)
+
+// RenderBoot draws the boot animation, elapsed into it: the logo fades
+// in and out, then every gauge sweeps up to its max and back down, like
+// a car cluster's self-test at ignition. It reports false, without
+// drawing, once BootDuration is over.
 func (dash Dashboard) RenderBoot(d display.Display, elapsed time.Duration) (bool, error) {
 	if elapsed >= BootDuration {
 		return false, nil
 	}
-	sweep := float32(math.Sin(math.Pi * float64(elapsed) / float64(BootDuration)))
-	now := time.Now()
-
 	w, h := d.Size()
 	fillRect(d, Rect{X: 0, Y: 0, W: w, H: h}, dash.Theme.Background)
+
+	if elapsed < splashDuration {
+		fade := min(elapsed, splashDuration-elapsed, splashFade)
+		drawLogo(d, blend(dash.Theme.Background, dash.Theme.Danger, float32(fade)/float32(splashFade)))
+		return true, d.Display()
+	}
+
+	sweepElapsed := elapsed - splashDuration
+	sweep := float32(math.Sin(math.Pi * float64(sweepElapsed) / float64(sweepDuration)))
+	now := time.Now()
 	dash.drawTiles(d, now, func(t DashTile) signals.Reading {
 		value := t.Range.Min + sweep*(t.Range.Max-t.Range.Min)
 		return signals.Reading{Value: value, Valid: true, UpdatedAt: now}
@@ -135,4 +152,10 @@ func (dash Dashboard) drawTiles(d display.Display, now time.Time, reading func(D
 		}
 		t.Draw(d, dash.Theme, rect, reading(t), now)
 	}
+}
+
+// blend mixes from into to: 0 gives from, 1 gives to.
+func blend(from, to color.RGBA, amount float32) color.RGBA {
+	mix := func(a, b uint8) uint8 { return uint8(float32(a) + (float32(b)-float32(a))*amount) }
+	return color.RGBA{R: mix(from.R, to.R), G: mix(from.G, to.G), B: mix(from.B, to.B), A: 255}
 }

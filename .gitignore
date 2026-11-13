@@ -2,3 +2,4 @@
 *.uf2
 *.bin
 .DS_Store
+!internal/ui/logo.bin

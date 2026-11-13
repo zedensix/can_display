@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Lint the shared code and simulator with golangci-lint (cmd/firmware needs TinyGo, see vet)"
+set -euo pipefail
+
+golangci-lint run ./...

@@ -16,6 +16,8 @@ fake generator) differ between the two.
 ```sh
 mise run sim         # opens a desktop window with the live dashboard, fake data
 mise run vet         # go vet the shared/simulator code + tinygo-build-check the firmware
+mise run lint        # golangci-lint on everything but the firmware
+mise run logo        # regenerate the boot splash from 86.png
 mise run test        # unit tests for the hardware-agnostic packages
 mise run firmware    # cross-compile firmware to bin/firmware.uf2
 mise run flash       # build + flash, step by step; reboots a running Pico into BOOTSEL itself

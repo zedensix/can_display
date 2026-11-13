@@ -15,6 +15,7 @@
 package main
 
 import (
+	"device/rp"
 	"machine"
 	"time"
 
@@ -87,13 +88,20 @@ const (
 	panelHeight = 320
 )
 
-// tickInterval caps how often the dashboard redraws and the ethanol
-// sensor is re-read. The CAN bus itself updates much faster than this;
-// there's no point redrawing the panel faster than a human can read it,
-// and every full-screen redraw costs real SPI bus time.
-const tickInterval = 100 * time.Millisecond
+// tickInterval is the redraw (and ethanol ADC read) period: 20 frames a
+// second. A frame is ~20ms of SPI transfer plus the drawing, so this
+// leaves the rest of the time to the data source goroutines.
+const tickInterval = 50 * time.Millisecond
 
 func main() {
+	if rp.WATCHDOG.REASON.HasBits(rp.WATCHDOG_REASON_TIMER) {
+		println("boot: the watchdog reset the board, the previous run froze")
+	}
+	// A panic or a stuck goroutine freezes TinyGo instead of rebooting;
+	// the watchdog turns any freeze into a reset.
+	machine.Watchdog.Configure(machine.WatchdogConfig{TimeoutMillis: machine.WatchdogMaxTimeout})
+	machine.Watchdog.Start()
+
 	panel := setupDisplay()
 	frame := newFrameBuffer(&panel)
 	ethanolADC := setupEthanolADC()
@@ -121,6 +129,7 @@ func main() {
 	dash := ui.Dashboard{Theme: ui.Dark, Tiles: ui.DefaultTiles()}
 	boot := time.Now()
 	for {
+		machine.Watchdog.Update()
 		running, err := dash.RenderBoot(frame, time.Since(boot))
 		if !running {
 			break
@@ -134,6 +143,8 @@ func main() {
 	}
 
 	for {
+		frameStart := time.Now()
+		machine.Watchdog.Update()
 		if generator != nil {
 			generator.Tick(state, time.Now())
 		} else {
@@ -144,7 +155,7 @@ func main() {
 		if err := dash.Render(frame, snap); err != nil {
 			println("render error:", err.Error())
 		}
-		time.Sleep(tickInterval)
+		time.Sleep(tickInterval - time.Since(frameStart))
 	}
 }
 
@@ -186,7 +197,10 @@ func updateEthanolPercent(adc machine.ADC, state *signals.State) {
 func setupDisplay() st7789.Device {
 	spi := machine.SPI0
 	err := spi.Configure(machine.SPIConfig{
-		Frequency: 40e6,
+		// 62.5MHz is the ST7789's write clock limit and the RP2040's
+		// fastest SPI clock at 125MHz. Garbled pixels on long or loose
+		// wires: drop to 31.25e6.
+		Frequency: 62.5e6,
 		SCK:       displaySCK,
 		SDO:       displaySDO,
 		SDI:       machine.NoPin,

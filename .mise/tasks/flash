@@ -26,14 +26,21 @@ done
 [ -d "$volume" ] || { echo "      no $volume after 60s, giving up"; exit 1; }
 
 echo "[3/4] copying $(du -h bin/firmware.uf2 | cut -f1 | tr -d ' ') to the Pico..."
-# The Pico reboots as soon as it has the whole file, which can make cp
-# report an I/O error on close: the volume going away is the real check.
-cp -X bin/firmware.uf2 "$volume/" || true
+# dd, not cp: macOS cp goes through copyfile, which the bootloader's fake
+# FAT drive refuses. The Pico reboots as soon as it has the whole file,
+# so dd can still fail on close after a good copy: the volume going away
+# is the real check.
+copied=true
+dd if=bin/firmware.uf2 of="$volume/firmware.uf2" bs=64k status=progress || copied=false
 
 echo "[4/4] waiting for the Pico to reboot..."
 for _ in $(seq 15); do
   [ -d "$volume" ] || { echo "done in ${SECONDS}s"; exit 0; }
   sleep 1
 done
-echo "      $volume is still mounted: the Pico rejected the file"
+if [ "$copied" = false ]; then
+  echo "      the copy failed, see the error above"
+else
+  echo "      $volume is still mounted: the Pico rejected the file"
+fi
 exit 1

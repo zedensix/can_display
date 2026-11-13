@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Convert 86.png into the boot splash bitmap embedded by internal/ui"
+set -euo pipefail
+
+go run ./cmd/logo 86.png internal/ui/logo.bin
