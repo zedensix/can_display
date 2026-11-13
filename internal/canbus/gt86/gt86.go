@@ -43,6 +43,7 @@ const IDThrottleRPM uint32 = 0x140
 //   - Battery voltage: not found on the factory bus in any Gen1/Gen2
 //     community reverse-engineering doc so far. Needs further
 //     reverse-engineering work. If you find it, add a decoder here.
+//     (The ELM327 source reads it from the dongle's own ATRV instead.)
 //
 // Ethanol percentage doesn't go through this package at all -- it's
 // read from a locally-wired analog sensor, not CAN. See

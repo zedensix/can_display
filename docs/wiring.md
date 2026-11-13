@@ -23,7 +23,34 @@ them. Pin numbers below are GPn, not physical pin numbers.
 
 No MISO connection is used, the display is write-only.
 
-## CAN: MCP2515 SPI CAN controller module
+## Car data, option A (default): ELM327 Bluetooth LE OBD dongle
+
+Selected by `source = sourceELM327BLE` in `cmd/firmware/main.go`.
+Nothing to wire: plug the dongle into the OBD port, the Pico W connects
+to it over BLE with its onboard radio. Tested to compile against a
+Vgate iCar Pro 2S, **not yet tested on the car**.
+
+- The dongle must speak **BLE**, not only Bluetooth Classic: TinyGo has
+  no Classic stack. A dongle that works with iPhones does BLE.
+- Only one client at a time. If your phone (Car Scanner...) is
+  connected to it, the Pico won't find it: turn the phone's Bluetooth
+  off.
+- What you get: RPM, coolant, AFR (standard OBD PIDs) and battery
+  voltage (the dongle's `ATRV`). **No oil temperature**: it isn't a
+  standard PID.
+- Slower than the CAN option: every value is a request/answer through
+  the dongle, a few refreshes per second at best.
+- On boot the firmware prints what it does on the USB serial console
+  (`tinygo monitor`): BLE candidates found, the dongle's GATT services.
+  If it doesn't find yours, set `elmBLEAddress`, or add its service to
+  `elmProfiles` in `cmd/firmware/elm_ble.go`.
+- Any error (dongle unplugged, car off) reboots the Pico, which then
+  scans again.
+
+## Car data, option B: MCP2515 SPI CAN controller module
+
+Selected by `source = sourceMCP2515`. Wired straight to the CAN bus:
+faster, and gets oil temperature, but needs the wiring below.
 
 | MCP2515 pin | Pico W pin | Notes |
 |---|---|---|

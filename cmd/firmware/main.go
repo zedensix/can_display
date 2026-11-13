@@ -1,9 +1,11 @@
 //go:build tinygo
 
 // Command firmware is the Raspberry Pi Pico W program: it reads the
-// GT86's CAN bus through an MCP2515 SPI controller, reads the flex-fuel
-// sensor through the RP2040's own ADC, and renders internal/ui's
-// dashboard to an ST7789 SPI display. It shares every package under internal/ with
+// GT86's data either through an ELM327 Bluetooth LE OBD dongle
+// (elm_ble.go) or straight off the CAN bus through an MCP2515 SPI
+// controller (see dataSource), reads the flex-fuel sensor through the
+// RP2040's own ADC, and renders internal/ui's dashboard to an ST7789
+// SPI display. It shares every package under internal/ with
 // cmd/simulator -- only this file and the pin wiring are specific to
 // real hardware.
 //
@@ -48,6 +50,24 @@ const (
 	ethanolPin = machine.ADC0
 )
 
+// dataSource picks where car data comes from.
+type dataSource int
+
+const (
+	// sourceELM327BLE talks to an ELM327 OBD dongle over Bluetooth LE.
+	// No wiring to the car beyond the dongle itself, but only standard
+	// OBD PIDs at a few Hz: RPM, coolant, AFR, battery voltage. No oil
+	// temperature. See elm_ble.go.
+	sourceELM327BLE dataSource = iota
+
+	// sourceMCP2515 listens to the CAN bus directly through an MCP2515
+	// wired to the OBD port. Faster, and gets oil temp from the
+	// broadcast frames. See docs/wiring.md.
+	sourceMCP2515
+)
+
+const source = sourceELM327BLE
+
 // adcVref is the RP2040 ADC reference (the 3.3V rail on a stock Pico W).
 // Tune it against a multimeter: the onboard reference is noisy and
 // typically reads a few tens of mV off.
@@ -69,13 +89,38 @@ const tickInterval = 100 * time.Millisecond
 
 func main() {
 	display := setupDisplay()
-	can := setupCAN()
 	ethanolADC := setupEthanolADC()
 
 	state := &signals.State{}
 	reg := canbus.NewRegistry()
 	gt86.Register(reg, state)
-	bus := mcp2515Bus{dev: can}
+
+	switch source {
+	case sourceELM327BLE:
+		gt86.RegisterOBD(reg, state)
+		// Connecting takes seconds (scan, connect, dongle reset), so it
+		// runs in the background: the dash draws "--" until data flows.
+		go runELM327BLE(reg, state)
+	case sourceMCP2515:
+		runMCP2515(reg)
+	}
+
+	dash := ui.Dashboard{Theme: ui.Dark, Tiles: ui.DefaultTiles()}
+	for {
+		updateEthanolPercent(ethanolADC, state)
+
+		snap := state.Snapshot()
+		if err := dash.Render(&display, snap); err != nil {
+			println("render error:", err.Error())
+		}
+		time.Sleep(tickInterval)
+	}
+}
+
+// runMCP2515 starts the direct CAN path: passive listening plus the
+// AFR OBD request, both through the MCP2515.
+func runMCP2515(reg *canbus.Registry) {
+	bus := mcp2515Bus{dev: setupCAN()}
 
 	// The CAN read loop runs forever in its own goroutine; the main
 	// goroutine polls the ADC and redraws on a timer.
@@ -96,17 +141,6 @@ func main() {
 			panic("AFR poll loop exited: " + err.Error())
 		}
 	}()
-
-	dash := ui.Dashboard{Theme: ui.Dark, Tiles: ui.DefaultTiles()}
-	for {
-		updateEthanolPercent(ethanolADC, state)
-
-		snap := state.Snapshot()
-		if err := dash.Render(&display, snap); err != nil {
-			println("render error:", err.Error())
-		}
-		time.Sleep(tickInterval)
-	}
 }
 
 // updateEthanolPercent reads the flex-fuel sensor through the ADC,
