@@ -7,15 +7,15 @@ DIY CAN bus gauge cluster for a 2015 Toyota GT86: TinyGo firmware for a Raspberr
 ## Commands
 
 ```sh
-make sim         # desktop simulator (ebiten window, fake data), no hardware needed
-make test        # go test ./... (all tests live in tests/)
-make vet         # go vet internal + simulator, then tinygo build-check of the firmware
-make firmware    # tinygo build -> bin/firmware.uf2 (TARGET defaults to pico-w)
-make flash       # tinygo flash; Pico must be in BOOTSEL mode
+mise run sim         # desktop simulator (ebiten window, fake data), no hardware needed
+mise run test        # go test ./... (all tests live in tests/)
+mise run vet         # go vet internal + simulator, then tinygo build-check of the firmware
+mise run firmware    # tinygo build -> bin/firmware.uf2 (TARGET defaults to pico-w)
+mise run flash       # tinygo flash; Pico must be in BOOTSEL mode
 go test ./tests/ -run TestDecodeRPM   # single test
 ```
 
-The firmware needs TinyGo 0.43+ (`brew tap tinygo-org/tools && brew install tinygo`); older releases reject this go.mod's Go version. Everything else is plain Go.
+Go and TinyGo are pinned in `mise.toml` (`mise install`). TinyGo must support the Go version in go.mod, so bump both together. Everything else is plain Go.
 
 ## Architecture
 

@@ -1,7 +1,7 @@
 # Reference wiring
 
 This matches the pin constants at the top of `cmd/firmware/main.go`.
-Change either the wiring or the constants if yours differs — they just
+Change either the wiring or the constants if yours differs: they just
 need to agree.
 
 Board target: `pico-w` (Raspberry Pi Pico W / WH). GPIO23, 24, 25 and
@@ -23,12 +23,38 @@ them. Pin numbers below are GPn, not physical pin numbers.
 
 No MISO connection is used, the display is write-only.
 
+## Power
+
+On the bench, USB is enough. In the car, the Pico W needs 5V from the
+car's 12V through a **12V to 5V buck converter**. Never wire 12V to the
+Pico: the car's electrical system has spikes far beyond what it takes.
+A USB car charger, or an automotive buck module rated 1A or more, does
+the job.
+
+| From | To | Notes |
+|---|---|---|
+| switched 12V (fuse tap on an ACC/ignition fuse) | buck IN+ | see below |
+| chassis ground | buck IN- | |
+| buck OUT+ (5V) | VSYS (physical pin 39) | accepts 1.8V to 5.5V |
+| buck OUT- | GND | |
+
+- **Take a switched 12V, not OBD pin 16.** Pin 16 is live with the car
+  off: the Pico would keep scanning for the dongle and drain the
+  battery overnight.
+- With the Pico on VSYS, **VBUS stays dead** unless USB is plugged in.
+  Anything needing 5V (the MCP2515 board, a 5V sensor) takes it from
+  the buck output, not from VBUS.
+- To plug in USB (flashing, `tinygo monitor`) while the car feeds VSYS,
+  put a Schottky diode in series between buck OUT+ and VSYS, so the two
+  supplies don't fight. Otherwise unplug one of them.
+
 ## Car data, option A (default): ELM327 Bluetooth LE OBD dongle
 
 Selected by `source = sourceELM327BLE` in `cmd/firmware/main.go`.
 Nothing to wire: plug the dongle into the OBD port, the Pico W connects
-to it over BLE with its onboard radio. Tested to compile against a
-Vgate iCar Pro 2S, **not yet tested on the car**.
+to it over BLE with its onboard radio. Written for a Vgate iCar Pro 2S;
+its BLE name and GATT services are **guesses**, and nothing has run on
+real hardware or on the car yet.
 
 - The dongle must speak **BLE**, not only Bluetooth Classic: TinyGo has
   no Classic stack. A dongle that works with iPhones does BLE.
@@ -41,8 +67,11 @@ Vgate iCar Pro 2S, **not yet tested on the car**.
 - Slower than the CAN option: every value is a request/answer through
   the dongle, a few refreshes per second at best.
 - On boot the firmware prints what it does on the USB serial console
-  (`tinygo monitor`): BLE candidates found, the dongle's GATT services.
-  If it doesn't find yours, set `elmBLEAddress`, or add its service to
+  (`tinygo monitor`): the BLE candidate it picked, the dongle's GATT
+  services. A dongle that matches no known name or service is skipped
+  **silently**, so if the scan never prints a candidate, read the
+  dongle's name, MAC and services with a phone BLE scanner (nRF
+  Connect), then set `elmBLEAddress` or add its service to
   `elmProfiles` in `cmd/firmware/elm_ble.go`.
 - Any error (dongle unplugged, car off) reboots the Pico, which then
   scans again.
@@ -59,9 +88,10 @@ faster, and gets oil temperature, but needs the wiring below.
 | SO (MISO) | GP12 | see the 5V warning below |
 | CS   | GP13 | |
 | INT  | *(unused)* | firmware polls instead of using the interrupt pin |
-| VCC  | VBUS (5V) | the TJA1050 transceiver on most boards needs 5V |
+| VCC  | 5V | the TJA1050 transceiver on most boards needs 5V: VBUS on USB, the buck output in the car (see Power) |
 | GND  | GND | |
-| CAN-H / CAN-L | car's OBD-II port, pins 6 and 14 | see below |
+| CAN-H | OBD-II pin 6 | |
+| CAN-L | OBD-II pin 14 | |
 
 **The RP2040 is not 5V tolerant.** On the common blue MCP2515 +
 TJA1050 board, powering it from 5V makes SO swing to 5V, straight into
@@ -70,11 +100,18 @@ usual mod: feed the MCP2515 chip itself from 3V3 and keep only the
 TJA1050 on 5V. The Pico's 3.3V outputs on SCK/SI/CS are read fine by a
 5V MCP2515.
 
+**Remove jumper J1** on that board. It adds a 120Ω termination
+resistor, but the car's bus is already terminated at both ends; a third
+one on the OBD stub drags the bus impedance down and causes errors.
+
 The firmware assumes a **16MHz crystal** on the MCP2515 board (the
-common default on cheap breakout boards) and **500kbps**, which matches
-the GT86's factory high-speed CAN bus. If your board uses an 8MHz
-crystal, change `mcp2515.Clock16MHz` to `mcp2515.Clock8MHz` in
-`setupCAN()`.
+common default on cheap breakout boards, but 8MHz ones exist: read the
+marking on the can-shaped crystal) and **500kbps**, which matches the
+GT86's factory high-speed CAN bus. For an 8MHz crystal, change
+`mcp2515.Clock16MHz` to `mcp2515.Clock8MHz` in `setupCAN()`.
+
+Ground the board only through the Pico's ground, which goes to the car
+chassis via the buck converter. Never to anything else.
 
 ## Ethanol content: analog flex-fuel sensor, via the Pico ADC
 
@@ -108,18 +145,3 @@ assumed 0.5V=0%/4.5V=100%), the two things to change are the divider
 resistor values (`sensors.EthanolDivider`) and the sensor curve
 (`sensors.EthanolPercent`), both isolated in `internal/sensors` with
 their own unit tests in `tests/`.
-
-## Connecting to the car
-
-The GT86/BRZ/FR-S OBD-II port carries CAN H/L on the standard pins:
-
-- Pin 6: CAN H
-- Pin 14: CAN L
-
-Do **not** connect the MCP2515's ground to anything other than a real
-chassis/OBD ground, and don't power the Pico W from the car's 12V rail
-without a proper automotive-grade buck converter (a car's electrical
-system has voltage spikes well outside what a USB power path is rated
-for). A cheap USB car charger or a dedicated 12V→5V buck module is the
-easy, safe option for prototyping on the bench before it goes anywhere
-near the dash.

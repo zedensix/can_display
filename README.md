@@ -14,16 +14,15 @@ fake generator) differ between the two.
 ## Quick start
 
 ```sh
-make sim        # opens a desktop window with the live dashboard, fake data
-make vet         # go vet the shared/simulator code + tinygo-build-check the firmware
-make test        # unit tests for the hardware-agnostic packages
-make firmware    # cross-compile firmware to bin/firmware.uf2 (needs tinygo)
-make flash       # build + flash onto a Pico W held in BOOTSEL (needs tinygo)
+mise run sim         # opens a desktop window with the live dashboard, fake data
+mise run vet         # go vet the shared/simulator code + tinygo-build-check the firmware
+mise run test        # unit tests for the hardware-agnostic packages
+mise run firmware    # cross-compile firmware to bin/firmware.uf2
+mise run flash       # build + flash onto a Pico W held in BOOTSEL
 ```
 
-Requires [Go](https://go.dev) and, for the firmware targets,
-[TinyGo](https://tinygo.org) (`brew tap tinygo-org/tools && brew install
-tinygo` on macOS).
+Go and [TinyGo](https://tinygo.org) are pinned in `mise.toml`: run
+`mise install` once.
 
 ## Hardware this targets
 

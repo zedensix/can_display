@@ -11,7 +11,7 @@
 //
 // Build with TinyGo, not `go build` (this file needs the `machine`
 // package, which only exists under the TinyGo compiler). See the
-// Makefile for the exact command.
+// firmware task in .mise/tasks for the exact command.
 package main
 
 import (

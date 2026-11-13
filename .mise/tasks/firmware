@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Cross-compile the firmware to bin/firmware.uf2 (TARGET defaults to pico-w)"
+set -euo pipefail
+
+tinygo build -target "${TARGET:-pico-w}" -o bin/firmware.uf2 ./cmd/firmware
