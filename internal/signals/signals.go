@@ -39,6 +39,8 @@ type State struct {
 	afr            Reading
 	ethanolPercent Reading
 	rpm            Reading
+
+	status string
 }
 
 // Snapshot is a point-in-time copy of State, safe to read without a lock.
@@ -49,7 +51,10 @@ type Snapshot struct {
 	AFR            Reading
 	EthanolPercent Reading
 	RPM            Reading
-	At             time.Time
+	// Status is a short report from the data source while it isn't
+	// delivering data (connecting, failed...). Empty once it runs.
+	Status string
+	At     time.Time
 }
 
 // Snapshot copies out the current readings.
@@ -63,6 +68,7 @@ func (s *State) Snapshot() Snapshot {
 		AFR:            s.afr,
 		EthanolPercent: s.ethanolPercent,
 		RPM:            s.rpm,
+		Status:         s.status,
 		At:             time.Now(),
 	}
 }
@@ -73,6 +79,13 @@ func (s *State) SetBatteryVoltage(v float32, at time.Time) { s.set(&s.batteryVol
 func (s *State) SetAFR(v float32, at time.Time)            { s.set(&s.afr, v, at) }
 func (s *State) SetEthanolPercent(v float32, at time.Time) { s.set(&s.ethanolPercent, v, at) }
 func (s *State) SetRPM(v float32, at time.Time)            { s.set(&s.rpm, v, at) }
+
+// SetStatus replaces Snapshot.Status. Lines are separated by "\n".
+func (s *State) SetStatus(status string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.status = status
+}
 
 func (s *State) set(field *Reading, v float32, at time.Time) {
 	s.mu.Lock()

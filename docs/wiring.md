@@ -12,16 +12,16 @@ them. Pin numbers below are GPn, not physical pin numbers.
 
 | Display pin | Pico W pin | Notes |
 |---|---|---|
-| SCK  | GP18 | SPI0 clock |
-| SDA/MOSI | GP19 | SPI0 data out |
-| CS   | GP17 | |
-| DC   | GP20 | |
-| RES/RST | GP21 | |
-| BLK  | GP22 | backlight; driven high in software |
-| VCC  | 3V3(OUT) | most of these panels are 3.3V logic *and* power, double check yours |
-| GND  | GND | |
+| SCL | GP18 | SPI0 clock (SCK), despite the I2C-style name |
+| SDA | GP19 | SPI0 data out (MOSI), despite the I2C-style name |
+| CS | GP17 | |
+| DC | GP20 | |
+| RES | GP21 | |
+| BL | GP22 | backlight; driven high in software |
+| VDD | 3V3(OUT) | most of these panels are 3.3V logic *and* power, double check yours |
+| GND | GND | |
 
-No MISO connection is used, the display is write-only.
+It's SPI, not I2C: no MISO, the display is write-only.
 
 ## Power
 
@@ -66,15 +66,18 @@ real hardware or on the car yet.
   standard PID.
 - Slower than the CAN option: every value is a request/answer through
   the dongle, a few refreshes per second at best.
-- On boot the firmware prints what it does on the USB serial console
-  (`tinygo monitor`): the BLE candidate it picked, the dongle's GATT
-  services. A dongle that matches no known name or service is skipped
-  **silently**, so if the scan never prints a candidate, read the
-  dongle's name, MAC and services with a phone BLE scanner (nRF
-  Connect), then set `elmBLEAddress` or add its service to
-  `elmProfiles` in `cmd/firmware/elm_ble.go`.
-- Any error (dongle unplugged, car off) reboots the Pico, which then
-  scans again.
+- No pairing: these dongles take any BLE client without a PIN. The
+  Pico connects to the first device that looks like one; set
+  `elmBLEAddress` in `cmd/firmware/elm_ble.go` to lock it to yours.
+- Until data flows, the panel shows a status screen: scanning (with
+  the last device it ignored), connecting to (name and MAC), reading
+  services, init. The USB serial console (`tinygo monitor`) also lists
+  the dongle's GATT services.
+- If the scan never stops on your dongle, its name and services match
+  nothing known: read them with a phone BLE scanner (nRF Connect), then
+  set `elmBLEAddress` or add its service to `elmProfiles`.
+- Any error (dongle unplugged, car off) shows on the panel for 5s, then
+  reboots the Pico, which scans again.
 
 ## Car data, option B: MCP2515 SPI CAN controller module
 

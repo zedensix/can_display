@@ -23,6 +23,9 @@ type fakeELM struct {
 	answers map[string]string
 	got     []string
 	pending string
+	// drop is how many commands to leave unanswered before answering,
+	// like a BLE notification lost on the way back.
+	drop int
 }
 
 func newFakeELM(answers map[string]string) (*fakeELM, *elm327.Client) {
@@ -49,6 +52,15 @@ func (f *fakeELM) Write(p []byte) (int, error) {
 	f.mu.Unlock()
 
 	for _, cmd := range cmds {
+		f.mu.Lock()
+		dropped := f.drop > 0
+		if dropped {
+			f.drop--
+		}
+		f.mu.Unlock()
+		if dropped {
+			continue
+		}
 		ans, ok := f.answers[cmd]
 		if !ok {
 			ans = "?"
@@ -102,9 +114,27 @@ func TestELMInitFailsOnRejectedSetup(t *testing.T) {
 }
 
 func TestELMTimeout(t *testing.T) {
-	_, client := newFakeELM(map[string]string{"ATZ": "<silence>"})
+	fake, client := newFakeELM(map[string]string{"ATZ": "<silence>"})
 	if err := client.Init(); !errors.Is(err, elm327.ErrTimeout) {
 		t.Fatalf("Init err = %v, want ErrTimeout", err)
+	}
+	if got, want := len(fake.commands()), 1+client.Retries; got != want {
+		t.Errorf("ATZ sent %d times, want %d (first try + retries)", got, want)
+	}
+}
+
+func TestELMRetriesAfterLostAnswer(t *testing.T) {
+	fake, client := newFakeELM(map[string]string{"ATRV": "12.6V"})
+	fake.drop = 1
+	v, err := client.Voltage()
+	if err != nil {
+		t.Fatalf("Voltage err = %v, want the retry to succeed", err)
+	}
+	if v != 12.6 {
+		t.Errorf("Voltage = %v, want 12.6", v)
+	}
+	if got := fake.commands(); len(got) != 2 {
+		t.Errorf("commands = %q, want ATRV sent twice", got)
 	}
 }
 

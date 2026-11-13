@@ -1,5 +1,39 @@
 #!/usr/bin/env bash
-#MISE description="Build and flash the firmware onto a Pico W held in BOOTSEL (optional PORT)"
+#MISE description="Build and flash the firmware onto the Pico W, step by step (optional TAGS, PORT)"
 set -euo pipefail
 
-tinygo flash -target "${TARGET:-pico-w}" ${PORT:+-port "$PORT"} ./cmd/firmware
+volume=/Volumes/RPI-RP2
+target="${TARGET:-pico-w}"
+
+echo "[1/4] building firmware for $target${TAGS:+ with tags $TAGS}..."
+tinygo build -target "$target" ${TAGS:+-tags "$TAGS"} -size short -o bin/firmware.uf2 ./cmd/firmware
+echo "      built in ${SECONDS}s"
+
+echo "[2/4] waiting for the Pico in BOOTSEL ($volume)..."
+if [ ! -d "$volume" ]; then
+  port="${PORT:-$( (ls /dev/cu.usbmodem* 2>/dev/null || true) | head -1)}"
+  if [ -n "$port" ]; then
+    echo "      asking the firmware running on $port to reboot into BOOTSEL"
+    stty -f "$port" 1200 || echo "      couldn't open $port: close tinygo monitor, or hold BOOTSEL while replugging"
+  else
+    echo "      no running Pico found: hold BOOTSEL while plugging it in"
+  fi
+fi
+for _ in $(seq 60); do
+  [ -d "$volume" ] && break
+  sleep 1
+done
+[ -d "$volume" ] || { echo "      no $volume after 60s, giving up"; exit 1; }
+
+echo "[3/4] copying $(du -h bin/firmware.uf2 | cut -f1 | tr -d ' ') to the Pico..."
+# The Pico reboots as soon as it has the whole file, which can make cp
+# report an I/O error on close: the volume going away is the real check.
+cp -X bin/firmware.uf2 "$volume/" || true
+
+echo "[4/4] waiting for the Pico to reboot..."
+for _ in $(seq 15); do
+  [ -d "$volume" ] || { echo "done in ${SECONDS}s"; exit 0; }
+  sleep 1
+done
+echo "      $volume is still mounted: the Pico rejected the file"
+exit 1

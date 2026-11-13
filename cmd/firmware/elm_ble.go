@@ -53,15 +53,17 @@ const batteryPollInterval = time.Second
 // the Pico, which is the simplest reliable reconnect: the whole thing
 // starts over from the scan.
 func runELM327BLE(reg *canbus.Registry, state *signals.State) {
-	client, err := connectELMBLE()
+	client, err := connectELMBLE(state)
 	if err != nil {
-		rebootAfter("BLE connect: " + err.Error())
+		rebootAfter(state, "BLE connect", err)
 	}
 	println("elm327: resetting dongle")
+	state.SetStatus(statusTitle + "init ELM327...")
 	if err := client.Init(); err != nil {
-		rebootAfter("ELM327 init: " + err.Error())
+		rebootAfter(state, "ELM327 init", err)
 	}
 	println("elm327: ready")
+	state.SetStatus("")
 
 	bus := elm327.NewBus(client)
 	go func() {
@@ -77,24 +79,30 @@ func runELM327BLE(reg *canbus.Registry, state *signals.State) {
 		}
 	}()
 	if err := gt86.OBDPoller(bus).Run(); err != nil {
-		rebootAfter("OBD poll: " + err.Error())
+		rebootAfter(state, "OBD poll", err)
 	}
 }
 
 // connectELMBLE scans until it finds the dongle, connects, finds its
 // serial-port characteristics and returns a Client wired to them.
-func connectELMBLE() (*elm327.Client, error) {
+func connectELMBLE(state *signals.State) (*elm327.Client, error) {
+	state.SetStatus(statusTitle + "starting Bluetooth...")
 	adapter := bluetooth.DefaultAdapter
 	if err := adapter.Enable(); err != nil {
 		return nil, err
 	}
 
 	println("ble: scanning for the OBD dongle (phone's Bluetooth must be off or disconnected from it)")
+	state.SetStatus(statusTitle + "scanning...")
 	var found bluetooth.ScanResult
 	var done bool
 	err := adapter.Scan(func(a *bluetooth.Adapter, r bluetooth.ScanResult) {
 		// Results already queued can still arrive after StopScan.
-		if done || !looksLikeELM(r) {
+		if done {
+			return
+		}
+		if !looksLikeELM(r) {
+			state.SetStatus(statusTitle + "scanning...\nlast ignored:\n" + deviceName(r))
 			return
 		}
 		println("ble: candidate", r.Address.String(), r.LocalName(), r.RSSI)
@@ -106,11 +114,13 @@ func connectELMBLE() (*elm327.Client, error) {
 	}
 
 	println("ble: connecting to", found.Address.String())
+	state.SetStatus(statusTitle + "connecting to\n" + deviceName(found))
 	dev, err := adapter.Connect(found.Address, bluetooth.ConnectionParams{})
 	if err != nil {
 		return nil, err
 	}
 
+	state.SetStatus(statusTitle + "reading services of\n" + deviceName(found))
 	notify, write, err := findELMCharacteristics(dev)
 	if err != nil {
 		return nil, err
@@ -121,6 +131,16 @@ func connectELMBLE() (*elm327.Client, error) {
 		return nil, err
 	}
 	return client, nil
+}
+
+// statusTitle heads every status screen of this source.
+const statusTitle = "OBD DONGLE\n"
+
+func deviceName(r bluetooth.ScanResult) string {
+	if r.LocalName() == "" {
+		return r.Address.String()
+	}
+	return r.LocalName() + "\n" + r.Address.String()
 }
 
 func looksLikeELM(r bluetooth.ScanResult) bool {
@@ -200,11 +220,11 @@ func (w bleWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// rebootAfter logs why and resets the RP2040 after a short pause (long
-// enough to read the message on the serial console, short enough not to
-// leave the dash dead for long).
-func rebootAfter(reason string) {
-	println("fatal:", reason, "-- rebooting")
-	time.Sleep(3 * time.Second)
+// rebootAfter shows why on the panel and the serial console, then resets
+// the RP2040 after a pause long enough to read it.
+func rebootAfter(state *signals.State, step string, err error) {
+	println("fatal:", step+":", err.Error(), "-- rebooting")
+	state.SetStatus(statusTitle + step + " failed:\n" + err.Error() + "\nrebooting...")
+	time.Sleep(5 * time.Second)
 	arm.SystemReset()
 }

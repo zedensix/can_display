@@ -45,6 +45,11 @@ const (
 	// DefaultResetTimeout is longer: ATZ reboots the dongle's firmware.
 	DefaultResetTimeout = 5 * time.Second
 
+	// DefaultRetries is how many times a command is resent after a
+	// timeout. Over BLE a notification gets lost now and then: resending
+	// is much cheaper than dropping the link.
+	DefaultRetries = 2
+
 	rxBuffer = 1024
 )
 
@@ -60,6 +65,10 @@ type Client struct {
 
 	// ResetTimeout is how long Init waits for ATZ to finish.
 	ResetTimeout time.Duration
+
+	// Retries is how many times a command is resent after ErrTimeout
+	// before giving up.
+	Retries int
 
 	// SingleResponse appends the ELM's "expect 1 reply" digit to OBD
 	// requests ("010C1" instead of "010C"), so it returns as soon as the
@@ -80,6 +89,7 @@ func NewClient(w io.Writer) *Client {
 		rx:             make(chan byte, rxBuffer),
 		Timeout:        DefaultTimeout,
 		ResetTimeout:   DefaultResetTimeout,
+		Retries:        DefaultRetries,
 		SingleResponse: true,
 	}
 }
@@ -208,11 +218,18 @@ func (c *Client) expectOK(cmd string) error {
 }
 
 func (c *Client) command(cmd string, timeout time.Duration) ([]string, error) {
-	c.drain()
-	if _, err := io.WriteString(c.w, cmd+"\r"); err != nil {
-		return nil, err
+	var raw string
+	var err error
+	for attempt := 0; attempt <= c.Retries; attempt++ {
+		c.drain()
+		if _, err := io.WriteString(c.w, cmd+"\r"); err != nil {
+			return nil, err
+		}
+		raw, err = c.readUntilPrompt(timeout)
+		if !errors.Is(err, ErrTimeout) {
+			break
+		}
 	}
-	raw, err := c.readUntilPrompt(timeout)
 	if err != nil {
 		return nil, err
 	}

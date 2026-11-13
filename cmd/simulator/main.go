@@ -61,6 +61,7 @@ type game struct {
 	gen       *sim.Generator
 	state     *signals.State
 	dash      ui.Dashboard
+	start     time.Time
 }
 
 func (g *game) Update() error {
@@ -69,8 +70,11 @@ func (g *game) Update() error {
 }
 
 func (g *game) Draw(screen *ebiten.Image) {
-	snap := g.state.Snapshot()
-	if err := g.dash.Render(g.fb, snap); err != nil {
+	running, err := g.dash.RenderBoot(g.fb, time.Since(g.start))
+	if !running {
+		err = g.dash.Render(g.fb, g.state.Snapshot())
+	}
+	if err != nil {
 		log.Println("render:", err)
 		return
 	}
@@ -105,6 +109,7 @@ func main() {
 			Theme: ui.Dark,
 			Tiles: ui.DefaultTiles(),
 		},
+		start: time.Now(),
 	}
 
 	ebiten.SetWindowSize(panelWidth*windowScale, panelHeight*windowScale)

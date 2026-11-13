@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"math"
+	"time"
+
 	"zedensix/can_display/internal/display"
 	"zedensix/can_display/internal/signals"
 )
@@ -76,11 +79,45 @@ type Dashboard struct {
 const gridGap = 3
 
 // Render lays the tiles out in a grid sized to d and draws every one
-// against snap, then flushes the frame.
+// against snap, then flushes the frame. While snap.Status is set, it
+// draws the status screen instead.
 func (dash Dashboard) Render(d display.Display, snap signals.Snapshot) error {
 	w, h := d.Size()
 	fillRect(d, Rect{X: 0, Y: 0, W: w, H: h}, dash.Theme.Background)
 
+	if snap.Status != "" {
+		drawStatus(d, dash.Theme, snap.Status, snap.At)
+		return d.Display()
+	}
+
+	dash.drawTiles(d, snap.At, func(t DashTile) signals.Reading { return t.Value(snap) })
+	return d.Display()
+}
+
+// BootDuration is how long RenderBoot's animation lasts.
+const BootDuration = 2 * time.Second
+
+// RenderBoot draws the boot animation, elapsed into it: every gauge
+// sweeps up to its max and back down, like a car cluster's self-test at
+// ignition. It reports false, without drawing, once BootDuration is over.
+func (dash Dashboard) RenderBoot(d display.Display, elapsed time.Duration) (bool, error) {
+	if elapsed >= BootDuration {
+		return false, nil
+	}
+	sweep := float32(math.Sin(math.Pi * float64(elapsed) / float64(BootDuration)))
+	now := time.Now()
+
+	w, h := d.Size()
+	fillRect(d, Rect{X: 0, Y: 0, W: w, H: h}, dash.Theme.Background)
+	dash.drawTiles(d, now, func(t DashTile) signals.Reading {
+		value := t.Range.Min + sweep*(t.Range.Max-t.Range.Min)
+		return signals.Reading{Value: value, Valid: true, UpdatedAt: now}
+	})
+	return true, d.Display()
+}
+
+func (dash Dashboard) drawTiles(d display.Display, now time.Time, reading func(DashTile) signals.Reading) {
+	w, h := d.Size()
 	const cols = 2
 	rows := (int16(len(dash.Tiles)) + cols - 1) / cols
 
@@ -96,7 +133,6 @@ func (dash Dashboard) Render(d display.Display, snap signals.Snapshot) error {
 			W: cellW - 2*gridGap,
 			H: cellH - 2*gridGap,
 		}
-		t.Draw(d, dash.Theme, rect, t.Value(snap), snap.At)
+		t.Draw(d, dash.Theme, rect, reading(t), now)
 	}
-	return d.Display()
 }

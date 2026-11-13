@@ -25,6 +25,7 @@ import (
 	"zedensix/can_display/internal/canbus/gt86"
 	"zedensix/can_display/internal/sensors"
 	"zedensix/can_display/internal/signals"
+	"zedensix/can_display/internal/sim"
 	"zedensix/can_display/internal/ui"
 )
 
@@ -68,6 +69,11 @@ const (
 
 const source = sourceELM327BLE
 
+// simulate replaces source with internal/sim's fake data, to check the
+// display and the UI on the real panel without a car. Set by the `sim`
+// build tag (sim.go).
+var simulate bool
+
 // adcVref is the RP2040 ADC reference (the 3.3V rail on a stock Pico W).
 // Tune it against a multimeter: the onboard reference is noisy and
 // typically reads a few tens of mV off.
@@ -88,29 +94,54 @@ const (
 const tickInterval = 100 * time.Millisecond
 
 func main() {
-	display := setupDisplay()
+	panel := setupDisplay()
+	frame := newFrameBuffer(&panel)
 	ethanolADC := setupEthanolADC()
 
 	state := &signals.State{}
 	reg := canbus.NewRegistry()
 	gt86.Register(reg, state)
 
-	switch source {
-	case sourceELM327BLE:
+	var generator *sim.Generator
+	switch {
+	case simulate:
+		generator = sim.NewGenerator()
+		generator.EnableAFR = true
+		generator.EnableEthanol = true
+		generator.EnableBattery = true
+	case source == sourceELM327BLE:
 		gt86.RegisterOBD(reg, state)
 		// Connecting takes seconds (scan, connect, dongle reset), so it
 		// runs in the background: the dash draws "--" until data flows.
 		go runELM327BLE(reg, state)
-	case sourceMCP2515:
+	case source == sourceMCP2515:
 		runMCP2515(reg)
 	}
 
 	dash := ui.Dashboard{Theme: ui.Dark, Tiles: ui.DefaultTiles()}
+	boot := time.Now()
 	for {
-		updateEthanolPercent(ethanolADC, state)
+		running, err := dash.RenderBoot(frame, time.Since(boot))
+		if !running {
+			break
+		}
+		if err != nil {
+			println("render error:", err.Error())
+		}
+		// Lets the data source goroutine run meanwhile: the scan starts
+		// during the animation, not after it.
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	for {
+		if generator != nil {
+			generator.Tick(state, time.Now())
+		} else {
+			updateEthanolPercent(ethanolADC, state)
+		}
 
 		snap := state.Snapshot()
-		if err := dash.Render(&display, snap); err != nil {
+		if err := dash.Render(frame, snap); err != nil {
 			println("render error:", err.Error())
 		}
 		time.Sleep(tickInterval)
