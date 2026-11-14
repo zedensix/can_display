@@ -22,6 +22,7 @@ mise run test        # unit tests for the hardware-agnostic packages
 mise run firmware    # cross-compile firmware to bin/firmware.uf2
 mise run flash       # build + flash, step by step; reboots a running Pico into BOOTSEL itself
 mise run flash-sim   # same, with fake data instead of the car, to test the display
+mise run logs        # read the log the Pico kept in flash (boots, BLE steps, errors)
 ```
 
 Go and [TinyGo](https://tinygo.org) are pinned in `mise.toml`: run

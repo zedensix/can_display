@@ -9,20 +9,41 @@ import (
 	"tinygo.org/x/drivers/st7789"
 )
 
-// frameBuffer draws in RAM and sends the whole frame in one SPI burst on
+// frameBands is how many horizontal bands a frame is drawn in. A whole
+// 240x320 frame is 153.6KB of the RP2040's 264KB: with the BLE stack and
+// its 8KB goroutine stacks on top, the heap runs out while connecting.
+// Two bands halve that.
+const frameBands = 2
+
+// frameBuffer draws in RAM and sends each band in one SPI burst on
 // Display. The ST7789 driver has no buffer: drawing on it directly costs
 // several SPI commands per pixel, and the redraw visibly sweeps the panel.
+// It holds one band of rows at a time, so a frame is drawn once per band
+// (see draw), and pixels outside the current band are dropped.
 type frameBuffer struct {
-	panel         *st7789.Device
-	image         pixel.Image[pixel.RGB565BE]
-	raw           []byte
-	width, height int16
+	panel           *st7789.Device
+	image           pixel.Image[pixel.RGB565BE]
+	raw             []byte
+	width, height   int16
+	top, bandHeight int16
 }
 
 func newFrameBuffer(panel *st7789.Device) *frameBuffer {
 	width, height := panel.Size()
-	image := pixel.NewImage[pixel.RGB565BE](int(width), int(height))
-	return &frameBuffer{panel: panel, image: image, raw: image.RawBuffer(), width: width, height: height}
+	bandHeight := height / frameBands
+	image := pixel.NewImage[pixel.RGB565BE](int(width), int(bandHeight))
+	return &frameBuffer{panel: panel, image: image, raw: image.RawBuffer(), width: width, height: height, bandHeight: bandHeight}
+}
+
+// draw runs render once per band. render must end with Display, which
+// pushes that band to the panel.
+func (f *frameBuffer) draw(render func() error) error {
+	for f.top = 0; f.top < f.height; f.top += f.bandHeight {
+		if err := render(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (f *frameBuffer) Size() (int16, int16) {
@@ -30,7 +51,8 @@ func (f *frameBuffer) Size() (int16, int16) {
 }
 
 func (f *frameBuffer) SetPixel(x, y int16, c color.RGBA) {
-	if x < 0 || y < 0 || x >= f.width || y >= f.height {
+	y -= f.top
+	if x < 0 || y < 0 || x >= f.width || y >= f.bandHeight {
 		return
 	}
 	high, low := rgb565(c)
@@ -41,8 +63,8 @@ func (f *frameBuffer) SetPixel(x, y int16, c color.RGBA) {
 // FillRectangle is the fast path internal/ui takes for solid areas: it
 // paints the first row, then copies it down.
 func (f *frameBuffer) FillRectangle(x, y, width, height int16, c color.RGBA) error {
-	x0, y0 := max(x, 0), max(y, 0)
-	x1, y1 := min(x+width, f.width), min(y+height, f.height)
+	x0, y0 := max(x, 0), max(y, f.top)-f.top
+	x1, y1 := min(x+width, f.width), min(y+height, f.top+f.bandHeight)-f.top
 	if x0 >= x1 || y0 >= y1 {
 		return nil
 	}
@@ -61,7 +83,7 @@ func (f *frameBuffer) FillRectangle(x, y, width, height int16, c color.RGBA) err
 }
 
 func (f *frameBuffer) Display() error {
-	return f.panel.DrawBitmap(0, 0, f.image)
+	return f.panel.DrawBitmap(0, f.top, f.image)
 }
 
 // rgb565 packs c the way the panel reads it: 5 bits red, 6 green, 5

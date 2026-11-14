@@ -5,6 +5,7 @@ package main
 import (
 	"device/arm"
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -57,12 +58,12 @@ func runELM327BLE(reg *canbus.Registry, state *signals.State) {
 	if err != nil {
 		rebootAfter(state, "BLE connect", err)
 	}
-	println("elm327: resetting dongle")
+	logLine("elm327: resetting dongle")
 	state.SetStatus(statusTitle + "init ELM327...")
 	if err := client.Init(); err != nil {
 		rebootAfter(state, "ELM327 init", err)
 	}
-	println("elm327: ready")
+	logLine("elm327: ready")
 	state.SetStatus("")
 
 	bus := elm327.NewBus(client)
@@ -92,7 +93,7 @@ func connectELMBLE(state *signals.State) (*elm327.Client, error) {
 		return nil, err
 	}
 
-	println("ble: scanning for the OBD dongle (phone's Bluetooth must be off or disconnected from it)")
+	logLine("ble: scanning for the OBD dongle (phone's Bluetooth must be off or disconnected from it)")
 	state.SetStatus(statusTitle + "scanning...")
 	var found bluetooth.ScanResult
 	var done bool
@@ -105,7 +106,7 @@ func connectELMBLE(state *signals.State) (*elm327.Client, error) {
 			state.SetStatus(statusTitle + "scanning...\nlast ignored:\n" + deviceName(r))
 			return
 		}
-		println("ble: candidate", r.Address.String(), r.LocalName(), r.RSSI)
+		logLine("ble: candidate " + r.Address.String() + " " + r.LocalName() + " RSSI " + strconv.Itoa(int(r.RSSI)))
 		found, done = r, true
 		a.StopScan()
 	})
@@ -113,7 +114,7 @@ func connectELMBLE(state *signals.State) (*elm327.Client, error) {
 		return nil, err
 	}
 
-	println("ble: connecting to", found.Address.String())
+	logLine("ble: connecting to " + found.Address.String())
 	state.SetStatus(statusTitle + "connecting to\n" + deviceName(found))
 	dev, err := adapter.Connect(found.Address, bluetooth.ConnectionParams{})
 	if err != nil {
@@ -172,13 +173,13 @@ func findELMCharacteristics(dev bluetooth.Device) (notify, write bluetooth.Devic
 		return notify, write, err
 	}
 	for _, s := range services {
-		println("ble: service", s.UUID().String())
+		logLine("ble: service " + s.UUID().String())
 		chars, err := s.DiscoverCharacteristics(nil)
 		if err != nil {
 			continue
 		}
 		for _, c := range chars {
-			println("ble:   characteristic", c.UUID().String())
+			logLine("ble:   characteristic " + c.UUID().String())
 		}
 		for _, p := range elmProfiles {
 			if s.UUID() != p.service {
@@ -228,11 +229,11 @@ func (w bleWriter) Write(p []byte) (int, error) {
 // rebootAfter shows why on the panel and the serial console, then resets
 // the RP2040 after a pause long enough to read it.
 func rebootAfter(state *signals.State, step string, err error) {
-	println("fatal:", step+":", err.Error(), "-- rebooting")
+	logLine("fatal: " + step + ": " + err.Error() + " -- rebooting")
 	state.SetStatus(statusTitle + step + " failed:\n" + err.Error() + "\nrebooting...")
 	if dongle != nil {
 		if err := dongle.Disconnect(); err != nil {
-			println("ble: disconnect:", err.Error())
+			logLine("ble: disconnect: " + err.Error())
 		}
 	}
 	time.Sleep(5 * time.Second)

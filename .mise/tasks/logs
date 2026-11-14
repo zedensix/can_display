@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+#MISE description="Print the log the firmware keeps in flash, from the Pico on USB (optional PORT)"
+set -euo pipefail
+
+port="${PORT:-$( (ls /dev/cu.usbmodem* 2>/dev/null || true) | head -1)}"
+[ -n "$port" ] || { echo "no Pico on USB"; exit 1; }
+
+# Keep the port open while setting it up: macOS resets its settings on
+# close. Never 1200 baud, that reboots the Pico into BOOTSEL.
+exec 3<>"$port"
+stty -f "$port" 115200 raw -echo
+printf l >&3
+
+printing=false
+while IFS= read -r -t 5 line <&3; do
+  line="${line%$'\r'}"
+  case "$line" in
+    "--- flash log ---") printing=true ;;
+    "--- end of log ---") exit 0 ;;
+    *) [ "$printing" = true ] && echo "$line" ;;
+  esac
+done
+echo "no answer from $port after 5s: is the firmware running, and tinygo monitor closed?"
+exit 1

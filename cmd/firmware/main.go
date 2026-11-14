@@ -94,8 +94,11 @@ const (
 const tickInterval = 50 * time.Millisecond
 
 func main() {
+	openLog()
 	if rp.WATCHDOG.REASON.HasBits(rp.WATCHDOG_REASON_TIMER) {
-		println("boot: the watchdog reset the board, the previous run froze")
+		logLine("boot: the watchdog reset the board, the previous run froze")
+	} else {
+		logLine("boot")
 	}
 	// A panic or a stuck goroutine freezes TinyGo instead of rebooting;
 	// the watchdog turns any freeze into a reset.
@@ -130,10 +133,14 @@ func main() {
 	boot := time.Now()
 	for {
 		machine.Watchdog.Update()
-		running, err := dash.RenderBoot(frame, time.Since(boot))
-		if !running {
+		elapsed := time.Since(boot)
+		if elapsed >= ui.BootDuration {
 			break
 		}
+		err := frame.draw(func() error {
+			_, err := dash.RenderBoot(frame, elapsed)
+			return err
+		})
 		if err != nil {
 			println("render error:", err.Error())
 		}
@@ -145,6 +152,7 @@ func main() {
 	for {
 		frameStart := time.Now()
 		machine.Watchdog.Update()
+		serveLog()
 		if generator != nil {
 			generator.Tick(state, time.Now())
 		} else {
@@ -152,7 +160,7 @@ func main() {
 		}
 
 		snap := state.Snapshot()
-		if err := dash.Render(frame, snap); err != nil {
+		if err := frame.draw(func() error { return dash.Render(frame, snap) }); err != nil {
 			println("render error:", err.Error())
 		}
 		time.Sleep(tickInterval - time.Since(frameStart))
