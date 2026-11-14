@@ -50,6 +50,9 @@ typedef struct {
 // retune gauges there.
 extern const tile_t ui_tiles[];
 extern const int ui_tile_count;
+// ui_view_count is how many views the encoder cycles through past the
+// grid: each tile alone, then the lap timer (one turn back from the grid).
+extern const int ui_view_count;
 
 
 // ui_render draws the frame for screen into c: the settings page, the

@@ -13,11 +13,17 @@
 #define LOG_SIZE (64 * 1024)
 #define LOG_OFFSET (PICO_FLASH_SIZE_BYTES - BTSTACK_SIZE - LOG_SIZE)
 #define SETTINGS_OFFSET (LOG_OFFSET - FLASH_SECTOR_SIZE)
+// The data log takes everything from the first megabyte up: the
+// firmware is about half of that.
+#define DATALOG_OFFSET (1024 * 1024)
+#define DATALOG_SIZE (SETTINGS_OFFSET - DATALOG_OFFSET)
 
 extern char __flash_binary_end;
 
 static flashlog_t flash_log;
 static bool log_ready;
+static datalog_t data_log;
+static bool datalog_ready;
 
 typedef struct {
     uint32_t offset;
@@ -58,6 +64,19 @@ static void log_erase(void *ctx, uint32_t offset) {
     erase_sector(LOG_OFFSET + offset);
 }
 
+// The data log's region, its offsets as the log's: ctx is its base.
+static void region_read(void *ctx, uint32_t offset, uint8_t *out, size_t len) {
+    memcpy(out, (const void *)(XIP_BASE + (uintptr_t)ctx + offset), len);
+}
+
+static void region_program(void *ctx, uint32_t offset, const uint8_t page[FLASHLOG_PAGE]) {
+    program_page((uint32_t)(uintptr_t)ctx + offset, page);
+}
+
+static void region_erase(void *ctx, uint32_t offset) {
+    erase_sector((uint32_t)(uintptr_t)ctx + offset);
+}
+
 void store_init(void) {
     // Never erase over the program: the settings sector is the lowest one.
     if ((uintptr_t)&__flash_binary_end - XIP_BASE > SETTINGS_OFFSET) {
@@ -66,6 +85,17 @@ void store_init(void) {
     }
     flash_dev_t dev = {NULL, LOG_SIZE, log_read, log_program, log_erase};
     log_ready = flashlog_open(&flash_log, dev);
+    if ((uintptr_t)&__flash_binary_end - XIP_BASE > DATALOG_OFFSET) {
+        log_line("store: the firmware reaches the data log, data logging off");
+        return;
+    }
+    datalog_open(&data_log, (flash_dev_t){(void *)DATALOG_OFFSET, DATALOG_SIZE, region_read, region_program, region_erase});
+    datalog_ready = true;
+    log_line("datalog: session %u", data_log.session);
+}
+
+datalog_t *store_datalog(void) {
+    return datalog_ready ? &data_log : NULL;
 }
 
 void log_line(const char *fmt, ...) {

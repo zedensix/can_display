@@ -1,0 +1,7 @@
+# Only the web page goes in the image: the firmware's sources stay out.
+*
+!package.json
+!bun.lock
+!bunfig.toml
+!86.png
+!web

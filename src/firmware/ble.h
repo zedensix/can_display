@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "datalog.h"
 #include "signals.h"
 
 // The ELM327 Bluetooth LE OBD dongle as the data source: scan, connect,
@@ -36,6 +37,10 @@ void ble_scan_ram(void);
 // ble_listen_can starts listening to the CAN bus for a button's ID, once
 // the session polls (elm_listen_can).
 void ble_listen_can(void);
+
+// ble_send_log lets the dongle go and advertises the dash to a phone,
+// which gets log (see web/), until a click reconnects.
+void ble_send_log(datalog_t *log);
 
 // ble_go_offline lets the dongle go and turns the radio off, until a
 // click (ble_prompt_click) reconnects: Disconnect, on the settings page.

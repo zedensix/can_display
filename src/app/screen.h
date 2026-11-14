@@ -10,10 +10,9 @@
 // On the gauges, turning cycles the views: every gauge, then each one
 // alone. A click opens the settings. There, turning moves the cursor, a
 // click toggles the row under it or, on brightness and the shift light,
-// makes turning change the value until the next click. Scan ECU RAM,
-// Listen CAN and Disconnect return to the gauges and raise
-// scan_requested, listen_requested or disconnect_requested. Back returns
-// to the gauges.
+// makes turning change the value until the next click. The action rows
+// (Set lap line, Send log, Scan ECU RAM, Listen CAN, Disconnect) return
+// to the gauges and set action. Back returns to the gauges.
 
 typedef enum {
     PAGE_GAUGES,
@@ -27,12 +26,25 @@ enum {
     ROW_AUTO_CONNECT,
     ROW_FLIP,
     ROW_ETHANOL_SENSOR,
+    ROW_LAP_LINE,
+    ROW_SEND_LOG,
     ROW_SCAN,
     ROW_LISTEN,
     ROW_DISCONNECT,
     ROW_BACK,
     SETTINGS_ROWS,
 };
+
+// action_t is a click on an action row, for the caller to act on and
+// clear.
+typedef enum {
+    ACTION_NONE,
+    ACTION_SET_LAP_LINE,
+    ACTION_SEND_LOG,
+    ACTION_SCAN,
+    ACTION_LISTEN,
+    ACTION_DISCONNECT,
+} action_t;
 
 typedef struct {
     page_t page;
@@ -42,9 +54,7 @@ typedef struct {
     int cursor;
     // editing makes turning change the value of the row under the cursor.
     bool editing;
-    // The clicks on Scan ECU RAM, Listen CAN and Disconnect, for the
-    // caller to act on and clear.
-    bool scan_requested, listen_requested, disconnect_requested;
+    action_t action;
 } screen_t;
 
 // screen_turn applies encoder detents, positive clockwise. views is how

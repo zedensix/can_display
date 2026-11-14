@@ -60,6 +60,7 @@ const tile_t ui_tiles[] = {
     {"ETHANOL", "%.0f", "%", SIG_ETHANOL, ETHANOL_RANGE, FAST_STALE_MS},
 };
 const int ui_tile_count = sizeof ui_tiles / sizeof ui_tiles[0];
+const int ui_view_count = sizeof ui_tiles / sizeof ui_tiles[0] + 1;
 
 extern const unsigned char logo_bin[];
 
@@ -373,6 +374,7 @@ static void draw_status(canvas_t *c, const theme_t *t, const char *status, uint3
 #define SETTINGS_MARGIN 8
 #define SETTINGS_TOP 44
 #define SETTINGS_ROW_HEIGHT 28
+#define SETTINGS_VISIBLE 9
 
 static void draw_settings(canvas_t *c, const theme_t *t, const screen_t *screen, const settings_t *cfg) {
     gfx_text(c, &font_bold12, SETTINGS_MARGIN + 4, 30, "SETTINGS", t->accent, 1);
@@ -386,13 +388,17 @@ static void draw_settings(canvas_t *c, const theme_t *t, const screen_t *screen,
         [ROW_AUTO_CONNECT] = {"Auto-connect", cfg->auto_connect ? "ON" : "OFF"},
         [ROW_FLIP] = {"Flip screen", cfg->flip ? "ON" : "OFF"},
         [ROW_ETHANOL_SENSOR] = {"Ethanol sensor", cfg->ethanol_sensor ? "ON" : "OFF"},
+        [ROW_LAP_LINE] = {"Set lap line", cfg->lap_line.set ? "SET" : "OFF"},
+        [ROW_SEND_LOG] = {"Send log", ""},
         [ROW_SCAN] = {"Scan ECU RAM", ""},
         [ROW_LISTEN] = {"Listen CAN", ""},
         [ROW_DISCONNECT] = {"Disconnect", ""},
         [ROW_BACK] = {"Back", ""},
     };
-    for (int i = 0; i < SETTINGS_ROWS; i++) {
-        int y = SETTINGS_TOP + i * SETTINGS_ROW_HEIGHT;
+    // More rows than fit: the page scrolls to keep the cursor in view.
+    int first = screen->cursor < SETTINGS_VISIBLE ? 0 : screen->cursor - SETTINGS_VISIBLE + 1;
+    for (int i = first; i < SETTINGS_ROWS && i < first + SETTINGS_VISIBLE; i++) {
+        int y = SETTINGS_TOP + (i - first) * SETTINGS_ROW_HEIGHT;
         bool off = strcmp(rows[i][1], "OFF") == 0;
         color_t label = t->label, value = off ? t->frame : t->accent;
         if (i == screen->cursor) {
@@ -470,6 +476,82 @@ static void draw_oil_critical(canvas_t *c, const theme_t *t, float oil, uint32_t
     text_fit(c, c->width / 2, 304, c->width - 16, "CA CHAUFFE SA MERE", text);
 }
 
+// lap_time prints ms as m:ss.cc, or m:ss.c with tenths only.
+static void lap_time(char *out, size_t size, uint32_t ms, bool tenths) {
+    unsigned minutes = (unsigned)(ms / 60000), seconds = (unsigned)(ms / 1000 % 60);
+    if (tenths) {
+        snprintf(out, size, "%u:%02u.%u", minutes, seconds, (unsigned)(ms / 100 % 10));
+    } else {
+        snprintf(out, size, "%u:%02u.%02u", minutes, seconds, (unsigned)(ms / 10 % 100));
+    }
+}
+
+// The GPS fix counts as lost past this.
+#define GPS_STALE_MS 2000
+
+// draw_lap is the lap timer's view: the lap running, big, the last and
+// best below; or, until it can time, what it waits for.
+static void draw_lap(canvas_t *c, const theme_t *t, const state_t *state, const lap_line_t *line, int top,
+                     uint32_t now_ms) {
+    const laptimer_t *lap = &state->lap;
+    int cx = c->width / 2;
+    bool fix = state->gps.valid && now_ms - state->gps_at_ms < GPS_STALE_MS;
+    const char *waiting = !fix              ? "waiting for a GPS fix"
+                          : !line->set      ? "set the start line in Settings"
+                          : line->heading < 0 ? "drive off to give the line its direction"
+                          : !lap->timing    ? "cross the line to start"
+                                            : NULL;
+    char text[32];
+    if (lap->timing) {
+        snprintf(text, sizeof text, "LAP %d", lap->laps + 1);
+    } else {
+        snprintf(text, sizeof text, "LAP TIMER");
+    }
+    text_centered(c, &font_bold18, cx, top + 34, text, t->accent, 1);
+    if (waiting) {
+        char lines[4][64];
+        int n = ui_wrap(&font_bold12, waiting, c->width - 24, lines, 4);
+        for (int i = 0; i < n; i++) {
+            text_centered(c, &font_bold12, cx, top + 130 + i * 28, lines[i], t->label, 1);
+        }
+    } else {
+        lap_time(text, sizeof text, laptimer_running_ms(lap, now_ms), true);
+        int scale = gfx_text_width(&font_bold24, text) * 2 <= c->width - 16 ? 2 : 1;
+        text_centered(c, &font_bold24, cx, top + 90 + 13 * scale, text, t->label, scale);
+    }
+    char value[16];
+    if (lap->laps > 0) {
+        lap_time(value, sizeof value, lap->last_ms, false);
+        snprintf(text, sizeof text, "LAST %s", value);
+        text_centered(c, &font_bold18, cx, top + 200, text, lap->last_ms == lap->best_ms ? t->good : t->label, 1);
+        lap_time(value, sizeof value, lap->best_ms, false);
+        snprintf(text, sizeof text, "BEST %s", value);
+        text_centered(c, &font_bold18, cx, top + 240, text, t->good, 1);
+    }
+    if (fix) {
+        snprintf(text, sizeof text, "%.0f km/h", (double)state->gps.speed_kmh);
+        text_centered(c, label_font, cx, c->height - 10, text, t->frame, 1);
+    }
+}
+
+// The lap just completed, across the bottom of the gauges for
+// LAP_BANNER_MS: green for a best lap.
+#define LAP_BANNER_MS 5000
+#define LAP_BANNER_HEIGHT 44
+
+static void draw_lap_banner(canvas_t *c, const theme_t *t, const laptimer_t *lap, uint32_t now_ms) {
+    if (lap->laps == 0 || now_ms - lap->completed_at_ms >= LAP_BANNER_MS) {
+        return;
+    }
+    bool best = lap->last_ms == lap->best_ms;
+    int y = c->height - LAP_BANNER_HEIGHT;
+    gfx_fill_rect(c, 0, y, c->width, LAP_BANNER_HEIGHT, best ? t->good : t->accent);
+    char value[16], text[32];
+    lap_time(value, sizeof value, lap->last_ms, false);
+    snprintf(text, sizeof text, "LAP %d  %s", lap->laps, value);
+    text_centered(c, &font_bold18, c->width / 2, y + 32, text, best ? t->background : t->alarm_text, 1);
+}
+
 void ui_render(canvas_t *c, const state_t *state, const screen_t *screen, const settings_t *cfg, uint32_t now_ms) {
     const theme_t *t = &theme_dark;
     const reading_t *oil = &state->readings[SIG_OIL];
@@ -492,6 +574,10 @@ void ui_render(canvas_t *c, const state_t *state, const screen_t *screen, const 
         draw_shift_light(c, t, &state->readings[SIG_RPM], cfg->shift_rpm, now_ms);
         top = SHIFT_BAR_HEIGHT;
     }
+    if (screen->view == ui_view_count) {
+        draw_lap(c, t, state, &cfg->lap_line, top, now_ms);
+        return;
+    }
     if (screen->view > 0 && screen->view <= ui_tile_count) {
         const tile_t *tile = &ui_tiles[screen->view - 1];
         draw_tile_large(c, t, tile, GRID_GAP, top + GRID_GAP, c->width - 2 * GRID_GAP,
@@ -499,6 +585,7 @@ void ui_render(canvas_t *c, const state_t *state, const screen_t *screen, const 
     } else {
         draw_grid(c, t, state->readings, top, now_ms);
     }
+    draw_lap_banner(c, t, &state->lap, now_ms);
 }
 
 // draw_logo draws the logo centered on cx, cy, shrink times smaller: a

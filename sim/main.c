@@ -47,11 +47,11 @@ int main(void) {
                 switch (event.key.keysym.sym) {
                 case SDLK_DOWN:
                 case SDLK_RIGHT:
-                    screen_turn(&screen, 1, ui_tile_count, &cfg);
+                    screen_turn(&screen, 1, ui_view_count, &cfg);
                     break;
                 case SDLK_UP:
                 case SDLK_LEFT:
-                    screen_turn(&screen, -1, ui_tile_count, &cfg);
+                    screen_turn(&screen, -1, ui_view_count, &cfg);
                     break;
                 case SDLK_SPACE:
                     screen_press(&screen, &cfg);

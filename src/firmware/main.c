@@ -11,6 +11,7 @@
 #include "ble.h"
 #include "board.h"
 #include "display.h"
+#include "gps.h"
 #include "hardware/adc.h"
 #include "hardware/watchdog.h"
 #include "knob.h"
@@ -92,6 +93,88 @@ static void listen_can(void) {
 #if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
     ble_listen_can();
 #endif
+}
+
+static void send_log(datalog_t *log) {
+#if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
+    ble_send_log(log);
+#else
+    (void)log;
+#endif
+}
+
+// The GPS fix counts as current this long: the lap line is only set on a
+// current one.
+#define GPS_FRESH_MS 2000
+
+// read_gps takes every fix received: the lap timer runs on them, and a
+// line set standing still gets its direction from the first one moving.
+static void read_gps(settings_t *cfg, uint32_t now) {
+    gps_fix_t fix;
+    while (gps_poll(&fix)) {
+        state.gps = fix;
+        state.gps_at_ms = now;
+        lap_line_settle(&cfg->lap_line, &fix);
+        if (!laptimer_feed(&state.lap, &cfg->lap_line, &fix, now)) {
+            continue;
+        }
+        log_line("lap %d: %lu ms%s", state.lap.laps, (unsigned long)state.lap.last_ms,
+                 state.lap.last_ms == state.lap.best_ms ? ", best" : "");
+        datalog_t *log = store_datalog();
+        if (log) {
+            datalog_lap(log, &state, state.lap.last_ms, now);
+        }
+    }
+}
+
+// record samples the gauges and the GPS into the data log while the
+// engine runs (RPM coming in). The sim build's fake data isn't logged.
+static void record(uint32_t now) {
+#if !SIM
+    static uint32_t last;
+    datalog_t *log = store_datalog();
+    if (log && !reading_stale(&state.readings[SIG_RPM], now, 2000) && now - last >= DATALOG_SAMPLE_MS) {
+        last = now;
+        datalog_sample(log, &state, now);
+    }
+#else
+    (void)now;
+#endif
+}
+
+// act carries out a click on an action row of the settings page.
+static void act(action_t action, settings_t *cfg, uint32_t now) {
+    switch (action) {
+    case ACTION_SET_LAP_LINE:
+        if (state.gps.valid && now - state.gps_at_ms < GPS_FRESH_MS) {
+            cfg->lap_line = lap_line_at(&state.gps);
+            state.lap = (laptimer_t){0};
+            log_line("lap: line set at %ld, %ld, heading %d", (long)cfg->lap_line.lat, (long)cfg->lap_line.lon,
+                     cfg->lap_line.heading);
+        } else {
+            log_line("lap: no GPS fix, line not set");
+        }
+        break;
+    case ACTION_SEND_LOG: {
+        datalog_t *log = store_datalog();
+        if (log) {
+            datalog_flush(log);
+            send_log(log);
+        }
+        break;
+    }
+    case ACTION_SCAN:
+        scan_ram();
+        break;
+    case ACTION_LISTEN:
+        listen_can();
+        break;
+    case ACTION_DISCONNECT:
+        go_offline();
+        break;
+    case ACTION_NONE:
+        break;
+    }
 }
 
 static void __attribute__((noreturn)) reboot(bool connect) {
@@ -186,6 +269,7 @@ int main(void) {
     display_set_flip(cfg.flip);
     display_set_brightness(cfg.brightness);
     knob_init();
+    gps_init();
     adc_init();
     adc_gpio_init(ETHANOL_PIN);
     adc_select_input(ETHANOL_ADC_INPUT);
@@ -218,24 +302,16 @@ int main(void) {
 #endif
 
         bool press, long_press;
-        screen_turn(&screen, knob_poll(start, &press, &long_press), ui_tile_count, &cfg);
+        screen_turn(&screen, knob_poll(start, &press, &long_press), ui_view_count, &cfg);
         // On the gauges (and in standby, where nothing is shown), a waiting
         // connection prompt takes the click.
         if (press && !((screen.page == PAGE_GAUGES || standby()) && prompt_click(start))) {
             screen_press(&screen, &cfg);
         }
-        if (screen.scan_requested) {
-            screen.scan_requested = false;
-            scan_ram();
-        }
-        if (screen.listen_requested) {
-            screen.listen_requested = false;
-            listen_can();
-        }
-        if (screen.disconnect_requested) {
-            screen.disconnect_requested = false;
-            go_offline();
-        }
+        act(screen.action, &cfg, start);
+        screen.action = ACTION_NONE;
+        read_gps(&cfg, start);
+        record(start);
         if (long_press) {
             log_line("knob: reboot");
             reboot(false);
@@ -254,6 +330,10 @@ int main(void) {
         // In standby, only a click matters: no drawing, no busy loop.
         if (standby()) {
             if (!asleep) {
+                datalog_t *log = store_datalog();
+                if (log) {
+                    datalog_flush(log);
+                }
                 display_sleep();
                 asleep = true;
             }

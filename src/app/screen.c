@@ -45,18 +45,19 @@ void screen_press(screen_t *s, settings_t *cfg) {
     case ROW_ETHANOL_SENSOR:
         cfg->ethanol_sensor = !cfg->ethanol_sensor;
         break;
+    case ROW_LAP_LINE:
+    case ROW_SEND_LOG:
     case ROW_SCAN:
-        s->scan_requested = true;
-        s->page = PAGE_GAUGES;
-        break;
     case ROW_LISTEN:
-        s->listen_requested = true;
+    case ROW_DISCONNECT: {
+        static const action_t actions[SETTINGS_ROWS] = {
+            [ROW_LAP_LINE] = ACTION_SET_LAP_LINE, [ROW_SEND_LOG] = ACTION_SEND_LOG, [ROW_SCAN] = ACTION_SCAN,
+            [ROW_LISTEN] = ACTION_LISTEN,         [ROW_DISCONNECT] = ACTION_DISCONNECT,
+        };
+        s->action = actions[s->cursor];
         s->page = PAGE_GAUGES;
         break;
-    case ROW_DISCONNECT:
-        s->disconnect_requested = true;
-        s->page = PAGE_GAUGES;
-        break;
+    }
     case ROW_BACK:
         s->page = PAGE_GAUGES;
         break;

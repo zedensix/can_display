@@ -41,6 +41,23 @@ goes the wrong way, swap CLK and DT. `STEPS_PER_DETENT` in
 `src/firmware/knob.c` is 2, for a half-step encoder (the one on this
 car); if one click moves two rows, it's a full-step one: set it to 4.
 
+## GPS module (lap timer, data log positions)
+
+A u-blox module at 3.3V (BN-220, BN-880, any NEO-M8N board): the
+firmware sets it to 10 fixes a second, RMC sentences only, 115200 baud,
+at every boot. Another make ignores those commands: it must already
+send RMC at 115200 baud.
+
+| GPS pin | Pico W pin | Notes |
+|---|---|---|
+| RX | GP0 | UART0 TX: the Pico talks, the module listens |
+| TX | GP1 | UART0 RX |
+| VCC | 3V3(OUT) | check your module: most take 3.3V to 5V |
+| GND | GND | |
+
+The antenna needs the sky: on the dash, under the windshield, not under
+metal.
+
 Keep GP15 free: the pico-sdk drives it briefly at boot for the RP2040 USB
 enumeration workaround (erratum RP2040-E5).
 

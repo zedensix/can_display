@@ -1,0 +1,3 @@
+# Tailwind for the HTML Bun.serve bundles (web/server.ts).
+[serve.static]
+plugins = ["bun-plugin-tailwind"]
