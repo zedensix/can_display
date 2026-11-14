@@ -10,22 +10,27 @@
 
 // theme_t is the palette: dark for readability in a sunlit car, warning
 // colors reserved for values actually out of range.
-// theme_t: good, warning and danger color a reading by its band; a
-// reading in danger also turns its tile to alarm with alarm_text on it.
+// theme_t: good, warning, danger and cold color a reading by its band; a
+// reading in danger also blinks its tile to alarm with alarm_text on it.
+// accent is everything around the readings (logo, titles, settings).
 // frame outlines tiles, stale is what isn't lit (old readings, unlit
 // segments).
 typedef struct {
-    color_t background, frame, label, good, warning, danger, alarm, alarm_text, stale;
+    color_t background, frame, accent, label, good, warning, danger, alarm, alarm_text, cold, stale;
 } theme_t;
 
 extern const theme_t theme_dark;
 
 // range_t holds a gauge's thresholds: the bar's endpoints, and the bands
 // outside which the value turns to the warning, then danger color.
+// range_t is a gauge's scale and bands: warning and danger on each side
+// (-1 or one past the max disables a side), and below cold (-1: none) an
+// engine not warm yet, not to be revved hard.
 typedef struct {
     float min, max;
     float warn_low, warn_high;
     float danger_low, danger_high;
+    float cold;
 } range_t;
 
 // tile_t is one gauge: a label, the value formatted with format then

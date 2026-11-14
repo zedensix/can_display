@@ -12,6 +12,7 @@
 #include "screen.h"
 #include "sensors.h"
 #include "settings.h"
+#include "sniff.h"
 #include "ui.h"
 
 static int failures;
@@ -127,7 +128,7 @@ static void test_elm_session(void) {
         answer(&e, "OK\r\r>", 20);
     }
     CHECK(strcmp(last_sent(&d), "ATI\r") == 0, "after init sent %s, want the ATI probe", last_sent(&d));
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 7; i++) {
         answer(&e, "whatever\r>", 30);
     }
     CHECK(d.ready == 1, "ready called %d times after the probes", d.ready);
@@ -168,7 +169,7 @@ static void test_elm_oil(void) {
     elm_t e;
     elm_start(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
     answer(&e, "ELM327 v2.3\r>", 1);
-    for (int i = 0; i < 7 + 9; i++) {
+    for (int i = 0; i < 7 + 7; i++) {
         answer(&e, "OK\r>", 2);
     }
     answer(&e, "12.4V\r>", 3); // ATRV, the first poll
@@ -209,7 +210,7 @@ static void test_elm_oil_car_off(void) {
     elm_t e;
     elm_start(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
     answer(&e, "ELM327 v2.3\r>", 1);
-    for (int i = 0; i < 7 + 9; i++) {
+    for (int i = 0; i < 7 + 7; i++) {
         answer(&e, "OK\r>", 2);
     }
     for (uint32_t t = 3; t < 10 * ELM_OIL_INTERVAL_MS; t += 100) {
@@ -256,20 +257,105 @@ static void test_elm_scan(void) {
     for (int i = 0; i < 7 + 7; i++) {
         answer(&e, "OK\r>", 2);
     }
+    CHECK(d.ready == 1, "polling didn't start after the probes");
+    elm_scan_ram(&e);
+    answer(&e, "12.4V\r>", 3); // the poll in flight
+    CHECK(strcmp(last_sent(&d), "ATSH7E0\r") == 0, "a scan asked for sent %s, want ATSH7E0", last_sent(&d));
+    answer(&e, "OK\r>", 3);
     CHECK(strcmp(last_sent(&d), "2314FFF800003C\r") == 0, "first scan read %s", last_sent(&d));
+    CHECK(strstr(s.status, "DEEP SCAN") == s.status, "status during the scan: %s", s.status);
     float pct = 25 * (2631 * ECU_ADC_STEP_VOLTS) - 12.5f; // 67.79%, as in the Alientech log
     char text[512];
     scan_answer(text, sizeof text, pct, 8);
-    answer(&e, text, 3);
+    answer(&e, text, 4);
     CHECK(strcmp(last_sent(&d), "2314FFF8003C3C\r") == 0, "second scan read %s", last_sent(&d));
     scan_answer(text, sizeof text, 67.8f, 0); // off the ADC grid
-    answer(&e, text, 4);
-    answer(&e, "7E8037F2331\r>", 5); // out of range: the end of the RAM
+    answer(&e, text, 5);
+    answer(&e, "7E8037F2331\r>", 6); // out of range: the end of the RAM
     CHECK(strcmp(last_sent(&d), "ATSH7DF\r") == 0, "after the scan sent %s, want ATSH7DF", last_sent(&d));
-    answer(&e, "OK\r>", 6);
-    CHECK(d.ready == 1, "polling didn't start after the scan");
+    answer(&e, "OK\r>", 7);
+    CHECK(d.ready == 2 && e.phase == ELM_POLL, "polling didn't resume after the scan");
     CHECK(strstr(d.logged, "scan: FFF80008 = 67.792 (ethanol %?)") != NULL, "candidate not logged:\n%s", d.logged);
     CHECK(strstr(d.logged, "1 candidates") != NULL, "67.8 (off the grid) counted as a candidate:\n%s", d.logged);
+}
+
+// multi_answer answers MULTI_POLL: RPM 1726, lambda 1.0 (AFR 14.7) and
+// its sensor's voltage, coolant 83°C, intake 31°C, 13 bytes over two
+// frames.
+static const char *multi_answer = "7E8100D410C1AF82480\r"
+                                  "7E821006666057B0F47\r>";
+
+static void test_elm_multi_pid(void) {
+    fake_dongle_t d = {0};
+    state_t s = {0};
+    elm_t e;
+    elm_start(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
+    answer(&e, "ELM327 v2.3\r>", 1);
+    for (int i = 0; i < 7 + 6; i++) {
+        answer(&e, "OK\r>", 2);
+    }
+    CHECK(strcmp(last_sent(&d), "010C24050F1\r") == 0, "last probe %s, want the multi-PID one", last_sent(&d));
+    answer(&e, multi_answer, 3);
+    CHECK(e.multi_pid, "a full multi-PID answer didn't turn multi-PID polling on:\n%s", d.logged);
+    answer(&e, "12.4V\r>", 4); // ATRV, the first poll
+    CHECK(strcmp(last_sent(&d), "010C24050F1\r") == 0, "polled %s, want every PID at once", last_sent(&d));
+    answer(&e, multi_answer, 5);
+    CHECK(near(s.readings[SIG_RPM].value, 1726) && near(s.readings[SIG_AFR].value, 14.7f) &&
+              near(s.readings[SIG_COOLANT].value, 83) && near(s.readings[SIG_IAT].value, 31),
+          "multi-PID answer gave rpm %f afr %f coolant %f intake %f", (double)s.readings[SIG_RPM].value,
+          (double)s.readings[SIG_AFR].value, (double)s.readings[SIG_COOLANT].value,
+          (double)s.readings[SIG_IAT].value);
+    answer(&e, "?\r>", 6); // a dongle without the count digit
+    CHECK(strcmp(last_sent(&d), "010C24050F\r") == 0, "after ? sent %s, want 010C24050F", last_sent(&d));
+}
+
+// listen_window answers one window of a listen: the ATCF, then the
+// monitor, frames printed until the dwell is over and the stop.
+static void listen_window(elm_t *e, uint32_t *t, const char *frames) {
+    answer(e, "OK\r>", *t);
+    answer(e, frames, *t);
+    *t += ELM_LISTEN_DWELL_MS;
+    elm_tick(e, *t);
+    answer(e, "STOPPED\r>", *t + 1);
+    *t += 2;
+}
+
+static void test_elm_listen(void) {
+    static fake_dongle_t d;
+    memset(&d, 0, sizeof d);
+    state_t s = {0};
+    elm_t e;
+    elm_start(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
+    answer(&e, "ELM327 v2.3\r>", 1);
+    for (int i = 0; i < 7 + 7; i++) {
+        answer(&e, "OK\r>", 2);
+    }
+    elm_listen_can(&e);
+    answer(&e, "12.4V\r>", 3); // the poll in flight
+    CHECK(strcmp(last_sent(&d), "ATCAF0\r") == 0, "listening sent %s, want ATCAF0", last_sent(&d));
+    answer(&e, "OK\r>", 4);
+    CHECK(strcmp(last_sent(&d), "ATCM700\r") == 0, "then %s, want ATCM700", last_sent(&d));
+    answer(&e, "OK\r>", 5);
+    CHECK(strcmp(last_sent(&d), "ATCF000\r") == 0, "then %s, want ATCF000", last_sent(&d));
+    answer(&e, "OK\r>", 6);
+    CHECK(strcmp(last_sent(&d), "ATMA\r") == 0 && e.monitoring, "then %s, want ATMA", last_sent(&d));
+    elm_tick(&e, 6 + ELM_LISTEN_DWELL_MS);
+    CHECK(strcmp(last_sent(&d), "\r") == 0, "the dwell over, sent %s, want a stop", last_sent(&d));
+    answer(&e, "STOPPED\r>", 6 + ELM_LISTEN_DWELL_MS);
+    CHECK(strcmp(last_sent(&d), "ATCF100\r") == 0, "next window %s, want ATCF100", last_sent(&d));
+
+    // 1A0 counts all along; 3B0 only changes with the presses.
+    uint32_t t = 10 + ELM_LISTEN_DWELL_MS;
+    for (int i = 0; t < ELM_LISTEN_MS + 3; i++) {
+        char frames[64];
+        bool pressed = t >= ELM_LISTEN_BASELINE_MS && i % 2;
+        snprintf(frames, sizeof frames, "1A0%02X\r3B000%s\rNO DATA\r", i & 0xFF, pressed ? "AB" : "AA");
+        listen_window(&e, &t, frames);
+    }
+    CHECK(strcmp(last_sent(&d), "ATZ\r") == 0, "after listening sent %s, want ATZ (session restart)", last_sent(&d));
+    CHECK(strstr(d.logged, "sniff: 3B0 x") != NULL && strstr(d.logged, "00AA -> 00AB") != NULL,
+          "3B0 not reported as a candidate:\n%s", d.logged);
+    CHECK(strstr(d.logged, "sniff: 1A0 x") == NULL, "1A0, changing in the baseline, reported:\n%s", d.logged);
 }
 
 static void test_isotp(void) {
@@ -367,10 +453,13 @@ static void test_flashlog(void) {
 }
 
 static void test_settings(void) {
-    settings_t cfg = {.brightness = 40, .auto_connect = true, .flip = true, .ethanol_sensor = true};
+    settings_t cfg = {.brightness = 40, .auto_connect = true, .flip = true, .ethanol_sensor = true, .shift_rpm = 7100};
     uint8_t buf[SETTINGS_SIZE];
     settings_encode(cfg, buf);
     CHECK(settings_equal(settings_decode(buf), cfg), "settings didn't round-trip");
+    buf[4] = 1; // saved by a firmware without the shift light
+    settings_t old = settings_decode(buf);
+    CHECK(old.brightness == 40 && old.flip && old.shift_rpm == 0, "version 1 settings lost (shift %d)", old.shift_rpm);
     memset(buf, 0xFF, sizeof buf);
     CHECK(settings_equal(settings_decode(buf), SETTINGS_DEFAULT), "erased flash didn't give the defaults");
 }
@@ -400,6 +489,15 @@ static void test_screen(void) {
     CHECK(cfg.brightness == BRIGHTNESS_MIN, "brightness %d, want it stopped at the minimum", cfg.brightness);
     screen_turn(&s, 1, 6, &cfg);
     screen_press(&s, &cfg);
+    screen_turn(&s, 1, 6, &cfg);
+    CHECK(cfg.shift_rpm == SHIFT_RPM_MIN, "shift light %d turned up from off, want %d", cfg.shift_rpm, SHIFT_RPM_MIN);
+    screen_turn(&s, 50, 6, &cfg);
+    CHECK(cfg.shift_rpm == SHIFT_RPM_MAX, "shift light %d, want it stopped at %d", cfg.shift_rpm, SHIFT_RPM_MAX);
+    screen_turn(&s, -100, 6, &cfg);
+    screen_press(&s, &cfg);
+    CHECK(cfg.shift_rpm == 0, "shift light %d turned all the way down, want off", cfg.shift_rpm);
+    screen_turn(&s, 1, 6, &cfg);
+    screen_press(&s, &cfg);
     CHECK(cfg.auto_connect, "a click on auto-connect didn't turn it on");
     screen_turn(&s, 1, 6, &cfg);
     screen_press(&s, &cfg);
@@ -407,6 +505,14 @@ static void test_screen(void) {
     screen_turn(&s, 1, 6, &cfg);
     screen_press(&s, &cfg);
     CHECK(cfg.ethanol_sensor, "a click on the ethanol sensor didn't turn it on");
+    screen_turn(&s, 1, 6, &cfg);
+    screen_press(&s, &cfg);
+    CHECK(s.scan_requested && s.page == PAGE_GAUGES, "a click on Scan ECU RAM didn't ask for a scan");
+    screen_press(&s, &cfg);
+    screen_turn(&s, ROW_LISTEN, 6, &cfg);
+    screen_press(&s, &cfg);
+    CHECK(s.listen_requested && s.page == PAGE_GAUGES, "a click on Listen CAN didn't ask to listen");
+    screen_press(&s, &cfg);
     screen_turn(&s, 10, 6, &cfg);
     screen_press(&s, &cfg);
     CHECK(s.page == PAGE_GAUGES, "a click on Back didn't return to the gauges");
@@ -420,6 +526,17 @@ static void test_sensors(void) {
     CHECK(sensors_ethanol_percent(0) == 0 && sensors_ethanol_percent(5) == 100, "ethanol %% isn't clamped");
     CHECK(sensors_on_ecu_adc_grid(1234 * ECU_ADC_STEP_VOLTS), "a whole number of ADC steps is off the grid");
     CHECK(!sensors_on_ecu_adc_grid(1234.5f * ECU_ADC_STEP_VOLTS), "half an ADC step is on the grid");
+}
+
+static void test_extremes(void) {
+    state_t s = {0};
+    state_set(&s, SIG_AFR, 14.7f, 1);
+    state_set(&s, SIG_AFR, 11.9f, 2);
+    state_set(&s, SIG_AFR, 16.2f, 3);
+    state_set(&s, SIG_AFR, 14.1f, 4);
+    reading_t r = s.readings[SIG_AFR];
+    CHECK(near(r.value, 14.1f) && near(r.min, 11.9f) && near(r.max, 16.2f), "afr %f, min %f, max %f",
+          (double)r.value, (double)r.min, (double)r.max);
 }
 
 static void test_wrap(void) {
@@ -446,11 +563,14 @@ int main(void) {
     test_elm_oil();
     test_elm_oil_car_off();
     test_elm_scan();
+    test_elm_multi_pid();
+    test_elm_listen();
     test_isotp();
     test_flashlog();
     test_settings();
     test_screen();
     test_sensors();
+    test_extremes();
     test_wrap();
     if (failures) {
         printf("%d check(s) failed\n", failures);

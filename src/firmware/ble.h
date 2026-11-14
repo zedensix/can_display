@@ -29,6 +29,14 @@ bool ble_prompt_click(uint32_t now_ms);
 #define CAR_OFF_MS 90000
 bool ble_standby(void);
 
+// ble_scan_ram starts a scan of the engine ECU's RAM, once the session
+// polls (elm_scan_ram).
+void ble_scan_ram(void);
+
+// ble_listen_can starts listening to the CAN bus for a button's ID, once
+// the session polls (elm_listen_can).
+void ble_listen_can(void);
+
 // ble_disconnect closes the dongle connection before a reboot: a dongle
 // left on a connection that vanished can stop answering for a while.
 void ble_disconnect(void);

@@ -110,12 +110,29 @@ signal wire, which the injection depends on. Found on this car so far:
 - An Alientech log of this ECU puts every ethanol % on
   25 x n x 5/4096 - 12.5: a 12-bit ADC on 5V through the tune's scaling.
 
-The session scans the RAM at every connection (`ELM_SCAN_*` in
-`src/app/elm327.h`) and logs every float on that grid, as an ethanol %
+"Scan ECU RAM" on the settings page scans it (`ELM_SCAN_*` in
+`src/app/elm327.h`, 2 to 3 minutes, polling paused) and logs every float on that grid, as an ethanol %
 or as the sensor's voltage. To pin the address down, compare the
 candidates with what OFT or another logger shows at the same time, then
 across two tanks with different blends: the right address follows the
 blend.
+
+## Finding a button's ID (sport mode)
+
+"Listen CAN" on the settings page finds the CAN ID behind a button by
+elimination, through the dongle (`src/app/sniff.c`):
+
+1. Ignition on, engine running. Click Listen CAN.
+2. 45s hands off: every ID whose data changes then is noise.
+3. Then, as the screen says, press the button (VSC Sport / TRC OFF) on
+   and off over and over until the countdown ends.
+4. `mise run logs`: `sniff:` lines list each candidate ID, how many
+   times it changed, and its data before and after.
+
+The dongle can't print the whole bus over BLE, so it listens to 256 IDs
+at a time, 1.5s each, round and round: a candidate is an ID seen
+changing between two visits. A real flag shows a byte or a bit flipping
+between two values. Run it twice: the right ID comes back both times.
 
 ## Adding an aftermarket ethanol source
 

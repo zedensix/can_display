@@ -7,11 +7,18 @@
 // 4 quadrature steps per detent. If one click moves two steps, the
 // encoder is a half-step one: use 2.
 #define STEPS_PER_DETENT 4
+// A button change within this long of the last one is a bounce.
+#define DEBOUNCE_MS 25
 
-static volatile int32_t steps;
+// Steps add up between detents; a detent counts when the encoder comes
+// to rest (both lines high, or both low too on a half-step one) having
+// moved at least half a detent's steps. Re-syncing on every rest keeps
+// one click one detent, even after a bounce lost a step.
+static volatile int32_t detents;
+static int8_t partial;
 static uint8_t last_ab;
 static int32_t last_detents;
-static uint32_t pressed_at;
+static uint32_t pressed_at, changed_at;
 static bool pressed, long_done;
 
 // Quadrature transitions, indexed by previous AB << 2 | new AB: +1 or -1
@@ -27,8 +34,16 @@ static void knob_irq(void) {
         gpio_acknowledge_irq(KNOB_DT, dt);
     }
     uint8_t ab = (uint8_t)(gpio_get(KNOB_CLK) << 1 | gpio_get(KNOB_DT));
-    steps += transitions[last_ab << 2 | ab];
+    partial += transitions[last_ab << 2 | ab];
     last_ab = ab;
+    if (ab == 3 || (STEPS_PER_DETENT == 2 && ab == 0)) {
+        if (partial >= STEPS_PER_DETENT / 2) {
+            detents++;
+        } else if (partial <= -STEPS_PER_DETENT / 2) {
+            detents--;
+        }
+        partial = 0;
+    }
 }
 
 void knob_init(void) {
@@ -47,22 +62,26 @@ void knob_init(void) {
 }
 
 int knob_poll(uint32_t now_ms, bool *press, bool *long_press) {
-    int32_t s = steps;
-    // Floor division, so detents don't stick around zero.
-    int32_t detents = (s >= 0 ? s : s - (STEPS_PER_DETENT - 1)) / STEPS_PER_DETENT;
-    int turned = (int)(detents - last_detents);
-    last_detents = detents;
+    int32_t d = detents;
+    int turned = (int)(d - last_detents);
+    last_detents = d;
 
     *press = *long_press = false;
     bool down = !gpio_get(KNOB_BUTTON);
-    if (down && !pressed) {
-        pressed = true;
+    if (down != pressed && now_ms - changed_at >= DEBOUNCE_MS) {
+        changed_at = now_ms;
+        pressed = down;
+        // The click acts as soon as the button goes down; a hold then
+        // reboots on top of it, which loses nothing.
+        *press = down;
         pressed_at = now_ms;
-    } else if (down && !long_done && now_ms - pressed_at >= KNOB_LONG_PRESS_MS) {
+        long_done = false;
+    } else if (pressed && !long_done && now_ms - pressed_at >= KNOB_LONG_PRESS_MS) {
         long_done = *long_press = true;
-    } else if (!down && pressed) {
-        *press = !long_done;
-        pressed = long_done = false;
     }
     return turned;
+}
+
+bool knob_pending(void) {
+    return detents != last_detents || !gpio_get(KNOB_BUTTON) != pressed;
 }

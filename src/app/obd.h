@@ -22,6 +22,7 @@ typedef struct {
 // (0120 bitmap, 2026-11-14); its AFR values aren't cross-checked yet.
 #define PID_COOLANT 0x05
 #define PID_RPM 0x0C
+#define PID_IAT 0x0F
 #define PID_LAMBDA 0x24
 
 // GASOLINE_STOICH_AFR turns lambda into a gasoline AFR.
@@ -43,8 +44,9 @@ can_frame_t obd_request(uint8_t pid);
 bool obd_decode(const can_frame_t *f, state_t *state, uint32_t now_ms);
 
 // obd_decode_message handles a whole ECU1 answer, mode byte first: Mode
-// 01 for the PIDs above, Mode 21 PID 01 for the oil temperature. It
-// returns which signal it stored, or SIG_COUNT for none.
+// 01 for the PIDs above (one or several in one answer), Mode 21 PID 01
+// for the oil temperature. It returns the first signal it stored, or
+// SIG_COUNT for none.
 signal_t obd_decode_message(const uint8_t *msg, int len, state_t *state, uint32_t now_ms);
 
 // isotp_t reassembles an ISO-TP message from the frames of one answer:

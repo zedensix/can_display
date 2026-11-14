@@ -19,6 +19,7 @@ void simdata_tick(state_t *state, uint32_t now_ms) {
     float warmup = clampf(t / 90, 0, 1);
     state_set(state, SIG_COOLANT, 20 + warmup * 70 + noise(1.5f), now_ms);
     state_set(state, SIG_OIL, 20 + warmup * 95 + noise(2), now_ms);
+    state_set(state, SIG_IAT, 24 + warmup * 12 + noise(1), now_ms);
     state_set(state, SIG_RPM, 850 + clampf(sinf(t / 6), 0, 1) * 6700 + noise(50), now_ms);
     state_set(state, SIG_BATTERY, 14.2f + sinf(t / 5) * 0.3f + noise(0.05f), now_ms);
     state_set(state, SIG_AFR, 14.7f + sinf(t / 2) * 1.5f + noise(0.2f), now_ms);

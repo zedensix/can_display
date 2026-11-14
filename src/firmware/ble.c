@@ -484,6 +484,18 @@ void ble_poll(uint32_t now_ms) {
     check_timeouts();
 }
 
+void ble_scan_ram(void) {
+    if (phase == RUNNING) {
+        elm_scan_ram(&elm);
+    }
+}
+
+void ble_listen_can(void) {
+    if (phase == RUNNING) {
+        elm_listen_can(&elm);
+    }
+}
+
 bool ble_standby(void) {
     return phase == STANDBY;
 }

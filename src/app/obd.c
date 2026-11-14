@@ -21,27 +21,35 @@ signal_t obd_decode_message(const uint8_t *msg, int len, state_t *state, uint32_
     if (len < 3 || msg[0] != 0x41) {
         return SIG_COUNT;
     }
-    const uint8_t *v = &msg[2];
-    int value_len = len - 2;
-    switch (msg[1]) {
-    case PID_RPM:
-        if (value_len < 2) {
-            return SIG_COUNT;
+    // A request for several PIDs gets them all in one answer, each PID
+    // followed by its value. Decoding stops at a PID it doesn't know.
+    signal_t first = SIG_COUNT;
+    for (int i = 1; i < len;) {
+        const uint8_t *v = &msg[i + 1];
+        int value_len = len - i - 1, size;
+        signal_t got;
+        if (msg[i] == PID_RPM && value_len >= 2) {
+            got = SIG_RPM, size = 2;
+            state_set(state, got, (float)(v[0] << 8 | v[1]) / 4, now_ms);
+        } else if (msg[i] == PID_COOLANT && value_len >= 1) {
+            got = SIG_COOLANT, size = 1;
+            state_set(state, got, (float)v[0] - 40, now_ms);
+        } else if (msg[i] == PID_IAT && value_len >= 1) {
+            got = SIG_IAT, size = 1;
+            state_set(state, got, (float)v[0] - 40, now_ms);
+        } else if (msg[i] == PID_LAMBDA && value_len >= 2) {
+            // Lambda, then the sensor's voltage (2 bytes each).
+            got = SIG_AFR, size = value_len >= 4 ? 4 : 2;
+            state_set(state, got, (float)(v[0] << 8 | v[1]) * 2 / 65536 * GASOLINE_STOICH_AFR, now_ms);
+        } else {
+            break;
         }
-        state_set(state, SIG_RPM, (float)(v[0] << 8 | v[1]) / 4, now_ms);
-        return SIG_RPM;
-    case PID_COOLANT:
-        state_set(state, SIG_COOLANT, (float)v[0] - 40, now_ms);
-        return SIG_COOLANT;
-    case PID_LAMBDA:
-        if (value_len < 2) {
-            return SIG_COUNT;
+        if (first == SIG_COUNT) {
+            first = got;
         }
-        state_set(state, SIG_AFR, (float)(v[0] << 8 | v[1]) * 2 / 65536 * GASOLINE_STOICH_AFR, now_ms);
-        return SIG_AFR;
-    default:
-        return SIG_COUNT;
+        i += 1 + size;
     }
+    return first;
 }
 
 bool isotp_feed(isotp_t *r, const can_frame_t *f) {

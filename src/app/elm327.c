@@ -23,14 +23,15 @@ static const char *const init_commands[] = {
 
 // The raw answers to these are logged: the first thing to look at when
 // the dash stays at "--". 0100, 0120 and 0140 are the bitmaps of the
-// PIDs the engine ECU supports. The last one addresses the engine ECU
-// for the RAM scan.
-static const char *const probe_commands[] = {"ATI", "ATRV", "0100", "0120", "0140", "010C", "ATSH7E0"};
+// PIDs the engine ECU supports. MULTI_POLL asks for every polled PID at
+// once: if its answer holds them all, polling uses it (one round trip
+// over BLE instead of four), with the response count digit like 010C1.
+#define MULTI_POLL "010C24050F"
+static const char *const probe_commands[] = {"ATI", "ATRV", "0100", "0120", "0140", "010C", MULTI_POLL "1"};
 #define PROBE_COUNT (int)(sizeof probe_commands / sizeof probe_commands[0])
 
-// RPM comes twice per cycle: it's the only value that changes faster
-// than a human can read.
-static const uint8_t poll_pids[] = {PID_RPM, PID_LAMBDA, PID_RPM, PID_COOLANT};
+// RPM comes every other request: the shift light follows it.
+static const uint8_t poll_pids[] = {PID_RPM, PID_LAMBDA, PID_RPM, PID_COOLANT, PID_RPM, PID_IAT};
 #define POLL_COUNT (int)(sizeof poll_pids / sizeof poll_pids[0])
 
 // The oil temperature (see obd.h) is asked to the engine ECU directly,
@@ -66,7 +67,19 @@ static void log_answer(elm_t *e, const char *command, char *lines[], int n) {
     e->cb.log(e->cb.ctx, out);
 }
 
+static void start_scan(elm_t *e, uint32_t now_ms);
+static void start_listen(elm_t *e, uint32_t now_ms);
+
 static void send_next_poll(elm_t *e, uint32_t now_ms) {
+    // A scan or a listen waits for the oil's header switching to be over.
+    if (e->scan_requested && e->oil_step == 0) {
+        start_scan(e, now_ms);
+        return;
+    }
+    if (e->listen_requested && e->oil_step == 0) {
+        start_listen(e, now_ms);
+        return;
+    }
     if (e->oil_step > 0 || (e->oil_misses < ELM_OIL_MAX_MISSES && now_ms - e->oil_ms >= ELM_OIL_INTERVAL_MS)) {
         if (e->oil_step == 0) {
             e->oil_ms = now_ms;
@@ -80,9 +93,13 @@ static void send_next_poll(elm_t *e, uint32_t now_ms) {
         send(e, "ATRV", ELM_TIMEOUT_MS, now_ms);
         return;
     }
-    char command[8];
-    snprintf(command, sizeof command, "01%02X%s", poll_pids[e->step], e->single_response ? "1" : "");
-    e->step = (e->step + 1) % POLL_COUNT;
+    char command[12];
+    if (e->multi_pid) {
+        snprintf(command, sizeof command, "%s%s", MULTI_POLL, e->single_response ? "1" : "");
+    } else {
+        snprintf(command, sizeof command, "01%02X%s", poll_pids[e->step], e->single_response ? "1" : "");
+        e->step = (e->step + 1) % POLL_COUNT;
+    }
     send(e, command, ELM_TIMEOUT_MS, now_ms);
 }
 
@@ -123,7 +140,8 @@ static void handle_init(elm_t *e, char *lines[], int n, uint32_t now_ms) {
     start_probe(e, now_ms);
 }
 
-// The RAM scan looks for where the engine ECU keeps the ethanol %, to
+// The RAM scan (asked from the settings page) looks for where the engine
+// ECU keeps the ethanol %, to
 // read it there without tapping the flex-fuel sensor's wire. This ECU
 // ignores Subaru SSM reads (A0) and locks its ROM behind security access
 // (UDS 23 answers 7F 23 33), but reads its RAM, from 0xFFF80000, with a
@@ -154,6 +172,16 @@ static void scan_word(elm_t *e, uint32_t addr, const uint8_t *b) {
     }
 }
 
+static void start_scan(elm_t *e, uint32_t now_ms) {
+    e->scan_requested = false;
+    e->phase = ELM_SCAN;
+    e->scan_addr = ELM_SCAN_START;
+    e->scan_candidates = 0;
+    e->cb.log(e->cb.ctx, "scan: started");
+    state_set_status(e->state, "DEEP SCAN\nreaching the ECU");
+    send(e, "ATSH7E0", ELM_TIMEOUT_MS, now_ms);
+}
+
 static void finish_scan(elm_t *e, uint32_t now_ms) {
     char line[80];
     snprintf(line, sizeof line, "scan: stopped at %08lX, %d candidates", (unsigned long)e->scan_addr,
@@ -163,6 +191,10 @@ static void finish_scan(elm_t *e, uint32_t now_ms) {
 }
 
 static void handle_scan(elm_t *e, char *lines[], int n, uint32_t now_ms) {
+    if (strcmp(e->command, "ATSH7E0") == 0) {
+        send_scan_read(e, now_ms);
+        return;
+    }
     if (strcmp(e->command, "ATSH7DF") == 0) {
         start_poll(e, now_ms);
         return;
@@ -196,25 +228,104 @@ static void handle_scan(elm_t *e, char *lines[], int n, uint32_t now_ms) {
     send_scan_read(e, now_ms);
 }
 
+// Listening sets the dongle to print raw frames (ATCAF0) through an ID
+// mask of 0x700 (ATCM700), then moves the window (ATCF) and monitors
+// (ATMA) in turn. Any character stops a monitor; the dongle stops by
+// itself, with BUFFER FULL, when BLE can't keep up. At the end, the
+// session starts over (ATZ) rather than undo all that.
+static void start_listen(elm_t *e, uint32_t now_ms) {
+    e->listen_requested = false;
+    e->phase = ELM_LISTEN;
+    e->listen_ms = now_ms;
+    e->window = 0;
+    memset(&e->sniff, 0, sizeof e->sniff);
+    e->cb.log(e->cb.ctx, "sniff: listening, hands off");
+    state_set_status(e->state, "LISTEN\nhands off the car");
+    send(e, "ATCAF0", ELM_TIMEOUT_MS, now_ms);
+}
+
+static void send_window(elm_t *e, uint32_t now_ms) {
+    char command[16];
+    snprintf(command, sizeof command, "ATCF%03X", e->window * 0x100);
+    send(e, command, ELM_TIMEOUT_MS, now_ms);
+}
+
+static void handle_listen(elm_t *e, uint32_t now_ms) {
+    if (strcmp(e->command, "ATCAF0") == 0) {
+        send(e, "ATCM700", ELM_TIMEOUT_MS, now_ms);
+        return;
+    }
+    if (strncmp(e->command, "ATCF", 4) == 0 || strcmp(e->command, "ATCM700") == 0) {
+        if (strcmp(e->command, "ATCM700") == 0) {
+            send_window(e, now_ms);
+            return;
+        }
+        e->monitoring = true;
+        e->stop_sent = false;
+        e->monitor_ms = now_ms;
+        send(e, "ATMA", ELM_LISTEN_DWELL_MS + ELM_TIMEOUT_MS, now_ms);
+        return;
+    }
+    // A monitor ended: next window, or the next stage.
+    e->monitoring = false;
+    e->window = (e->window + 1) % ELM_LISTEN_WINDOWS;
+    uint32_t elapsed = now_ms - e->listen_ms;
+    if (elapsed >= ELM_LISTEN_MS) {
+        sniff_report(&e->sniff, e->cb.log, e->cb.ctx);
+        state_set_status(e->state, "SYNC\nlistening done, see the log");
+        elm_start(e, e->state, e->cb, now_ms);
+        return;
+    }
+    char status[96];
+    if (elapsed < ELM_LISTEN_BASELINE_MS) {
+        snprintf(status, sizeof status, "LISTEN\nhands off the car\n%lus", (unsigned long)((ELM_LISTEN_BASELINE_MS - elapsed) / 1000));
+    } else {
+        if (!e->sniff.baseline_over) {
+            sniff_end_baseline(&e->sniff);
+            e->cb.log(e->cb.ctx, "sniff: baseline over, presses");
+        }
+        snprintf(status, sizeof status, "LISTEN\npress SPORT on and off,\nagain and again\n%lus", (unsigned long)((ELM_LISTEN_MS - elapsed) / 1000));
+    }
+    state_set_status(e->state, status);
+    send_window(e, now_ms);
+}
+
 static void next_probe(elm_t *e, uint32_t now_ms) {
     if (++e->step < PROBE_COUNT) {
         send(e, probe_commands[e->step], ELM_TIMEOUT_MS, now_ms);
         return;
     }
-    e->phase = ELM_SCAN;
-    e->scan_addr = ELM_SCAN_START;
-    send_scan_read(e, now_ms);
+    start_poll(e, now_ms);
+}
+
+// check_multi_poll turns multi_pid on if lines, the answer to MULTI_POLL,
+// hold every PID it asked for.
+static void check_multi_poll(elm_t *e, char *lines[], int n) {
+    state_t scratch = {0};
+    isotp_t answer = {0};
+    for (int i = 0; i < n; i++) {
+        can_frame_t f;
+        if (elm_parse_frame(lines[i], &f) && f.id == OBD_RESPONSE_ECU1 && isotp_feed(&answer, &f)) {
+            obd_decode_message(answer.data, answer.len, &scratch, 0);
+        }
+    }
+    e->multi_pid = scratch.readings[SIG_RPM].valid && scratch.readings[SIG_COOLANT].valid &&
+                   scratch.readings[SIG_AFR].valid && scratch.readings[SIG_IAT].valid;
+    e->cb.log(e->cb.ctx, e->multi_pid ? "elm327: polling every PID at once"
+                                      : "elm327: no multi-PID answer, polling one PID at a time");
 }
 
 static void handle_poll(elm_t *e, char *lines[], int n, uint32_t now_ms) {
     bool obd = strncmp(e->command, "01", 2) == 0 || strcmp(e->command, "2101") == 0;
-    bool counted = strncmp(e->command, "01", 2) == 0 && strlen(e->command) == 5;
+    // Mode 01 requests are even-length; a count digit makes them odd.
+    size_t len = strlen(e->command);
+    bool counted = strncmp(e->command, "01", 2) == 0 && len % 2 == 1;
     if (counted && n == 1 && strcmp(lines[0], "?") == 0) {
         // Older or cloned firmware doesn't know the count digit.
         e->single_response = false;
         e->cb.log(e->cb.ctx, "elm327: no response count digit, polling slower");
-        char command[8];
-        snprintf(command, sizeof command, "%.4s", e->command);
+        char command[sizeof e->command];
+        snprintf(command, sizeof command, "%.*s", (int)len - 1, e->command);
         send(e, command, ELM_TIMEOUT_MS, now_ms);
         return;
     }
@@ -256,10 +367,16 @@ static void handle_response(elm_t *e, uint32_t now_ms) {
         break;
     case ELM_PROBE:
         log_answer(e, e->command, lines, n);
+        if (strcmp(e->command, MULTI_POLL "1") == 0) {
+            check_multi_poll(e, lines, n);
+        }
         next_probe(e, now_ms);
         break;
     case ELM_SCAN:
         handle_scan(e, lines, n, now_ms);
+        break;
+    case ELM_LISTEN:
+        handle_listen(e, now_ms);
         break;
     case ELM_POLL:
         handle_poll(e, lines, n, now_ms);
@@ -270,13 +387,28 @@ static void handle_response(elm_t *e, uint32_t now_ms) {
 }
 
 void elm_start(elm_t *e, state_t *state, elm_callbacks_t cb, uint32_t now_ms) {
-    *e = (elm_t){.cb = cb, .state = state, .phase = ELM_INIT, .single_response = true};
+    // Not *e = (elm_t){...}: with the sniff table, that temporary would
+    // take 5KB of the Pico's 2KB stack.
+    memset(e, 0, sizeof *e);
+    e->cb = cb;
+    e->state = state;
+    e->phase = ELM_INIT;
+    e->single_response = true;
     send(e, init_commands[0], ELM_RESET_TIMEOUT_MS, now_ms);
 }
 
 void elm_receive(elm_t *e, const uint8_t *data, size_t len, uint32_t now_ms) {
     for (size_t i = 0; i < len && e->waiting; i++) {
-        if (data[i] == '>') {
+        // A monitor prints frames until stopped: each line is fed as it
+        // comes, the buffer would never hold them all.
+        if (e->monitoring && (data[i] == '\r' || data[i] == '\n')) {
+            e->rx[e->rx_len] = 0;
+            can_frame_t f;
+            if (elm_parse_frame(e->rx, &f)) {
+                sniff_feed(&e->sniff, &f);
+            }
+            e->rx_len = 0;
+        } else if (data[i] == '>') {
             e->waiting = false;
             handle_response(e, now_ms);
         } else if (data[i] != 0 && e->rx_len < sizeof e->rx - 1) {
@@ -286,6 +418,11 @@ void elm_receive(elm_t *e, const uint8_t *data, size_t len, uint32_t now_ms) {
 }
 
 void elm_tick(elm_t *e, uint32_t now_ms) {
+    if (e->monitoring && !e->stop_sent && now_ms - e->monitor_ms >= ELM_LISTEN_DWELL_MS) {
+        e->stop_sent = true;
+        e->cb.write(e->cb.ctx, "\r");
+        return;
+    }
     if (!e->waiting || now_ms - e->sent_ms <= e->timeout_ms) {
         return;
     }
@@ -305,6 +442,12 @@ void elm_tick(elm_t *e, uint32_t now_ms) {
         next_probe(e, now_ms);
         return;
     }
+    if (e->phase == ELM_LISTEN) {
+        e->cb.log(e->cb.ctx, error);
+        sniff_report(&e->sniff, e->cb.log, e->cb.ctx);
+        elm_start(e, e->state, e->cb, now_ms);
+        return;
+    }
     if (e->phase == ELM_SCAN) {
         e->waiting = false;
         e->cb.log(e->cb.ctx, error);
@@ -316,6 +459,18 @@ void elm_tick(elm_t *e, uint32_t now_ms) {
         return;
     }
     fail(e, e->phase == ELM_POLL ? "OBD poll" : "ELM327 init", error);
+}
+
+void elm_scan_ram(elm_t *e) {
+    if (e->phase == ELM_POLL) {
+        e->scan_requested = true;
+    }
+}
+
+void elm_listen_can(elm_t *e) {
+    if (e->phase == ELM_POLL) {
+        e->listen_requested = true;
+    }
 }
 
 int elm_split_lines(char *raw, const char *command, char *lines[], int max) {

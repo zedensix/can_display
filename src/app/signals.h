@@ -7,6 +7,7 @@
 typedef enum {
     SIG_RPM,
     SIG_COOLANT,
+    SIG_IAT,
     SIG_OIL,
     SIG_BATTERY,
     SIG_AFR,
@@ -14,12 +15,13 @@ typedef enum {
     SIG_COUNT,
 } signal_t;
 
-// reading_t is one signal's latest value. Times are milliseconds since
-// boot.
+// reading_t is one signal's latest value, and the lowest and highest
+// since boot (the session's extremes). Times are milliseconds since boot.
 typedef struct {
     float value;
     bool valid;
     uint32_t updated_ms;
+    float min, max;
 } reading_t;
 
 // state_t is everything the UI draws. status is the data source's own

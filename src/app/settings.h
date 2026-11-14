@@ -17,17 +17,24 @@ typedef struct {
     // read at all: left unconnected it floats, and shows noise as a
     // plausible ethanol %.
     bool ethanol_sensor;
+    // shift_rpm flashes the screen's edge from that RPM on, like a shift
+    // light; 0 is off.
+    int shift_rpm;
 } settings_t;
 
 #define BRIGHTNESS_MIN 10
 #define BRIGHTNESS_MAX 100
 #define BRIGHTNESS_STEP 10
+#define SHIFT_RPM_MIN 5000
+// The rev limiter (see RPM_RANGE in ui.c).
+#define SHIFT_RPM_MAX 7600
+#define SHIFT_RPM_STEP 100
 
 // SETTINGS_DEFAULT is what a Pico that never saved settings uses.
 #define SETTINGS_DEFAULT ((settings_t){.brightness = BRIGHTNESS_MAX})
 
 // SETTINGS_SIZE is how many bytes settings_encode writes.
-#define SETTINGS_SIZE 7
+#define SETTINGS_SIZE 8
 
 void settings_encode(settings_t s, uint8_t out[SETTINGS_SIZE]);
 

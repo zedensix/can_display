@@ -76,6 +76,18 @@ static bool prompt_click(uint32_t now) {
 #endif
 }
 
+static void scan_ram(void) {
+#if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
+    ble_scan_ram();
+#endif
+}
+
+static void listen_can(void) {
+#if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
+    ble_listen_can();
+#endif
+}
+
 static void __attribute__((noreturn)) reboot(bool connect) {
 #if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
     ble_disconnect();
@@ -206,6 +218,14 @@ int main(void) {
         if (press && !((screen.page == PAGE_GAUGES || standby()) && prompt_click(start))) {
             screen_press(&screen, &cfg);
         }
+        if (screen.scan_requested) {
+            screen.scan_requested = false;
+            scan_ram();
+        }
+        if (screen.listen_requested) {
+            screen.listen_requested = false;
+            listen_can();
+        }
         if (long_press) {
             log_line("knob: reboot");
             reboot(false);
@@ -232,7 +252,7 @@ int main(void) {
             continue;
         }
         draw(-1, &screen, &cfg);
-        while (now_ms() - start < FRAME_MS) {
+        while (now_ms() - start < FRAME_MS && !knob_pending()) {
             source_poll(now_ms());
         }
     }
