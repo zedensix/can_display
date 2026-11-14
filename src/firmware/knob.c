@@ -4,9 +4,10 @@
 #include "hardware/gpio.h"
 #include "hardware/irq.h"
 
-// 4 quadrature steps per detent. If one click moves two steps, the
-// encoder is a half-step one: use 2.
-#define STEPS_PER_DETENT 4
+// Quadrature steps per detent: this car's KY-040 is a half-step one (2
+// steps a click, resting at both 00 and 11; with 4, it took two clicks
+// to move). A full-step one takes 4.
+#define STEPS_PER_DETENT 2
 // A button change within this long of the last one is a bounce.
 #define DEBOUNCE_MS 25
 

@@ -131,13 +131,23 @@ static void settings(canvas_t *c) {
     render(c, &s, (screen_t){.page = PAGE_SETTINGS, .cursor = ROW_SHIFT_LIGHT, .editing = true});
 }
 
-static void boot(canvas_t *c) {
-    ui_render_boot(c, BOOT_SPLASH_MS / 2, now);
+// The boot animation: the logo halfway revealed, the rev's blue flash,
+// the gauges' sweep.
+static void boot_reveal(canvas_t *c) {
+    ui_render_boot(c, BOOT_REVEAL_MS * 3 / 5, now);
+}
+
+static void boot_rev(canvas_t *c) {
+    ui_render_boot(c, BOOT_SPLASH_MS - 100, now);
+}
+
+static void boot_sweep(canvas_t *c) {
+    ui_render_boot(c, BOOT_SPLASH_MS + BOOT_SWEEP_MS / 3, now);
 }
 
 static const shot_t shots[] = {
     {"grid", grid},         {"alarms", alarms}, {"alarms_unlit", alarms_unlit}, {"oil_critical", oil_critical}, {"cold", cold}, {"shift", shift}, {"oil", oil},           {"coolant", coolant},
-    {"connecting", connecting}, {"scan", scan}, {"failed", failed}, {"settings", settings}, {"boot", boot},
+    {"connecting", connecting}, {"scan", scan}, {"failed", failed}, {"settings", settings}, {"boot_reveal", boot_reveal}, {"boot_rev", boot_rev}, {"boot_sweep", boot_sweep},
 };
 #define SHOTS (int)(sizeof shots / sizeof shots[0])
 

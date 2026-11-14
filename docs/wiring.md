@@ -37,8 +37,9 @@ Turn on the gauges: every gauge, then each one alone, big. Click on the
 gauges: settings page (turn to pick a row, click to change it, Back to
 leave); while the screen says "press to connect" or "press to retry",
 the click goes to the connection instead. Hold 1s: reboot. If turning
-goes the wrong way, swap CLK and DT; if one click moves two steps, the
-encoder is half-step: set `STEPS_PER_DETENT` to 2 in `src/firmware/knob.c`.
+goes the wrong way, swap CLK and DT. `STEPS_PER_DETENT` in
+`src/firmware/knob.c` is 2, for a half-step encoder (the one on this
+car); if one click moves two rows, it's a full-step one: set it to 4.
 
 Keep GP15 free: the pico-sdk drives it briefly at boot for the RP2040 USB
 enumeration workaround (erratum RP2040-E5).

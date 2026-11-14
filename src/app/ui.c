@@ -514,29 +514,50 @@ static void draw_logo(canvas_t *c, int cx, int cy, int shrink, color_t color) {
     }
 }
 
+// The boot shift light revs over the bar's span up to this.
+#define BOOT_SHIFT_RPM 7000
+
 bool ui_render_boot(canvas_t *c, uint32_t elapsed_ms, uint32_t now_ms) {
     if (elapsed_ms >= BOOT_DURATION_MS) {
         return false;
     }
     const theme_t *t = &theme_dark;
     gfx_fill_rect(c, 0, 0, c->width, c->height, t->background);
+    reading_t rpm = {.valid = true, .updated_ms = now_ms};
     if (elapsed_ms < BOOT_SPLASH_MS) {
-        uint32_t fade = elapsed_ms;
-        if (BOOT_SPLASH_MS - elapsed_ms < fade) {
-            fade = BOOT_SPLASH_MS - elapsed_ms;
+        // The logo, revealed top down behind a bright scan line.
+        int top = (c->height - (logo_bin[2] << 8 | logo_bin[3])) / 2, bottom = c->height - top;
+        draw_logo(c, c->width / 2, c->height / 2, 1, t->accent);
+        if (elapsed_ms < BOOT_REVEAL_MS) {
+            int line = top + (bottom - top) * (int)elapsed_ms / BOOT_REVEAL_MS;
+            gfx_fill_rect(c, 0, line, c->width, c->height - line, t->background);
+            gfx_fill_rect(c, 0, line, c->width, 3, t->alarm_text);
+            gfx_fill_rect(c, 0, line + 3, c->width, 8, gfx_blend(t->background, t->accent, 0.35f));
         }
-        if (fade > BOOT_FADE_MS) {
-            fade = BOOT_FADE_MS;
-        }
-        draw_logo(c, c->width / 2, c->height / 2, 1, gfx_blend(t->background, t->accent, (float)fade / BOOT_FADE_MS));
+        // Then a rev: the shift light fills, then flashes blue.
+        float rev = (float)((int)elapsed_ms - BOOT_REVEAL_MS) / (BOOT_SPLASH_MS - BOOT_REVEAL_MS - 200);
+        rpm.value = rev < 0 ? 0 : BOOT_SHIFT_RPM - SHIFT_SPAN_RPM + rev * SHIFT_SPAN_RPM;
+        draw_shift_light(c, t, &rpm, BOOT_SHIFT_RPM, now_ms);
         return true;
     }
-    float sweep = sinf(3.14159265f * (float)(elapsed_ms - BOOT_SPLASH_MS) / BOOT_SWEEP_MS);
-    reading_t readings[SIG_COUNT] = {0};
-    for (int i = 0; i < ui_tile_count; i++) {
-        const range_t *r = &ui_tiles[i].range;
-        readings[ui_tiles[i].signal] = (reading_t){.value = r->min + sweep * (r->max - r->min), .valid = true, .updated_ms = now_ms};
+    // Like the GT86's own cluster at ignition: the tachometer sweeps to
+    // its end and back, its scale around, the logo in the middle.
+    float sweep = sinf(PI * (float)(elapsed_ms - BOOT_SPLASH_MS) / BOOT_SWEEP_MS);
+    const range_t tach = RPM_RANGE;
+    int cx = c->width / 2, cy = SHIFT_BAR_HEIGHT + 140, r_out = c->width / 2 - 8, r_in = r_out - DIAL_WIDTH;
+    color_t colors[DIAL_SEGMENTS];
+    segment_colors(&tach, sweep, -1, DIAL_SEGMENTS, false, t, colors);
+    draw_arc(c, cx, cy, r_in, r_out, DIAL_START, DIAL_SWEEP, DIAL_SEGMENTS, colors);
+    for (int k = 0; k <= 8; k++) {
+        float a = (DIAL_START + (float)k * DIAL_SWEEP / 8) * PI / 180;
+        char digit[2] = {(char)('0' + k), 0};
+        int r = r_in - 16;
+        text_centered(c, &font_bold12, cx + (int)lroundf((float)r * cosf(a)), cy + (int)lroundf((float)r * sinf(a)) + 7,
+                      digit, k * 1000 >= (int)tach.danger_high ? t->danger : t->label, 1);
     }
-    draw_grid(c, t, readings, 0, now_ms);
+    draw_logo(c, cx, cy, 2, t->accent);
+    text_centered(c, label_font, cx, cy + r_out * 7 / 10 + 26, "x1000 r/min", t->label, 1);
+    rpm.value = BOOT_SHIFT_RPM - SHIFT_SPAN_RPM + sweep * SHIFT_SPAN_RPM * 0.99f;
+    draw_shift_light(c, t, &rpm, BOOT_SHIFT_RPM, now_ms);
     return true;
 }
