@@ -8,11 +8,13 @@
 // settings_t is what the settings page changes. The firmware keeps it in
 // a flash sector of its own.
 // dongle_t is a BLE device's address, with its type (public or random)
-// as BLE needs it to connect.
+// as BLE needs it to connect, and its name ("" if it has none).
+#define DONGLE_NAME 24
 typedef struct {
     bool set;
     uint8_t addr[6];
     uint8_t type;
+    char name[DONGLE_NAME];
 } dongle_t;
 
 typedef struct {
@@ -49,7 +51,7 @@ typedef struct {
 #define SETTINGS_DEFAULT ((settings_t){.brightness = BRIGHTNESS_MAX})
 
 // SETTINGS_SIZE is how many bytes settings_encode writes.
-#define SETTINGS_SIZE 25
+#define SETTINGS_SIZE (25 + DONGLE_NAME)
 
 void settings_encode(settings_t s, uint8_t out[SETTINGS_SIZE]);
 

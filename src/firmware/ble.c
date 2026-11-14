@@ -49,6 +49,7 @@ typedef enum {
     CONNECTING,
     DISCOVERING_SERVICES,
     DISCOVERING_CHARACTERISTICS,
+    READING_NAME,
     ENABLING_NOTIFICATIONS,
     RUNNING,
     FAILED,
@@ -74,8 +75,8 @@ static char peer[64];
 
 static gatt_client_service_t services[MAX_SERVICES];
 static int service_count, service_index;
-static gatt_client_characteristic_t notify_char, write_char;
-static bool have_notify, have_write;
+static gatt_client_characteristic_t notify_char, write_char, name_char;
+static bool have_notify, have_write, have_name;
 
 static void gatt_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size);
 static void advertise(void);
@@ -244,6 +245,12 @@ static void discover_next_service(void) {
 static void characteristic_found(const gatt_client_characteristic_t *c) {
     log_line("ble:   characteristic %s", uuid_str(c->uuid16, c->uuid128));
     const gatt_client_service_t *s = &services[service_index];
+    // The GAP service's device name: dongles that don't advertise a name
+    // (the Vgate) still have one here.
+    if (s->uuid16 == ORG_BLUETOOTH_SERVICE_GENERIC_ACCESS && c->uuid16 == ORG_BLUETOOTH_CHARACTERISTIC_GAP_DEVICE_NAME) {
+        name_char = *c;
+        have_name = true;
+    }
     for (int i = 0; i < PROFILE_COUNT; i++) {
         if (s->uuid16 != profiles[i].service) {
             continue;
@@ -257,6 +264,14 @@ static void characteristic_found(const gatt_client_characteristic_t *c) {
             have_write = true;
         }
     }
+}
+
+static void enable_notifications(void) {
+    gatt_client_listen_for_characteristic_value_updates(&notification_listener, gatt_handler, connection,
+                                                        &notify_char);
+    gatt_client_write_client_characteristic_configuration(gatt_handler, connection, &notify_char,
+                                                          GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION);
+    set_phase(ENABLING_NOTIFICATIONS, NULL);
 }
 
 static void query_complete(uint8_t status) {
@@ -278,16 +293,24 @@ static void query_complete(uint8_t status) {
         break;
     case DISCOVERING_CHARACTERISTICS:
         if (have_notify && have_write) {
-            gatt_client_listen_for_characteristic_value_updates(&notification_listener, gatt_handler, connection,
-                                                                &notify_char);
-            gatt_client_write_client_characteristic_configuration(
-                gatt_handler, connection, &notify_char, GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION);
-            set_phase(ENABLING_NOTIFICATIONS, NULL);
+            if (have_name) {
+                set_phase(READING_NAME, NULL);
+                gatt_client_read_value_of_characteristic(gatt_handler, connection, &name_char);
+            } else {
+                connected_new = true;
+                enable_notifications();
+            }
             return;
         }
         have_notify = have_write = false;
         service_index++;
         discover_next_service();
+        break;
+    case READING_NAME:
+        // Without a name, the address will do: not worth failing over.
+        log_line("ble: dongle name \"%s\"", connected.name);
+        connected_new = true;
+        enable_notifications();
         break;
     case ENABLING_NOTIFICATIONS:
         if (status != ATT_ERROR_SUCCESS) {
@@ -323,6 +346,14 @@ static void gatt_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet,
         characteristic_found(&c);
         break;
     }
+    case GATT_EVENT_CHARACTERISTIC_VALUE_QUERY_RESULT:
+        if (phase == READING_NAME) {
+            uint16_t len = gatt_event_characteristic_value_query_result_get_value_length(packet);
+            len = len < DONGLE_NAME - 1 ? len : DONGLE_NAME - 1;
+            memcpy(connected.name, gatt_event_characteristic_value_query_result_get_value(packet), len);
+            connected.name[len] = 0;
+        }
+        break;
     case GATT_EVENT_NOTIFICATION:
         elm_receive(&elm, gatt_event_notification_get_value(packet), gatt_event_notification_get_value_length(packet),
                     now);
@@ -345,6 +376,7 @@ static void connect_to(const bd_addr_t addr, uint8_t type, const char *name) {
     log_line("ble: connecting to %s", bd_addr_to_str(addr));
     connecting_to = (dongle_t){.set = true, .type = type};
     memcpy(connecting_to.addr, addr, sizeof connecting_to.addr);
+    snprintf(connecting_to.name, sizeof connecting_to.name, "%s", name);
     uint8_t err = gap_connect(addr, (bd_addr_type_t)type);
     if (err != ERROR_CODE_SUCCESS) {
         char error[32];
@@ -354,22 +386,34 @@ static void connect_to(const bd_addr_t addr, uint8_t type, const char *name) {
 }
 
 // prompt_report is a device seen while the prompt waits for a click: a
-// dongle becomes what the click connects to, the last one used first.
+// dongle becomes what the click connects to, the last one used first. It
+// shows by name: the one it advertises, else the one read from it last
+// time; by address only without either.
 static void prompt_report(const bd_addr_t addr, uint8_t type, const char *name, uint8_t len, const uint8_t *data) {
     if (!looks_like_elm(addr, name, len, data)) {
         return;
     }
     bool last = last_dongle.set && memcmp(last_dongle.addr, addr, sizeof last_dongle.addr) == 0;
-    if (picked.set && (picked_last || !last)) {
+    bool same = picked.set && memcmp(picked.addr, addr, sizeof picked.addr) == 0;
+    // A name arriving late (in a scan response) for the dongle picked.
+    bool named = same && name[0] && strcmp(picked_name, name) != 0;
+    if (picked.set && !named && (picked_last || !last)) {
         return;
     }
-    picked = (dongle_t){.set = true, .type = type};
-    memcpy(picked.addr, addr, sizeof picked.addr);
-    picked_last = last;
-    snprintf(picked_name, sizeof picked_name, "%s", name);
-    log_line("ble: prompt offers %s %s%s", bd_addr_to_str(addr), name, last ? " (last used)" : "");
+    if (!same) {
+        picked = (dongle_t){.set = true, .type = type};
+        memcpy(picked.addr, addr, sizeof picked.addr);
+        picked_last = last;
+        picked_name[0] = 0;
+    }
+    if (name[0]) {
+        snprintf(picked_name, sizeof picked_name, "%s", name);
+    } else if (last && !picked_name[0]) {
+        snprintf(picked_name, sizeof picked_name, "%s", last_dongle.name);
+    }
+    log_line("ble: prompt offers %s %s%s", bd_addr_to_str(addr), picked_name, last ? " (last used)" : "");
     char status[192];
-    snprintf(status, sizeof status, "READY\npress to connect to\n%s%s", name_or_address(name, addr),
+    snprintf(status, sizeof status, "READY\npress to connect to\n%s%s", picked_name[0] ? picked_name : bd_addr_to_str(addr),
              last ? "\n(last used)" : "");
     state_set_status(state, status);
 }
@@ -412,8 +456,9 @@ static void connection_complete(uint8_t *packet) {
         return;
     }
     connection = gap_subevent_le_connection_complete_get_connection_handle(packet);
+    // Handed to the settings once its name is read (or known missing).
     connected = connecting_to;
-    connected_new = true;
+    have_name = false;
     char text[192];
     snprintf(text, sizeof text, "HANDSHAKE\n%s", peer);
     set_phase(DISCOVERING_SERVICES, text);
@@ -665,6 +710,7 @@ static void check_timeouts(void) {
         break;
     case DISCOVERING_SERVICES:
     case DISCOVERING_CHARACTERISTICS:
+    case READING_NAME:
     case ENABLING_NOTIFICATIONS:
         if (elapsed > STEP_TIMEOUT_MS) {
             fail("BLE connect", "GATT discovery timed out");

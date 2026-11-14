@@ -149,7 +149,7 @@ static void status(canvas_t *c, const char *text) {
 }
 
 static void ready(canvas_t *c) {
-    status(c, "READY\npress to connect to\n41:42:86:9A:C0:33\n(last used)");
+    status(c, "READY\npress to connect to\nIOS-Vlink\n(last used)");
 }
 
 static void connecting(canvas_t *c) {

@@ -5,8 +5,9 @@
 // "GT86" then a format version mark a sector holding settings.
 static const uint8_t magic[4] = {'G', 'T', '8', '6'};
 // Older versions still decode: version 1 without the shift light (off),
-// version 2 without the lap line (unset), version 3 without the dongle.
-#define VERSION 4
+// version 2 without the lap line (unset), version 3 without the dongle,
+// version 4 without its name.
+#define VERSION 5
 
 enum {
     FLAG_AUTO_CONNECT = 1 << 0,
@@ -40,6 +41,7 @@ void settings_encode(settings_t s, uint8_t out[SETTINGS_SIZE]) {
     out[17] = (uint8_t)((uint16_t)s.lap_line.heading >> 8);
     memcpy(out + 18, s.dongle.addr, sizeof s.dongle.addr);
     out[24] = s.dongle.type;
+    memcpy(out + 25, s.dongle.name, DONGLE_NAME);
 }
 
 settings_t settings_decode(const uint8_t in[SETTINGS_SIZE]) {
@@ -53,6 +55,10 @@ settings_t settings_decode(const uint8_t in[SETTINGS_SIZE]) {
         dongle.set = true;
         memcpy(dongle.addr, in + 18, sizeof dongle.addr);
         dongle.type = in[24];
+        if (in[4] >= 5) {
+            memcpy(dongle.name, in + 25, DONGLE_NAME);
+            dongle.name[DONGLE_NAME - 1] = 0;
+        }
     }
     return (settings_t){
         .brightness = in[5],
@@ -76,5 +82,6 @@ bool settings_equal(settings_t a, settings_t b) {
 }
 
 bool dongle_equal(dongle_t a, dongle_t b) {
-    return a.set == b.set && (!a.set || (memcmp(a.addr, b.addr, sizeof a.addr) == 0 && a.type == b.type));
+    return a.set == b.set &&
+           (!a.set || (memcmp(a.addr, b.addr, sizeof a.addr) == 0 && a.type == b.type && strcmp(a.name, b.name) == 0));
 }
