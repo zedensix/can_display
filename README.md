@@ -12,7 +12,7 @@ on without a car, a Pico, or any wiring.
 ## Quick start
 
 ```sh
-mise install         # the ARM toolchain, CMake, Ninja (and Go, for the logo tool)
+mise install         # the ARM toolchain, CMake, Ninja, Python (for the logo tool)
 mise run sim         # desktop window with the live dashboard, fake data (arrows/space = the rotary encoder)
 mise run test        # host-side tests, with the address and UB sanitizers
 mise run firmware    # bin/firmware.uf2 and bin/firmware-sim.uf2 (fetches the pico-sdk once)

@@ -2,8 +2,7 @@
 cmake = "4.4.5"
 ninja = "1.13.2"
 "asdf:mise-plugins/mise-gcc-arm-none-eabi" = "14.3.Rel1"
-# Only for `mise run logo` (cmd/logo turns 86.png into the boot splash).
-go = "1.27.4"
+python = "3.14.10"
 
 [env]
 PICO_SDK_VERSION = "2.2.0"

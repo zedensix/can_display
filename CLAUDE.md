@@ -13,12 +13,12 @@ mise run firmware    # bin/firmware.uf2 + bin/firmware-sim.uf2; clones the pico-
 mise run flash       # build, reboot a running Pico into BOOTSEL (1200 baud touch), dd the UF2; prints each step
 mise run flash-sim   # same with the fake-data firmware (SIM=1)
 mise run logs        # print the flash log (sends 'l' over USB serial)
-mise run logo        # 86.png -> src/app/logo.c (go run ./cmd/logo, then xxd)
+mise run logo        # 86.png -> src/app/logo.c (tools/logo.py, then xxd)
 ```
 
-The ARM toolchain (14.3.Rel1), CMake, Ninja and the SDK version/path are pinned in `mise.toml`. Our sources build with `-Wall -Wextra -Werror` on every target (SDK sources excepted): a warning is a failed build, there's no separate lint.
+The ARM toolchain (14.3.Rel1), CMake, Ninja, Python and the SDK version/path are pinned in `mise.toml`. Our sources build with `-Wall -Wextra -Werror` on every target (SDK sources excepted): a warning is a failed build, there's no separate lint.
 
-The Go/TinyGo implementation (`cmd/`, `internal/`, `tests/`, `go.mod`) is the previous version, kept until the C one is validated on the car. Don't extend it; `cmd/logo` is the only Go still used.
+This project started in Go/TinyGo and was rewritten in C (see git history before `cbb43b4`): TinyGo's cooperative scheduler, 8KB goroutine stacks, fonts in RAM and its USB and BLE stacks kept breaking on the Pico W.
 
 ## Architecture
 
