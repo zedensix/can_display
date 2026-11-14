@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 // Pure conversion math for the locally wired analog sensors. No
@@ -30,3 +31,12 @@ float divider_undo(divider_t d, float measured_volts);
 // this car's flex-fuel tune (checked 2026-11-14), so the dash shows what
 // the ECU uses. The Pico taps the same 0.5-4.5V signal the ECU reads.
 float sensors_ethanol_percent(float sensor_volts);
+
+// ECU_ADC_STEP_VOLTS is one step of the engine ECU's 12-bit ADC on a 5V
+// reference: every ethanol % in an Alientech log of this car's ECU is
+// 25 x n x ECU_ADC_STEP_VOLTS - 12.5 (checked 2026-11-14).
+#define ECU_ADC_STEP_VOLTS (5.0f / 4096)
+
+// sensors_on_ecu_adc_grid tells whether volts (positive) is a whole
+// number of ECU ADC steps: how a RAM scan spots the ethanol value.
+bool sensors_on_ecu_adc_grid(float volts);

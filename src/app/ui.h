@@ -10,8 +10,12 @@
 
 // theme_t is the palette: dark for readability in a sunlit car, warning
 // colors reserved for values actually out of range.
+// theme_t: good, warning and danger color a reading by its band; a
+// reading in danger also turns its tile to alarm with alarm_text on it.
+// frame outlines tiles, stale is what isn't lit (old readings, unlit
+// segments).
 typedef struct {
-    color_t background, label, good, warning, danger, stale;
+    color_t background, frame, label, good, warning, danger, alarm, alarm_text, stale;
 } theme_t;
 
 extern const theme_t theme_dark;

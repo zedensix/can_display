@@ -14,7 +14,7 @@
 //
 // The session resets and configures the dongle (echo off, CAN headers
 // on, ISO 15765-4 11bit 500kbps), logs its raw answers to a few probes,
-// then polls RPM, AFR and coolant temperature, plus the battery voltage
+// scans the engine ECU's RAM for the ethanol % (see elm327.c), then polls RPM, AFR and coolant temperature, plus the battery voltage
 // about once a second (ATRV, answered by the dongle itself) and the oil
 // temperature every few seconds. With headers on, each reply line is a
 // CAN frame; multi-frame answers are reassembled (isotp_feed).
@@ -28,6 +28,15 @@
 #define ELM_BATTERY_INTERVAL_MS 1000
 #define ELM_OIL_INTERVAL_MS 3000
 #define ELM_OIL_MAX_MISSES 3
+
+// The RAM scan reads ELM_SCAN_CHUNK bytes at a time (whole floats, and
+// the answer fits isotp_t), from ELM_SCAN_START until the ECU refuses an
+// address or ELM_SCAN_MAX bytes, and logs at most ELM_SCAN_LOGGED
+// candidates.
+#define ELM_SCAN_START 0xFFF80000u
+#define ELM_SCAN_MAX (256u * 1024)
+#define ELM_SCAN_CHUNK 60
+#define ELM_SCAN_LOGGED 40
 
 typedef struct {
     // write sends one command, "\r" included.
@@ -44,6 +53,7 @@ typedef enum {
     ELM_OFF,
     ELM_INIT,
     ELM_PROBE,
+    ELM_SCAN,
     ELM_POLL,
     ELM_FAILED,
 } elm_phase_t;
@@ -72,6 +82,9 @@ typedef struct {
     // answered at all this session.
     uint32_t ecu_ms;
     bool ecu_answered;
+    // scan_addr is the next ECU RAM address the scan reads.
+    uint32_t scan_addr;
+    int scan_candidates;
 } elm_t;
 
 void elm_start(elm_t *e, state_t *state, elm_callbacks_t cb, uint32_t now_ms);

@@ -83,6 +83,7 @@ typedef struct {
     int sent_count;
     int ready, failed;
     char failed_step[32];
+    char logged[4096];
 } fake_dongle_t;
 
 static void fake_write(void *ctx, const char *command) {
@@ -92,8 +93,9 @@ static void fake_write(void *ctx, const char *command) {
     }
 }
 static void fake_log(void *ctx, const char *line) {
-    (void)ctx;
-    (void)line;
+    fake_dongle_t *d = ctx;
+    size_t len = strlen(d->logged);
+    snprintf(d->logged + len, sizeof d->logged - len, "%s\n", line);
 }
 static void fake_ready(void *ctx) {
     ((fake_dongle_t *)ctx)->ready++;
@@ -220,6 +222,54 @@ static void test_elm_oil_car_off(void) {
         asked += strcmp(d.sent[i], "2101\r") == 0;
     }
     CHECK(asked > ELM_OIL_MAX_MISSES, "2101 asked %d times with the car off, want it kept", asked);
+}
+
+// scan_answer prints a positive answer to a RAM scan read as the ELM
+// shows it: ISO-TP frames from 7E8, a float at byte offset at.
+static void scan_answer(char *out, size_t size, float value, int at) {
+    uint8_t msg[1 + ELM_SCAN_CHUNK] = {0x63};
+    uint32_t bits;
+    memcpy(&bits, &value, sizeof bits);
+    for (int i = 0; i < 4; i++) {
+        msg[1 + at + i] = (uint8_t)(bits >> (24 - 8 * i));
+    }
+    int len = (int)sizeof msg;
+    size_t n = (size_t)snprintf(out, size, "7E810%02X", len);
+    for (int i = 0; i < 6; i++) {
+        n += (size_t)snprintf(out + n, size - n, "%02X", msg[i]);
+    }
+    for (int pos = 6, seq = 1; pos < len; pos += 7, seq++) {
+        n += (size_t)snprintf(out + n, size - n, "\r7E82%X", seq % 16);
+        for (int i = pos; i < pos + 7; i++) {
+            n += (size_t)snprintf(out + n, size - n, "%02X", i < len ? msg[i] : 0);
+        }
+    }
+    snprintf(out + n, size - n, "\r>");
+}
+
+static void test_elm_scan(void) {
+    fake_dongle_t d = {0};
+    state_t s = {0};
+    elm_t e;
+    elm_start(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
+    answer(&e, "ELM327 v2.3\r>", 1);
+    for (int i = 0; i < 7 + 7; i++) {
+        answer(&e, "OK\r>", 2);
+    }
+    CHECK(strcmp(last_sent(&d), "2314FFF800003C\r") == 0, "first scan read %s", last_sent(&d));
+    float pct = 25 * (2631 * ECU_ADC_STEP_VOLTS) - 12.5f; // 67.79%, as in the Alientech log
+    char text[512];
+    scan_answer(text, sizeof text, pct, 8);
+    answer(&e, text, 3);
+    CHECK(strcmp(last_sent(&d), "2314FFF8003C3C\r") == 0, "second scan read %s", last_sent(&d));
+    scan_answer(text, sizeof text, 67.8f, 0); // off the ADC grid
+    answer(&e, text, 4);
+    answer(&e, "7E8037F2331\r>", 5); // out of range: the end of the RAM
+    CHECK(strcmp(last_sent(&d), "ATSH7DF\r") == 0, "after the scan sent %s, want ATSH7DF", last_sent(&d));
+    answer(&e, "OK\r>", 6);
+    CHECK(d.ready == 1, "polling didn't start after the scan");
+    CHECK(strstr(d.logged, "scan: FFF80008 = 67.792 (ethanol %?)") != NULL, "candidate not logged:\n%s", d.logged);
+    CHECK(strstr(d.logged, "1 candidates") != NULL, "67.8 (off the grid) counted as a candidate:\n%s", d.logged);
 }
 
 static void test_isotp(void) {
@@ -368,6 +418,8 @@ static void test_sensors(void) {
     CHECK(near(divider_undo(ETHANOL_DIVIDER, at_pin), ETHANOL_SENSOR_MAX_VOLTS), "divider_undo isn't the inverse");
     CHECK(near(sensors_ethanol_percent(2.5f), 50), "2.5V gave %f%%, want 50", (double)sensors_ethanol_percent(2.5f));
     CHECK(sensors_ethanol_percent(0) == 0 && sensors_ethanol_percent(5) == 100, "ethanol %% isn't clamped");
+    CHECK(sensors_on_ecu_adc_grid(1234 * ECU_ADC_STEP_VOLTS), "a whole number of ADC steps is off the grid");
+    CHECK(!sensors_on_ecu_adc_grid(1234.5f * ECU_ADC_STEP_VOLTS), "half an ADC step is on the grid");
 }
 
 static void test_wrap(void) {
@@ -393,6 +445,7 @@ int main(void) {
     test_elm_init_rejected();
     test_elm_oil();
     test_elm_oil_car_off();
+    test_elm_scan();
     test_isotp();
     test_flashlog();
     test_settings();

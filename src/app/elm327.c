@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "sensors.h"
+
 static const char *const init_commands[] = {
     "ATZ",    // reset; answers with its banner, not OK
     "ATE0",   // echo off
@@ -21,12 +23,9 @@ static const char *const init_commands[] = {
 
 // The raw answers to these are logged: the first thing to look at when
 // the dash stays at "--". 0100, 0120 and 0140 are the bitmaps of the
-// PIDs the engine ECU supports. A0 is a Subaru SSM memory read, asked to
-// the engine ECU: 8 bytes at 0x11CC38, the tune's "Ethanol Sensor
-// Scaling" (25.0 and -12.5 as floats if SSM works on this ECU), the
-// first step towards reading the ethanol % from its RAM.
-static const char *const probe_commands[] = {"ATI",     "ATRV",         "0100",   "0120", "0140",
-                                             "010C",    "ATSH7E0",      "A00011CC3807", "ATSH7DF"};
+// PIDs the engine ECU supports. The last one addresses the engine ECU
+// for the RAM scan.
+static const char *const probe_commands[] = {"ATI", "ATRV", "0100", "0120", "0140", "010C", "ATSH7E0"};
 #define PROBE_COUNT (int)(sizeof probe_commands / sizeof probe_commands[0])
 
 // RPM comes twice per cycle: it's the only value that changes faster
@@ -124,12 +123,87 @@ static void handle_init(elm_t *e, char *lines[], int n, uint32_t now_ms) {
     start_probe(e, now_ms);
 }
 
+// The RAM scan looks for where the engine ECU keeps the ethanol %, to
+// read it there without tapping the flex-fuel sensor's wire. This ECU
+// ignores Subaru SSM reads (A0) and locks its ROM behind security access
+// (UDS 23 answers 7F 23 33), but reads its RAM, from 0xFFF80000, with a
+// UDS ReadMemoryByAddress: 23 14, 4 address bytes, 1 size byte (checked
+// 2026-11-14). A float that is a whole number of ECU ADC steps once
+// turned back into the sensor's volts (25%/V - 12.5%, the tune's scaling)
+// is logged as a candidate, as is one that is such a voltage itself.
+static void send_scan_read(elm_t *e, uint32_t now_ms) {
+    char command[sizeof e->command];
+    snprintf(command, sizeof command, "2314%08lX%02X", (unsigned long)e->scan_addr, ELM_SCAN_CHUNK);
+    send(e, command, ELM_TIMEOUT_MS, now_ms);
+}
+
+static void scan_word(elm_t *e, uint32_t addr, const uint8_t *b) {
+    uint32_t bits = (uint32_t)b[0] << 24 | (uint32_t)b[1] << 16 | (uint32_t)b[2] << 8 | b[3];
+    float f;
+    memcpy(&f, &bits, sizeof f);
+    const char *what = NULL;
+    if (f >= 1 && f <= 100 && sensors_on_ecu_adc_grid((f + 12.5f) / 25)) {
+        what = "ethanol %";
+    } else if (f >= ETHANOL_SENSOR_MIN_VOLTS && f <= ETHANOL_SENSOR_MAX_VOLTS && sensors_on_ecu_adc_grid(f)) {
+        what = "sensor volts";
+    }
+    if (what && e->scan_candidates++ < ELM_SCAN_LOGGED) {
+        char line[64];
+        snprintf(line, sizeof line, "scan: %08lX = %.3f (%s?)", (unsigned long)addr, (double)f, what);
+        e->cb.log(e->cb.ctx, line);
+    }
+}
+
+static void finish_scan(elm_t *e, uint32_t now_ms) {
+    char line[80];
+    snprintf(line, sizeof line, "scan: stopped at %08lX, %d candidates", (unsigned long)e->scan_addr,
+             e->scan_candidates);
+    e->cb.log(e->cb.ctx, line);
+    send(e, "ATSH7DF", ELM_TIMEOUT_MS, now_ms);
+}
+
+static void handle_scan(elm_t *e, char *lines[], int n, uint32_t now_ms) {
+    if (strcmp(e->command, "ATSH7DF") == 0) {
+        start_poll(e, now_ms);
+        return;
+    }
+    isotp_t answer = {0};
+    bool whole = false;
+    for (int i = 0; i < n; i++) {
+        can_frame_t f;
+        if (elm_parse_frame(lines[i], &f) && f.id == OBD_RESPONSE_ECU1 && isotp_feed(&answer, &f)) {
+            whole = true;
+        }
+    }
+    if (!whole || answer.len != 1 + ELM_SCAN_CHUNK || answer.data[0] != 0x63) {
+        log_answer(e, e->command, lines, n);
+        finish_scan(e, now_ms);
+        return;
+    }
+    for (int i = 0; i < ELM_SCAN_CHUNK; i += 4) {
+        scan_word(e, e->scan_addr + (uint32_t)i, answer.data + 1 + i);
+    }
+    e->scan_addr += ELM_SCAN_CHUNK;
+    uint32_t done = e->scan_addr - ELM_SCAN_START;
+    if (done >= ELM_SCAN_MAX) {
+        finish_scan(e, now_ms);
+        return;
+    }
+    char status[64];
+    snprintf(status, sizeof status, "DEEP SCAN\n%lu KB of ECU RAM\n%d candidates", (unsigned long)(done / 1024),
+             e->scan_candidates);
+    state_set_status(e->state, status);
+    send_scan_read(e, now_ms);
+}
+
 static void next_probe(elm_t *e, uint32_t now_ms) {
     if (++e->step < PROBE_COUNT) {
         send(e, probe_commands[e->step], ELM_TIMEOUT_MS, now_ms);
         return;
     }
-    start_poll(e, now_ms);
+    e->phase = ELM_SCAN;
+    e->scan_addr = ELM_SCAN_START;
+    send_scan_read(e, now_ms);
 }
 
 static void handle_poll(elm_t *e, char *lines[], int n, uint32_t now_ms) {
@@ -184,6 +258,9 @@ static void handle_response(elm_t *e, uint32_t now_ms) {
         log_answer(e, e->command, lines, n);
         next_probe(e, now_ms);
         break;
+    case ELM_SCAN:
+        handle_scan(e, lines, n, now_ms);
+        break;
     case ELM_POLL:
         handle_poll(e, lines, n, now_ms);
         break;
@@ -226,6 +303,16 @@ void elm_tick(elm_t *e, uint32_t now_ms) {
         e->waiting = false;
         e->cb.log(e->cb.ctx, error);
         next_probe(e, now_ms);
+        return;
+    }
+    if (e->phase == ELM_SCAN) {
+        e->waiting = false;
+        e->cb.log(e->cb.ctx, error);
+        if (strcmp(e->command, "ATSH7DF") == 0) {
+            start_poll(e, now_ms);
+        } else {
+            finish_scan(e, now_ms);
+        }
         return;
     }
     fail(e, e->phase == ELM_POLL ? "OBD poll" : "ELM327 init", error);

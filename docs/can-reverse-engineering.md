@@ -94,6 +94,29 @@ documented CAN broadcast protocols) is the fallback: find its frame
 layout and add a case for its ID in `gt86_decode`, same pattern as
 everything else there, no changes needed anywhere else in the pipeline.
 
+## Reading the ethanol % from the ECU's RAM
+
+The flex-fuel tune reads the sensor itself, so the ECU holds the
+ethanol % somewhere in RAM: reading it there avoids tapping the sensor's
+signal wire, which the injection depends on. Found on this car so far:
+
+- Subaru SSM memory reads (`A0 00 <address> <count-1>` to 0x7E0): no
+  answer at all.
+- UDS ReadMemoryByAddress (`23 14 <4 address bytes> <size>` to 0x7E0):
+  RAM reads work from 0xFFF80000 with no security access; ROM reads
+  (0x11CC38, the tune's "Ethanol Sensor Scaling") answer `7F 23 33`,
+  security access denied. `23 <3 bytes> <size>` (the KWP2000 layout)
+  answers `7F 23 31`: the ECU parses UDS.
+- An Alientech log of this ECU puts every ethanol % on
+  25 x n x 5/4096 - 12.5: a 12-bit ADC on 5V through the tune's scaling.
+
+The session scans the RAM at every connection (`ELM_SCAN_*` in
+`src/app/elm327.h`) and logs every float on that grid, as an ethanol %
+or as the sensor's voltage. To pin the address down, compare the
+candidates with what OFT or another logger shows at the same time, then
+across two tanks with different blends: the right address follows the
+blend.
+
 ## Adding an aftermarket ethanol source
 
 Same idea, if you'd rather get ethanol % over CAN from an aftermarket

@@ -36,7 +36,6 @@ static const profile_t profiles[] = {
 };
 #define PROFILE_COUNT (int)(sizeof profiles / sizeof profiles[0])
 
-#define TITLE "OBD DONGLE\n"
 #define SCAN_TIMEOUT_MS 30000
 #define STEP_TIMEOUT_MS 10000
 #define AUTO_RETRY_MS 5000
@@ -93,7 +92,7 @@ static void set_phase(phase_t p, const char *status) {
 static void fail(const char *step, const char *error) {
     log_line("fatal: %s: %s", step, error);
     char status[192];
-    snprintf(status, sizeof status, TITLE "%s failed:\n%s\n%s", step, error,
+    snprintf(status, sizeof status, "NO LINK\n%s failed:\n%s\n%s", step, error,
              auto_connect ? "retrying..." : "press to retry");
     set_phase(FAILED, status);
     if (stack_up) {
@@ -266,7 +265,7 @@ static void query_complete(uint8_t status) {
             return;
         }
         log_line("elm327: resetting dongle");
-        set_phase(RUNNING, TITLE "init ELM327...");
+        set_phase(RUNNING, "SYNC\ntalking to the ECU");
         elm_start(&elm, state, (elm_callbacks_t){elm_write, elm_log, elm_ready, elm_failed, NULL}, now);
         break;
     default:
@@ -316,7 +315,7 @@ static void advertising_report(uint8_t *packet) {
     advertised_name(len, data, name);
     if (!looks_like_elm(addr, name, len, data)) {
         char status[192];
-        snprintf(status, sizeof status, TITLE "scanning...\nlast ignored:\n%s", name_or_address(name, addr));
+        snprintf(status, sizeof status, "SEARCHING\nlast ignored:\n%s", name_or_address(name, addr));
         state_set_status(state, status);
         return;
     }
@@ -325,7 +324,7 @@ static void advertising_report(uint8_t *packet) {
     gap_stop_scan();
     snprintf(peer, sizeof peer, "%s", name_or_address(name, addr));
     char status[192];
-    snprintf(status, sizeof status, TITLE "connecting to\n%s", peer);
+    snprintf(status, sizeof status, "LINKING\n%s", peer);
     set_phase(CONNECTING, status);
     log_line("ble: connecting to %s", bd_addr_to_str(addr));
     uint8_t err = gap_connect(addr, (bd_addr_type_t)gap_event_advertising_report_get_address_type(packet));
@@ -349,7 +348,7 @@ static void connection_complete(uint8_t *packet) {
     }
     connection = gap_subevent_le_connection_complete_get_connection_handle(packet);
     char text[192];
-    snprintf(text, sizeof text, TITLE "reading services of\n%s", peer);
+    snprintf(text, sizeof text, "HANDSHAKE\n%s", peer);
     set_phase(DISCOVERING_SERVICES, text);
     service_count = 0;
     gatt_client_discover_primary_services(gatt_handler, connection);
@@ -365,7 +364,7 @@ static void hci_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, 
     case BTSTACK_EVENT_STATE:
         if (btstack_event_state_get_state(packet) == HCI_STATE_WORKING && phase == STARTING) {
             log_line("ble: scanning for the OBD dongle (a phone connected to it hides it)");
-            set_phase(SCANNING, TITLE "scanning...");
+            set_phase(SCANNING, "SEARCHING\nlooking for the OBD dongle");
             gap_set_scan_parameters(1, 0x30, 0x30); // active: also get the scan responses, with names
             gap_start_scan();
         }
@@ -396,7 +395,7 @@ static void hci_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, 
 }
 
 static void start(void) {
-    set_phase(STARTING, TITLE "starting Bluetooth...");
+    set_phase(STARTING, "IGNITION\nstarting Bluetooth");
     if (cyw43_arch_init()) {
         fail("Bluetooth", "cyw43 init failed");
         return;
@@ -417,7 +416,7 @@ void ble_init(state_t *s, bool auto_start) {
     if (auto_start) {
         start();
     } else {
-        set_phase(PROMPT, TITLE "press to connect");
+        set_phase(PROMPT, "READY\npress to connect");
     }
 }
 
@@ -462,7 +461,7 @@ static void check_timeouts(void) {
 
 static void standby(void) {
     log_line("car off: the engine ECU was silent for %ds, standby", CAR_OFF_MS / 1000);
-    set_phase(STANDBY, TITLE "car off\nclick to wake");
+    set_phase(STANDBY, "SLEEP\ncar off, press to wake");
     if (connection != HCI_CON_HANDLE_INVALID) {
         gap_disconnect(connection);
     } else {

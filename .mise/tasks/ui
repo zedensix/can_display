@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Render the UI's screens with fixed readings into ui/*.png (ui/sheet.png: all of them)"
+set -euo pipefail
+
+mkdir -p build/ui
+cc -std=c11 -Wall -Wextra -Werror -Isrc/app -o build/ui/render_ui tools/render_ui.c src/app/*.c -lm
+build/ui/render_ui build/ui
+python3 tools/ppm2png.py ui build/ui/*.ppm

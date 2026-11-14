@@ -20,6 +20,7 @@ mise run flash       # build + flash, step by step; reboots a running Pico into 
 mise run flash-sim   # same, with fake data instead of the car, to test the display
 mise run logs        # read the log the Pico kept in flash (boots, BLE steps, dongle answers, crashes)
 mise run logo        # regenerate the boot splash from 86.png
+mise run ui          # render every screen into ui/*.png (ui/sheet.png: all side by side)
 ```
 
 The simulator needs SDL2 (`brew install sdl2`).
@@ -48,7 +49,7 @@ Full pin mapping and power: [`docs/wiring.md`](docs/wiring.md).
 | Oil temp        | Toyota Mode 21 PID 01 (dongle), or broadcast `0x360` (CAN) | Mode 21 checked on this car against another gauge; `0x360` **unverified** |
 | AFR             | OBD PID 0x24 (wide-range O2 sensor 1)               | The ECU lists the PID as supported; values **not cross-checked**, and forum reports say the factory sensor can't show richer than ~12.2:1 |
 | Battery voltage | The dongle's `ATRV`                                 | Read on hardware (dongle only)                                                                                                                                 |
-| Ethanol %       | Pico ADC, on the flex-fuel sensor's signal         | Curve matches the tune's scaling (25%/V, -12.5%); needs the signal wire tapped and "Ethanol sensor" on |
+| Ethanol %       | Pico ADC, on the flex-fuel sensor's signal         | Curve matches the tune's scaling (25%/V, -12.5%); needs the signal wire tapped and "Ethanol sensor" on. Reading it from the ECU's RAM instead is in progress (see the reverse-engineering doc) |
 
 The CAN IDs and formulas come from community reverse-engineering, not
 factory documentation: **don't trust them blindly**. See

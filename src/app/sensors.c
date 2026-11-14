@@ -12,6 +12,12 @@ float divider_undo(divider_t d, float measured_volts) {
     return measured_volts / divider_ratio(d);
 }
 
+bool sensors_on_ecu_adc_grid(float volts) {
+    float steps = volts / ECU_ADC_STEP_VOLTS;
+    float off = steps - (float)(long)(steps + 0.5f);
+    return off > -0.005f && off < 0.005f;
+}
+
 float sensors_ethanol_percent(float sensor_volts) {
     float span = ETHANOL_SENSOR_MAX_VOLTS - ETHANOL_SENSOR_MIN_VOLTS;
     float pct = (sensor_volts - ETHANOL_SENSOR_MIN_VOLTS) / span * 100;
