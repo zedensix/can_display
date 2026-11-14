@@ -148,6 +148,10 @@ static void status(canvas_t *c, const char *text) {
     render(c, &s, (screen_t){0});
 }
 
+static void ready(canvas_t *c) {
+    status(c, "READY\npress to connect to\n41:42:86:9A:C0:33\n(last used)");
+}
+
 static void connecting(canvas_t *c) {
     status(c, "LINKING\n41:42:86:9A:C0:33");
 }
@@ -180,7 +184,7 @@ static void boot_logo(canvas_t *c) {
 
 static const shot_t shots[] = {
     {"grid", grid},         {"alarms", alarms}, {"alarms_unlit", alarms_unlit}, {"oil_critical", oil_critical}, {"cold", cold}, {"shift", shift}, {"lap", lap}, {"lap_banner", lap_banner}, {"lap_no_line", lap_no_line}, {"oil", oil},           {"coolant", coolant},
-    {"connecting", connecting}, {"scan", scan}, {"failed", failed}, {"settings", settings}, {"boot_spin", boot_spin}, {"boot_morph", boot_morph}, {"boot_logo", boot_logo},
+    {"ready", ready}, {"connecting", connecting}, {"scan", scan}, {"failed", failed}, {"settings", settings}, {"boot_spin", boot_spin}, {"boot_morph", boot_morph}, {"boot_logo", boot_logo},
 };
 #define SHOTS (int)(sizeof shots / sizeof shots[0])
 

@@ -464,8 +464,11 @@ static void test_settings(void) {
     settings_t old = settings_decode(buf);
     CHECK(old.brightness == 40 && old.flip && old.shift_rpm == 0, "version 1 settings lost (shift %d)", old.shift_rpm);
     cfg.lap_line = (lap_line_t){true, 481173000, -15166666, 271};
+    cfg.dongle = (dongle_t){true, {0x33, 0xC0, 0x9A, 0x86, 0x42, 0x41}, 0};
     settings_encode(cfg, buf);
-    CHECK(settings_equal(settings_decode(buf), cfg), "the lap line didn't round-trip");
+    CHECK(settings_equal(settings_decode(buf), cfg), "the lap line and dongle didn't round-trip");
+    buf[4] = 3; // saved before the dongle was
+    CHECK(!settings_decode(buf).dongle.set && settings_decode(buf).lap_line.set, "version 3 settings misread");
     memset(buf, 0xFF, sizeof buf);
     CHECK(settings_equal(settings_decode(buf), SETTINGS_DEFAULT), "erased flash didn't give the defaults");
 }

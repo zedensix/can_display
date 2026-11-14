@@ -95,6 +95,19 @@ static void listen_can(void) {
 #endif
 }
 
+// take_dongle keeps the dongle just connected to in the settings, as
+// the one the connect prompt offers first.
+static void take_dongle(settings_t *cfg) {
+#if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
+    dongle_t d;
+    if (ble_take_dongle(&d)) {
+        cfg->dongle = d;
+    }
+#else
+    (void)cfg;
+#endif
+}
+
 static void send_log(datalog_t *log) {
 #if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
     ble_send_log(log);
@@ -280,7 +293,7 @@ int main(void) {
     (void)connect_now;
     mcp2515_source_init(&state);
 #else
-    ble_init(&state, cfg.auto_connect || connect_now);
+    ble_init(&state, cfg.auto_connect || connect_now, &cfg.dongle);
 #endif
 
     screen_t screen = {0};
@@ -308,6 +321,7 @@ int main(void) {
         if (press && !((screen.page == PAGE_GAUGES || standby()) && prompt_click(start))) {
             screen_press(&screen, &cfg);
         }
+        take_dongle(&cfg);
         act(screen.action, &cfg, start);
         screen.action = ACTION_NONE;
         read_gps(&cfg, start);

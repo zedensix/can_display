@@ -82,6 +82,14 @@ static void advertise(void);
 static void resume(void);
 static void start_scan(void);
 
+// last_dongle is the dongle last connected to (from the settings);
+// picked is what a click on the prompt connects to, found by a scan in
+// the background: the last dongle if it's around, else the first seen.
+// connected is the dongle just connected to, for the settings.
+static dongle_t last_dongle, picked, connecting_to, connected;
+static bool picked_last, connected_new, radio_on;
+static char picked_name[32];
+
 static elm_t elm;
 // disconnecting is set once a reboot is on its way: the disconnection it
 // causes isn't a failure, and nothing else should start.
@@ -327,16 +335,60 @@ static void gatt_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet,
     }
 }
 
+// connect_to stops scanning and connects to a dongle.
+static void connect_to(const bd_addr_t addr, uint8_t type, const char *name) {
+    gap_stop_scan();
+    snprintf(peer, sizeof peer, "%s", name_or_address(name, addr));
+    char status[192];
+    snprintf(status, sizeof status, "LINKING\n%s", peer);
+    set_phase(CONNECTING, status);
+    log_line("ble: connecting to %s", bd_addr_to_str(addr));
+    connecting_to = (dongle_t){.set = true, .type = type};
+    memcpy(connecting_to.addr, addr, sizeof connecting_to.addr);
+    uint8_t err = gap_connect(addr, (bd_addr_type_t)type);
+    if (err != ERROR_CODE_SUCCESS) {
+        char error[32];
+        snprintf(error, sizeof error, "gap_connect error 0x%02x", err);
+        fail("BLE connect", error);
+    }
+}
+
+// prompt_report is a device seen while the prompt waits for a click: a
+// dongle becomes what the click connects to, the last one used first.
+static void prompt_report(const bd_addr_t addr, uint8_t type, const char *name, uint8_t len, const uint8_t *data) {
+    if (!looks_like_elm(addr, name, len, data)) {
+        return;
+    }
+    bool last = last_dongle.set && memcmp(last_dongle.addr, addr, sizeof last_dongle.addr) == 0;
+    if (picked.set && (picked_last || !last)) {
+        return;
+    }
+    picked = (dongle_t){.set = true, .type = type};
+    memcpy(picked.addr, addr, sizeof picked.addr);
+    picked_last = last;
+    snprintf(picked_name, sizeof picked_name, "%s", name);
+    log_line("ble: prompt offers %s %s%s", bd_addr_to_str(addr), name, last ? " (last used)" : "");
+    char status[192];
+    snprintf(status, sizeof status, "READY\npress to connect to\n%s%s", name_or_address(name, addr),
+             last ? "\n(last used)" : "");
+    state_set_status(state, status);
+}
+
 static void advertising_report(uint8_t *packet) {
-    if (phase != SCANNING) {
+    if (phase != SCANNING && phase != PROMPT) {
         return;
     }
     bd_addr_t addr;
     gap_event_advertising_report_get_address(packet, addr);
+    uint8_t type = gap_event_advertising_report_get_address_type(packet);
     uint8_t len = gap_event_advertising_report_get_data_length(packet);
     const uint8_t *data = gap_event_advertising_report_get_data(packet);
     char name[32];
     advertised_name(len, data, name);
+    if (phase == PROMPT) {
+        prompt_report(addr, type, name, len, data);
+        return;
+    }
     if (!looks_like_elm(addr, name, len, data)) {
         char status[192];
         snprintf(status, sizeof status, "SEARCHING\nlast ignored:\n%s", name_or_address(name, addr));
@@ -345,18 +397,7 @@ static void advertising_report(uint8_t *packet) {
     }
     log_line("ble: candidate %s %s RSSI %d", bd_addr_to_str(addr), name,
              (int8_t)gap_event_advertising_report_get_rssi(packet));
-    gap_stop_scan();
-    snprintf(peer, sizeof peer, "%s", name_or_address(name, addr));
-    char status[192];
-    snprintf(status, sizeof status, "LINKING\n%s", peer);
-    set_phase(CONNECTING, status);
-    log_line("ble: connecting to %s", bd_addr_to_str(addr));
-    uint8_t err = gap_connect(addr, (bd_addr_type_t)gap_event_advertising_report_get_address_type(packet));
-    if (err != ERROR_CODE_SUCCESS) {
-        char error[32];
-        snprintf(error, sizeof error, "gap_connect error 0x%02x", err);
-        fail("BLE connect", error);
-    }
+    connect_to(addr, type, name);
 }
 
 static void connection_complete(uint8_t *packet) {
@@ -371,6 +412,8 @@ static void connection_complete(uint8_t *packet) {
         return;
     }
     connection = gap_subevent_le_connection_complete_get_connection_handle(packet);
+    connected = connecting_to;
+    connected_new = true;
     char text[192];
     snprintf(text, sizeof text, "HANDSHAKE\n%s", peer);
     set_phase(DISCOVERING_SERVICES, text);
@@ -386,9 +429,17 @@ static void hci_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, 
     }
     switch (hci_event_packet_get_type(packet)) {
     case BTSTACK_EVENT_STATE:
-        if (btstack_event_state_get_state(packet) == HCI_STATE_WORKING && send_log) {
+        if (btstack_event_state_get_state(packet) != HCI_STATE_WORKING) {
+            break;
+        }
+        radio_on = true;
+        if (send_log) {
             advertise();
-        } else if (btstack_event_state_get_state(packet) == HCI_STATE_WORKING && phase == STARTING) {
+        } else if (phase == PROMPT) {
+            // In the background, for the prompt to name a dongle.
+            gap_set_scan_parameters(1, 0x30, 0x30);
+            gap_start_scan();
+        } else if (phase == STARTING) {
             start_scan();
         }
         break;
@@ -545,8 +596,9 @@ static void resume(void) {
     start_scan();
 }
 
-static void start(void) {
-    set_phase(STARTING, "IGNITION\nstarting Bluetooth");
+// start_radio brings the radio and BTstack up; the HCI working event
+// carries on from the phase it finds.
+static void start_radio(void) {
     if (cyw43_arch_init()) {
         fail("Bluetooth", "cyw43 init failed");
         return;
@@ -563,14 +615,30 @@ static void start(void) {
     hci_power_control(HCI_POWER_ON);
 }
 
-void ble_init(state_t *s, bool auto_start) {
+static void start(void) {
+    set_phase(STARTING, "IGNITION\nstarting Bluetooth");
+    start_radio();
+}
+
+void ble_init(state_t *s, bool auto_start, const dongle_t *last) {
     state = s;
     auto_connect = auto_start;
+    last_dongle = *last;
     if (auto_start) {
         start();
     } else {
-        set_phase(PROMPT, "READY\npress to connect");
+        set_phase(PROMPT, "READY\nlooking for dongles\npress to connect");
+        start_radio();
     }
+}
+
+bool ble_take_dongle(dongle_t *out) {
+    if (!connected_new) {
+        return false;
+    }
+    connected_new = false;
+    *out = connected;
+    return true;
 }
 
 static void check_timeouts(void) {
@@ -714,7 +782,15 @@ bool ble_prompt_click(uint32_t now_ms) {
     now = now_ms;
     switch (phase) {
     case PROMPT:
-        start();
+        if (picked.set) {
+            connect_to(picked.addr, picked.type, picked_name);
+        } else if (radio_on) {
+            gap_stop_scan();
+            start_scan();
+        } else {
+            // The radio is still starting: it scans once up.
+            set_phase(STARTING, "IGNITION\nstarting Bluetooth");
+        }
         return true;
     case FAILED:
         if (!auto_connect) {

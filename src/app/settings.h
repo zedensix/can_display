@@ -7,6 +7,14 @@
 
 // settings_t is what the settings page changes. The firmware keeps it in
 // a flash sector of its own.
+// dongle_t is a BLE device's address, with its type (public or random)
+// as BLE needs it to connect.
+typedef struct {
+    bool set;
+    uint8_t addr[6];
+    uint8_t type;
+} dongle_t;
+
 typedef struct {
     // brightness is the backlight level, in percent.
     int brightness;
@@ -24,6 +32,9 @@ typedef struct {
     int shift_rpm;
     // lap_line is the lap timer's start/finish line.
     lap_line_t lap_line;
+    // dongle is the OBD dongle last connected to: the connect prompt
+    // offers it first.
+    dongle_t dongle;
 } settings_t;
 
 #define BRIGHTNESS_MIN 10
@@ -38,7 +49,7 @@ typedef struct {
 #define SETTINGS_DEFAULT ((settings_t){.brightness = BRIGHTNESS_MAX})
 
 // SETTINGS_SIZE is how many bytes settings_encode writes.
-#define SETTINGS_SIZE 18
+#define SETTINGS_SIZE 25
 
 void settings_encode(settings_t s, uint8_t out[SETTINGS_SIZE]);
 
@@ -47,3 +58,4 @@ void settings_encode(settings_t s, uint8_t out[SETTINGS_SIZE]);
 settings_t settings_decode(const uint8_t in[SETTINGS_SIZE]);
 
 bool settings_equal(settings_t a, settings_t b);
+bool dongle_equal(dongle_t a, dongle_t b);

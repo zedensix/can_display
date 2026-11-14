@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "datalog.h"
+#include "settings.h"
 #include "signals.h"
 
 // The ELM327 Bluetooth LE OBD dongle as the data source: scan, connect,
@@ -17,7 +18,15 @@
 // click to retry, or retries by itself after 5s with auto. A retry is a
 // reboot that connects right away: a clean start is the known-good way
 // back, whatever state the BLE stack is in.
-void ble_init(state_t *state, bool auto_connect);
+// ble_init starts the source. With auto_connect, it connects to the first
+// dongle it finds; without, the radio scans in the background while the
+// prompt waits for a click, and names the dongle it will connect to:
+// last, the one last connected to, if it's around.
+void ble_init(state_t *state, bool auto_connect, const dongle_t *last);
+
+// ble_take_dongle hands over, once, the dongle just connected to: the
+// settings keep it as the last one.
+bool ble_take_dongle(dongle_t *out);
 void ble_poll(uint32_t now_ms);
 
 // ble_prompt_click hands a click to a waiting prompt, and reports whether
