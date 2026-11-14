@@ -25,13 +25,16 @@ typedef struct {
 } range_t;
 
 // tile_t is one gauge: a label, the value formatted with format then
-// unit, and a bar colored by range.
+// unit, and a bar colored by range. Once its reading is older than
+// stale_ms it shows "--": longer than the time between two updates of
+// that signal, or it blinks.
 typedef struct {
     const char *label;
     const char *format;
     const char *unit;
     signal_t signal;
     range_t range;
+    uint32_t stale_ms;
 } tile_t;
 
 // ui_tiles is the stock GT86 layout. Thresholds live in ui.c's ranges:
@@ -39,8 +42,6 @@ typedef struct {
 extern const tile_t ui_tiles[];
 extern const int ui_tile_count;
 
-// STALE_AFTER_MS is how old a reading gets before its tile shows "--".
-#define STALE_AFTER_MS 2000
 
 // ui_render draws the frame for screen into c: the settings page, the
 // data source's status while it has one, a single gauge, or every gauge

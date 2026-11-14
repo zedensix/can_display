@@ -29,7 +29,8 @@ The simulator needs SDL2 (`brew install sdl2`).
 - Raspberry Pi Pico W / WH (RP2040)
 - ST7789 V2.2 2.0" 240x320 SPI TFT display
 - A KY-040 rotary encoder: turn to change the gauge view, click for the
-  settings (brightness, auto-connect, flip), hold 1s to reboot
+  settings (brightness, auto-connect, flip, ethanol sensor), hold 1s to
+  reboot
 - Car data, one of:
   - an ELM327 BLE OBD dongle (written for a Vgate iCar Pro 2S): no wiring
   - an MCP2515 SPI CAN module on the OBD-II port's CAN H/L (pins 6/14)
@@ -44,10 +45,10 @@ Full pin mapping and power: [`docs/wiring.md`](docs/wiring.md).
 | --------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | RPM             | OBD PID 0x0C (dongle), or broadcast `0x140` (CAN)   | PID is standard; `0x140` **unverified on this car**                                                                                                            |
 | Coolant temp    | OBD PID 0x05 (dongle), or broadcast `0x360` (CAN)   | PID is standard; `0x360` **unverified on this car**                                                                                                            |
-| Oil temp        | Broadcast `0x360` (CAN only)                        | **Unverified on this car**; no standard PID, so "--" through the dongle                                                                                        |
-| AFR             | OBD PID 0x24 (wide-range O2 sensor 1)               | **Speculative**: standard PID, but whether this ECU answers it hasn't been confirmed, and forum reports say the factory sensor can't show richer than ~12.2:1 |
+| Oil temp        | Toyota Mode 21 PID 01 (dongle), or broadcast `0x360` (CAN) | Mode 21 checked on this car against another gauge; `0x360` **unverified** |
+| AFR             | OBD PID 0x24 (wide-range O2 sensor 1)               | The ECU lists the PID as supported; values **not cross-checked**, and forum reports say the factory sensor can't show richer than ~12.2:1 |
 | Battery voltage | The dongle's `ATRV`                                 | Read on hardware (dongle only)                                                                                                                                 |
-| Ethanol %       | Pico ADC (flex-fuel sensor)                         | **Sensor curve (0.5V=0%/4.5V=100%) unverified** against the sensor's datasheet                                                                                 |
+| Ethanol %       | Pico ADC, on the flex-fuel sensor's signal         | Curve matches the tune's scaling (25%/V, -12.5%); needs the signal wire tapped and "Ethanol sensor" on |
 
 The CAN IDs and formulas come from community reverse-engineering, not
 factory documentation: **don't trust them blindly**. See

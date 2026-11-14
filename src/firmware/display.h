@@ -10,6 +10,10 @@ void display_init(void);
 void display_set_flip(bool flip);
 void display_set_brightness(int percent);
 
+// display_sleep turns the backlight off and puts the panel to sleep. Only
+// a reboot wakes it.
+void display_sleep(void);
+
 // display_push starts sending c's band to the panel and returns at once:
 // keep the BLE stack running until display_busy is false, then call
 // display_finish before drawing into the band again.

@@ -83,9 +83,11 @@ verified yet.
 - Only one client at a time. If your phone (Car Scanner...) is
   connected to it, the Pico won't find it: turn the phone's Bluetooth
   off.
-- What you get: RPM, coolant, AFR (standard OBD PIDs) and battery
-  voltage (the dongle's `ATRV`). **No oil temperature**: it isn't a
-  standard PID.
+- What you get: RPM, coolant, AFR (standard OBD PIDs), battery
+  voltage (the dongle's `ATRV`), and oil temperature through Toyota's
+  Mode 21 PID 01 asked to the engine ECU (community-sourced, checked
+  on this car against another gauge). Ethanol % isn't available over
+  standard OBD: the ECU doesn't support PID 0x52.
 - Slower than the CAN option: every value is a request/answer through
   the dongle, a few refreshes per second at best.
 - No pairing: these dongles take any BLE client without a PIN. The
@@ -143,7 +145,9 @@ chassis via the buck converter. Never to anything else.
 
 ## Ethanol content: analog flex-fuel sensor, via the Pico ADC
 
-The RP2040 has a 12-bit ADC on GP26-28, read through `machine.ADC`.
+The RP2040 has a 12-bit ADC on GP26-28. The firmware only reads it with
+"Ethanol sensor" on in the settings: an unconnected pin floats and reads
+as a plausible, drifting ethanol %.
 
 **The sensor outputs 0.5V-4.5V. That exceeds what the RP2040 can safely
 see on an analog input, do not wire it in directly.** A resistor
@@ -167,9 +171,13 @@ it's noisy. Calibrate `ADC_VREF` in `src/firmware/board.h` against a
 multimeter if the ethanol reading looks off; tying ADC_VREF to an
 external 3.0V reference is the proper fix if it's still bad.
 
-If you're using a different sensor with a different voltage range (or
-find out this one's endpoints/direction are different from the
-assumed 0.5V=0%/4.5V=100%), the two things to change are the divider
+On this car the sensor already feeds the ECU's flex-fuel tune through a
+0.5-4.5V signal: tap that same wire (signal and ground) into the divider.
+The tune's "Ethanol Sensor Scaling" is 25%/V and -12.5%, i.e.
+0.5V=0%/4.5V=100%, the curve the firmware uses: the dash and the ECU agree.
+
+If you're using a different sensor with a different voltage range (or a
+tune with another scaling), the two things to change are the divider
 resistor values (`ETHANOL_DIVIDER`) and the sensor curve
 (`sensors_ethanol_percent`), both in `src/app/sensors.c` with their own
 tests in `test/tests.c`.

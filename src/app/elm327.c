@@ -20,14 +20,26 @@ static const char *const init_commands[] = {
 #define INIT_COUNT (int)(sizeof init_commands / sizeof init_commands[0])
 
 // The raw answers to these are logged: the first thing to look at when
-// the dash stays at "--".
-static const char *const probe_commands[] = {"ATI", "ATRV", "0100", "010C"};
+// the dash stays at "--". 0100, 0120 and 0140 are the bitmaps of the
+// PIDs the engine ECU supports. A0 is a Subaru SSM memory read, asked to
+// the engine ECU: 8 bytes at 0x11CC38, the tune's "Ethanol Sensor
+// Scaling" (25.0 and -12.5 as floats if SSM works on this ECU), the
+// first step towards reading the ethanol % from its RAM.
+static const char *const probe_commands[] = {"ATI",     "ATRV",         "0100",   "0120", "0140",
+                                             "010C",    "ATSH7E0",      "A00011CC3807", "ATSH7DF"};
 #define PROBE_COUNT (int)(sizeof probe_commands / sizeof probe_commands[0])
 
 // RPM comes twice per cycle: it's the only value that changes faster
 // than a human can read.
 static const uint8_t poll_pids[] = {PID_RPM, PID_LAMBDA, PID_RPM, PID_COOLANT};
 #define POLL_COUNT (int)(sizeof poll_pids / sizeof poll_pids[0])
+
+// The oil temperature (see obd.h) is asked to the engine ECU directly,
+// which takes switching the header there and back. It changes slowly:
+// every few seconds is plenty. After a few answers without it while the
+// ECU answers the rest, the session stops asking.
+static const char *const oil_commands[] = {"ATSH7E0", "2101", "ATSH7DF"};
+#define OIL_COMMANDS 3
 
 static void send(elm_t *e, const char *command, uint32_t timeout_ms, uint32_t now_ms) {
     snprintf(e->command, sizeof e->command, "%s", command);
@@ -56,6 +68,14 @@ static void log_answer(elm_t *e, const char *command, char *lines[], int n) {
 }
 
 static void send_next_poll(elm_t *e, uint32_t now_ms) {
+    if (e->oil_step > 0 || (e->oil_misses < ELM_OIL_MAX_MISSES && now_ms - e->oil_ms >= ELM_OIL_INTERVAL_MS)) {
+        if (e->oil_step == 0) {
+            e->oil_ms = now_ms;
+        }
+        send(e, oil_commands[e->oil_step], ELM_TIMEOUT_MS, now_ms);
+        e->oil_step = (e->oil_step + 1) % OIL_COMMANDS;
+        return;
+    }
     if (now_ms - e->battery_ms >= ELM_BATTERY_INTERVAL_MS) {
         e->battery_ms = now_ms;
         send(e, "ATRV", ELM_TIMEOUT_MS, now_ms);
@@ -77,6 +97,8 @@ static void start_poll(elm_t *e, uint32_t now_ms) {
     e->phase = ELM_POLL;
     e->step = 0;
     e->battery_ms = now_ms - ELM_BATTERY_INTERVAL_MS;
+    e->oil_ms = now_ms;
+    e->ecu_ms = now_ms;
     e->cb.ready(e->cb.ctx);
     send_next_poll(e, now_ms);
 }
@@ -111,8 +133,9 @@ static void next_probe(elm_t *e, uint32_t now_ms) {
 }
 
 static void handle_poll(elm_t *e, char *lines[], int n, uint32_t now_ms) {
-    bool obd = strncmp(e->command, "01", 2) == 0;
-    if (obd && e->single_response && n == 1 && strcmp(lines[0], "?") == 0) {
+    bool obd = strncmp(e->command, "01", 2) == 0 || strcmp(e->command, "2101") == 0;
+    bool counted = strncmp(e->command, "01", 2) == 0 && strlen(e->command) == 5;
+    if (counted && n == 1 && strcmp(lines[0], "?") == 0) {
         // Older or cloned firmware doesn't know the count digit.
         e->single_response = false;
         e->cb.log(e->cb.ctx, "elm327: no response count digit, polling slower");
@@ -121,13 +144,28 @@ static void handle_poll(elm_t *e, char *lines[], int n, uint32_t now_ms) {
         send(e, command, ELM_TIMEOUT_MS, now_ms);
         return;
     }
+    isotp_t answer = {0};
+    signal_t got = SIG_COUNT;
     for (int i = 0; i < n; i++) {
         can_frame_t f;
         float volts;
-        if (obd && elm_parse_frame(lines[i], &f)) {
-            obd_decode(&f, e->state, now_ms);
-        } else if (!obd && elm_parse_voltage(lines[i], &volts)) {
+        if (obd && elm_parse_frame(lines[i], &f) && f.id == OBD_RESPONSE_ECU1 && isotp_feed(&answer, &f)) {
+            got = obd_decode_message(answer.data, answer.len, e->state, now_ms);
+        } else if (strcmp(e->command, "ATRV") == 0 && elm_parse_voltage(lines[i], &volts)) {
             state_set(e->state, SIG_BATTERY, volts, now_ms);
+        }
+    }
+    if (got != SIG_COUNT) {
+        e->ecu_ms = now_ms;
+        e->ecu_answered = true;
+    }
+    // An unanswered 2101 only counts against it while the ECU answers
+    // the rest: with the car off, nothing answers, and it must still be
+    // asked once the car starts.
+    if (strcmp(e->command, "2101") == 0 && (got == SIG_OIL || e->ecu_answered)) {
+        e->oil_misses = got == SIG_OIL ? 0 : e->oil_misses + 1;
+        if (e->oil_misses == ELM_OIL_MAX_MISSES) {
+            log_answer(e, "2101 (oil temperature, giving up)", lines, n);
         }
     }
     send_next_poll(e, now_ms);

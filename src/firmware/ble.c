@@ -52,6 +52,7 @@ typedef enum {
     ENABLING_NOTIFICATIONS,
     RUNNING,
     FAILED,
+    STANDBY,
 } phase_t;
 
 static state_t *state;
@@ -380,7 +381,9 @@ static void hci_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, 
         break;
     case HCI_EVENT_DISCONNECTION_COMPLETE:
         connection = HCI_CON_HANDLE_INVALID;
-        if (phase != FAILED && !disconnecting) {
+        if (phase == STANDBY) {
+            hci_power_control(HCI_POWER_OFF);
+        } else if (phase != FAILED && !disconnecting) {
             char error[40];
             snprintf(error, sizeof error, "disconnected (HCI 0x%02x)",
                      hci_event_disconnection_complete_get_reason(packet));
@@ -457,6 +460,16 @@ static void check_timeouts(void) {
     }
 }
 
+static void standby(void) {
+    log_line("car off: the engine ECU was silent for %ds, standby", CAR_OFF_MS / 1000);
+    set_phase(STANDBY, TITLE "car off\nclick to wake");
+    if (connection != HCI_CON_HANDLE_INVALID) {
+        gap_disconnect(connection);
+    } else {
+        hci_power_control(HCI_POWER_OFF);
+    }
+}
+
 void ble_poll(uint32_t now_ms) {
     now = now_ms;
     if (stack_up) {
@@ -465,8 +478,15 @@ void ble_poll(uint32_t now_ms) {
     if (phase == RUNNING && elm.phase != ELM_OFF) {
         flush_pending();
         elm_tick(&elm, now_ms);
+        if (elm.phase == ELM_POLL && now_ms - elm.ecu_ms > CAR_OFF_MS) {
+            standby();
+        }
     }
     check_timeouts();
+}
+
+bool ble_standby(void) {
+    return phase == STANDBY;
 }
 
 bool ble_prompt_click(uint32_t now_ms) {
@@ -479,6 +499,9 @@ bool ble_prompt_click(uint32_t now_ms) {
         if (!auto_connect) {
             reboot_to_connect();
         }
+        return true;
+    case STANDBY:
+        reboot_to_connect();
         return true;
     default:
         return false;

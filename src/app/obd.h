@@ -17,8 +17,9 @@ typedef struct {
 #define OBD_REQUEST_ID 0x7DF
 #define OBD_RESPONSE_ECU1 0x7E8
 
-// Standard Mode 01 PIDs this dashboard polls. PID 0x24 (wide-range O2
-// sensor 1 equivalence ratio) is speculative on the GT86: unverified.
+// Standard Mode 01 PIDs this dashboard polls. This car's engine ECU lists
+// PID 0x24 (wide-range O2 sensor 1 equivalence ratio) as supported
+// (0120 bitmap, 2026-11-14); its AFR values aren't cross-checked yet.
 #define PID_COOLANT 0x05
 #define PID_RPM 0x0C
 #define PID_LAMBDA 0x24
@@ -26,12 +27,37 @@ typedef struct {
 // GASOLINE_STOICH_AFR turns lambda into a gasoline AFR.
 #define GASOLINE_STOICH_AFR 14.7f
 
+// Oil temperature has no standard PID on this car. The FA20 community
+// reads it with Toyota's Mode 21 PID 01, asked to the engine ECU (0x7E0):
+// byte AC of the answer (the 29th after "61 01") minus 40, in °C. From
+// forum Torque setups, checked on this car against another gauge
+// (2026-11-14).
+#define OBD_ENGINE_ECU 0x7E0
+#define OIL_RESPONSE_INDEX 28
+
 // obd_request is the Mode 01 single-frame request for pid.
 can_frame_t obd_request(uint8_t pid);
 
-// obd_decode handles an ECU1 Mode 01 single-frame answer to one of the
-// PIDs above and stores the value. It returns false for anything else.
+// obd_decode handles an ECU1 single-frame answer (see
+// obd_decode_message). It returns false for anything else.
 bool obd_decode(const can_frame_t *f, state_t *state, uint32_t now_ms);
+
+// obd_decode_message handles a whole ECU1 answer, mode byte first: Mode
+// 01 for the PIDs above, Mode 21 PID 01 for the oil temperature. It
+// returns which signal it stored, or SIG_COUNT for none.
+signal_t obd_decode_message(const uint8_t *msg, int len, state_t *state, uint32_t now_ms);
+
+// isotp_t reassembles an ISO-TP message from the frames of one answer:
+// a single frame, or a first frame followed by consecutive frames.
+typedef struct {
+    uint8_t data[64];
+    int len, expected;
+    uint8_t next_sequence;
+} isotp_t;
+
+// isotp_feed adds a frame and returns true once data holds a whole
+// message (len bytes, mode byte first).
+bool isotp_feed(isotp_t *r, const can_frame_t *f);
 
 // GT86 broadcast frames, seen by a direct CAN tap (MCP2515), never by an
 // OBD dongle. IDs and formulas come from community reverse-engineering

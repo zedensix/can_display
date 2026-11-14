@@ -15,8 +15,9 @@
 // The session resets and configures the dongle (echo off, CAN headers
 // on, ISO 15765-4 11bit 500kbps), logs its raw answers to a few probes,
 // then polls RPM, AFR and coolant temperature, plus the battery voltage
-// about once a second (ATRV, answered by the dongle itself). With
-// headers on, each reply line is a CAN frame, decoded by obd_decode.
+// about once a second (ATRV, answered by the dongle itself) and the oil
+// temperature every few seconds. With headers on, each reply line is a
+// CAN frame; multi-frame answers are reassembled (isotp_feed).
 
 #define ELM_TIMEOUT_MS 2000
 // ATZ reboots the dongle's firmware: it gets longer.
@@ -25,6 +26,8 @@
 // session fails: over BLE a notification gets lost now and then.
 #define ELM_RETRIES 2
 #define ELM_BATTERY_INTERVAL_MS 1000
+#define ELM_OIL_INTERVAL_MS 3000
+#define ELM_OIL_MAX_MISSES 3
 
 typedef struct {
     // write sends one command, "\r" included.
@@ -62,6 +65,13 @@ typedef struct {
     // the dongle rejects it.
     bool single_response;
     uint32_t battery_ms;
+    uint32_t oil_ms;
+    int oil_step, oil_misses;
+    // ecu_ms is when the engine ECU last answered (or polling started):
+    // a long silence means the car is off. ecu_answered is whether it
+    // answered at all this session.
+    uint32_t ecu_ms;
+    bool ecu_answered;
 } elm_t;
 
 void elm_start(elm_t *e, state_t *state, elm_callbacks_t cb, uint32_t now_ms);

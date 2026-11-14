@@ -23,6 +23,12 @@ void ble_poll(uint32_t now_ms);
 // one was waiting.
 bool ble_prompt_click(uint32_t now_ms);
 
+// ble_standby is true once the car is off: the engine ECU stayed silent
+// for CAR_OFF_MS. The dongle is let go so it can sleep, the radio is off,
+// and a click wakes everything up (a reboot that connects).
+#define CAR_OFF_MS 90000
+bool ble_standby(void);
+
 // ble_disconnect closes the dongle connection before a reboot: a dongle
 // left on a connection that vanished can stop answering for a while.
 void ble_disconnect(void);

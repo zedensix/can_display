@@ -79,7 +79,7 @@ static void test_elm_parsing(void) {
 
 // fake_dongle records what the session sends and lets a test answer.
 typedef struct {
-    char sent[64][16];
+    char sent[512][16];
     int sent_count;
     int ready, failed;
     char failed_step[32];
@@ -87,7 +87,7 @@ typedef struct {
 
 static void fake_write(void *ctx, const char *command) {
     fake_dongle_t *d = ctx;
-    if (d->sent_count < 64) {
+    if (d->sent_count < 512) {
         snprintf(d->sent[d->sent_count++], 16, "%s", command);
     }
 }
@@ -125,7 +125,7 @@ static void test_elm_session(void) {
         answer(&e, "OK\r\r>", 20);
     }
     CHECK(strcmp(last_sent(&d), "ATI\r") == 0, "after init sent %s, want the ATI probe", last_sent(&d));
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 9; i++) {
         answer(&e, "whatever\r>", 30);
     }
     CHECK(d.ready == 1, "ready called %d times after the probes", d.ready);
@@ -138,6 +138,7 @@ static void test_elm_session(void) {
           last_sent(&d));
     answer(&e, "7E804410C1AF8\r>", 60);
     CHECK(near(s.readings[SIG_RPM].value, 1726), "rpm %f, want 1726", (double)s.readings[SIG_RPM].value);
+    CHECK(e.ecu_ms == 60, "ecu_ms %u after the ECU answered at 60, want 60 (car-off detection)", (unsigned)e.ecu_ms);
     CHECK(strcmp(last_sent(&d), "0124\r") == 0, "then %s, want 0124", last_sent(&d));
 
     int before = d.sent_count;
@@ -147,6 +148,90 @@ static void test_elm_session(void) {
     elm_tick(&e, 60 + 3 * ELM_TIMEOUT_MS + 3);
     CHECK(d.failed == 1 && strcmp(d.failed_step, "OBD poll") == 0, "after %d retries: failed %d, step %s",
           ELM_RETRIES, d.failed, d.failed_step);
+}
+
+// oil_answer is a 2101 answer: 0x2B bytes in a first frame and 6
+// consecutive frames, the oil byte (AC) holding 130, i.e. 90°C.
+static const char *oil_answer = "7E8102B610100000000\r"
+                                "7E82100000000000000\r"
+                                "7E82200000000000000\r"
+                                "7E82300000000000000\r"
+                                "7E82400000082000000\r"
+                                "7E82500000000000000\r"
+                                "7E82600000000000000\r>";
+
+static void test_elm_oil(void) {
+    fake_dongle_t d = {0};
+    state_t s = {0};
+    elm_t e;
+    elm_start(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
+    answer(&e, "ELM327 v2.3\r>", 1);
+    for (int i = 0; i < 7 + 9; i++) {
+        answer(&e, "OK\r>", 2);
+    }
+    answer(&e, "12.4V\r>", 3); // ATRV, the first poll
+    answer(&e, "NO DATA\r>", ELM_OIL_INTERVAL_MS + 3);
+    CHECK(strcmp(last_sent(&d), "ATSH7E0\r") == 0, "after %dms sent %s, want the oil sequence's ATSH7E0",
+          ELM_OIL_INTERVAL_MS, last_sent(&d));
+    answer(&e, "OK\r>", ELM_OIL_INTERVAL_MS + 4);
+    CHECK(strcmp(last_sent(&d), "2101\r") == 0, "then %s, want 2101", last_sent(&d));
+    answer(&e, oil_answer, ELM_OIL_INTERVAL_MS + 5);
+    CHECK(near(s.readings[SIG_OIL].value, 90), "oil %f, want 90", (double)s.readings[SIG_OIL].value);
+    CHECK(strcmp(last_sent(&d), "ATSH7DF\r") == 0, "then %s, want the header back to ATSH7DF", last_sent(&d));
+
+    for (int miss = 0; miss < ELM_OIL_MAX_MISSES; miss++) {
+        uint32_t t = (uint32_t)(miss + 2) * (ELM_OIL_INTERVAL_MS + 10);
+        answer(&e, "OK\r>", t);
+        while (strcmp(last_sent(&d), "ATSH7E0\r") != 0) {
+            answer(&e, "NO DATA\r>", t);
+        }
+        answer(&e, "OK\r>", t);
+        answer(&e, "NO DATA\r>", t); // 2101 unanswered
+    }
+    int before = d.sent_count;
+    for (int i = 0; i < 20; i++) {
+        answer(&e, "OK\r>", 100000 + (uint32_t)i * ELM_OIL_INTERVAL_MS);
+    }
+    bool asked = false;
+    for (int i = before; i < d.sent_count; i++) {
+        asked = asked || strcmp(d.sent[i], "2101\r") == 0;
+    }
+    CHECK(!asked, "2101 still asked after %d answers without the oil temperature", ELM_OIL_MAX_MISSES);
+}
+
+// With the car off at boot nothing answers: 2101 must still be asked,
+// so the oil temperature shows once the car starts.
+static void test_elm_oil_car_off(void) {
+    fake_dongle_t d = {0};
+    state_t s = {0};
+    elm_t e;
+    elm_start(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
+    answer(&e, "ELM327 v2.3\r>", 1);
+    for (int i = 0; i < 7 + 9; i++) {
+        answer(&e, "OK\r>", 2);
+    }
+    for (uint32_t t = 3; t < 10 * ELM_OIL_INTERVAL_MS; t += 100) {
+        answer(&e, strcmp(last_sent(&d), "ATSH7E0\r") == 0 || strcmp(last_sent(&d), "ATSH7DF\r") == 0 ? "OK\r>"
+                                                                                                    : "NO DATA\r>",
+               t);
+    }
+    int asked = 0;
+    for (int i = 0; i < d.sent_count; i++) {
+        asked += strcmp(d.sent[i], "2101\r") == 0;
+    }
+    CHECK(asked > ELM_OIL_MAX_MISSES, "2101 asked %d times with the car off, want it kept", asked);
+}
+
+static void test_isotp(void) {
+    isotp_t r = {0};
+    can_frame_t first = {OBD_RESPONSE_ECU1, 8, {0x10, 0x0A, 0x61, 0x01, 1, 2, 3, 4}};
+    can_frame_t next = {OBD_RESPONSE_ECU1, 8, {0x21, 5, 6, 7, 8, 9, 10, 11}};
+    CHECK(!isotp_feed(&r, &first), "a first frame alone completed a message");
+    CHECK(isotp_feed(&r, &next) && r.len == 10 && r.data[0] == 0x61 && r.data[9] == 8,
+          "first + consecutive gave len %d", r.len);
+    can_frame_t wrong_sequence = {OBD_RESPONSE_ECU1, 8, {0x22, 0, 0, 0, 0, 0, 0, 0}};
+    isotp_feed(&r, &first);
+    CHECK(!isotp_feed(&r, &wrong_sequence), "a consecutive frame out of sequence was accepted");
 }
 
 static void test_elm_init_rejected(void) {
@@ -232,7 +317,7 @@ static void test_flashlog(void) {
 }
 
 static void test_settings(void) {
-    settings_t cfg = {.brightness = 40, .auto_connect = true, .flip = true};
+    settings_t cfg = {.brightness = 40, .auto_connect = true, .flip = true, .ethanol_sensor = true};
     uint8_t buf[SETTINGS_SIZE];
     settings_encode(cfg, buf);
     CHECK(settings_equal(settings_decode(buf), cfg), "settings didn't round-trip");
@@ -269,6 +354,9 @@ static void test_screen(void) {
     screen_turn(&s, 1, 6, &cfg);
     screen_press(&s, &cfg);
     CHECK(cfg.flip, "a click on flip didn't turn it on");
+    screen_turn(&s, 1, 6, &cfg);
+    screen_press(&s, &cfg);
+    CHECK(cfg.ethanol_sensor, "a click on the ethanol sensor didn't turn it on");
     screen_turn(&s, 10, 6, &cfg);
     screen_press(&s, &cfg);
     CHECK(s.page == PAGE_GAUGES, "a click on Back didn't return to the gauges");
@@ -297,11 +385,15 @@ static void test_wrap(void) {
 }
 
 int main(void) {
+    setvbuf(stdout, NULL, _IONBF, 0);
     test_obd_decode();
     test_gt86_decode();
     test_elm_parsing();
     test_elm_session();
     test_elm_init_rejected();
+    test_elm_oil();
+    test_elm_oil_car_off();
+    test_isotp();
     test_flashlog();
     test_settings();
     test_screen();

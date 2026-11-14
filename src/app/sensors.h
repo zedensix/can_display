@@ -26,5 +26,7 @@ float divider_undo(divider_t d, float measured_volts);
 #define ETHANOL_SENSOR_MAX_VOLTS 4.5f
 
 // sensors_ethanol_percent maps the sensor's output linearly onto 0-100%,
-// clamped. The real curve depends on the sensor model.
+// clamped: 25%/V - 12.5%, the same as the "Ethanol Sensor Scaling" of
+// this car's flex-fuel tune (checked 2026-11-14), so the dash shows what
+// the ECU uses. The Pico taps the same 0.5-4.5V signal the ECU reads.
 float sensors_ethanol_percent(float sensor_volts);

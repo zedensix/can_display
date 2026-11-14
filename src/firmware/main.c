@@ -59,6 +59,14 @@ static void source_poll(uint32_t now) {
 #endif
 }
 
+static bool standby(void) {
+#if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
+    return ble_standby();
+#else
+    return false;
+#endif
+}
+
 static bool prompt_click(uint32_t now) {
 #if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
     return ble_prompt_click(now);
@@ -131,8 +139,13 @@ static bool draw(int32_t boot_elapsed, const screen_t *screen, const settings_t 
 }
 
 #if !SIM
+// read_ethanol averages a burst of samples: the RP2040's ADC is noisy.
 static void read_ethanol(uint32_t now) {
-    float at_pin = sensors_raw_to_volts(adc_read(), ADC_VREF);
+    uint32_t sum = 0;
+    for (int i = 0; i < 16; i++) {
+        sum += adc_read();
+    }
+    float at_pin = sensors_raw_to_volts((uint16_t)(sum / 16), ADC_VREF);
     state_set(&state, SIG_ETHANOL, sensors_ethanol_percent(divider_undo(ETHANOL_DIVIDER, at_pin)), now);
 }
 #endif
@@ -173,6 +186,7 @@ int main(void) {
         watchdog_update();
     }
 
+    bool asleep = false;
     for (;;) {
         uint32_t start = now_ms();
         watchdog_update();
@@ -180,13 +194,16 @@ int main(void) {
 #if SIM
         simdata_tick(&state, start);
 #else
-        read_ethanol(start);
+        if (cfg.ethanol_sensor) {
+            read_ethanol(start);
+        }
 #endif
 
         bool press, long_press;
         screen_turn(&screen, knob_poll(start, &press, &long_press), ui_tile_count, &cfg);
-        // On the gauges, a waiting connection prompt takes the click.
-        if (press && !(screen.page == PAGE_GAUGES && prompt_click(start))) {
+        // On the gauges (and in standby, where nothing is shown), a waiting
+        // connection prompt takes the click.
+        if (press && !((screen.page == PAGE_GAUGES || standby()) && prompt_click(start))) {
             screen_press(&screen, &cfg);
         }
         if (long_press) {
@@ -204,6 +221,16 @@ int main(void) {
             saved = cfg;
         }
 
+        // In standby, only a click matters: no drawing, no busy loop.
+        if (standby()) {
+            if (!asleep) {
+                display_sleep();
+                asleep = true;
+            }
+            source_poll(now_ms());
+            sleep_ms(FRAME_MS);
+            continue;
+        }
         draw(-1, &screen, &cfg);
         while (now_ms() - start < FRAME_MS) {
             source_poll(now_ms());

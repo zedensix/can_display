@@ -13,6 +13,10 @@ typedef struct {
     bool auto_connect;
     // flip turns the picture upside down, for a panel mounted that way.
     bool flip;
+    // ethanol_sensor reads the flex-fuel sensor. Off, the ADC pin isn't
+    // read at all: left unconnected it floats, and shows noise as a
+    // plausible ethanol %.
+    bool ethanol_sensor;
 } settings_t;
 
 #define BRIGHTNESS_MIN 10

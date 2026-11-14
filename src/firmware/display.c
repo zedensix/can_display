@@ -11,6 +11,7 @@
 
 enum {
     CMD_SWRESET = 0x01,
+    CMD_SLPIN = 0x10,
     CMD_SLPOUT = 0x11,
     CMD_NORON = 0x13,
     CMD_INVON = 0x21,
@@ -82,6 +83,12 @@ void display_init(void) {
 
 void display_set_flip(bool flip) {
     command(CMD_MADCTL, (const uint8_t[]){flip ? MADCTL_MX | MADCTL_MY : 0}, 1);
+}
+
+void display_sleep(void) {
+    display_finish();
+    pwm_set_gpio_level(DISPLAY_BL, 0);
+    command(CMD_SLPIN, NULL, 0);
 }
 
 void display_set_brightness(int percent) {

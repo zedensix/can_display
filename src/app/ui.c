@@ -22,13 +22,18 @@ const theme_t theme_dark = {
 #define AFR_RANGE {10, 18, 12, 16, 11, 17}
 #define ETHANOL_RANGE {0, 100, -1, 101, -1, 101}
 
+// Most signals update several times a second. The oil temperature comes
+// every 3s through the dongle (ELM_OIL_INTERVAL_MS).
+#define FAST_STALE_MS 2000
+#define OIL_STALE_MS 10000
+
 const tile_t ui_tiles[] = {
-    {"RPM", "%.0f", "", SIG_RPM, RPM_RANGE},
-    {"COOLANT", "%.0f", DEGREE "C", SIG_COOLANT, COOLANT_RANGE},
-    {"OIL TEMP", "%.0f", DEGREE "C", SIG_OIL, OIL_RANGE},
-    {"BATTERY", "%.1f", "V", SIG_BATTERY, BATTERY_RANGE},
-    {"AFR", "%.1f", "", SIG_AFR, AFR_RANGE},
-    {"ETHANOL", "%.0f", "%", SIG_ETHANOL, ETHANOL_RANGE},
+    {"RPM", "%.0f", "", SIG_RPM, RPM_RANGE, FAST_STALE_MS},
+    {"COOLANT", "%.0f", DEGREE "C", SIG_COOLANT, COOLANT_RANGE, FAST_STALE_MS},
+    {"OIL TEMP", "%.0f", DEGREE "C", SIG_OIL, OIL_RANGE, OIL_STALE_MS},
+    {"BATTERY", "%.1f", "V", SIG_BATTERY, BATTERY_RANGE, FAST_STALE_MS},
+    {"AFR", "%.1f", "", SIG_AFR, AFR_RANGE, FAST_STALE_MS},
+    {"ETHANOL", "%.0f", "%", SIG_ETHANOL, ETHANOL_RANGE, FAST_STALE_MS},
 };
 const int ui_tile_count = sizeof ui_tiles / sizeof ui_tiles[0];
 
@@ -64,7 +69,7 @@ static float range_fraction(const range_t *r, float v) {
 // fraction, or "--" once stale.
 static void tile_value(const tile_t *tile, reading_t reading, uint32_t now_ms, const theme_t *t, char text[24],
                        color_t *color, float *fraction) {
-    if (reading_stale(&reading, now_ms, STALE_AFTER_MS)) {
+    if (reading_stale(&reading, now_ms, tile->stale_ms)) {
         snprintf(text, 24, "--");
         *color = t->stale;
         *fraction = 0;
@@ -221,6 +226,7 @@ static void draw_settings(canvas_t *c, const theme_t *t, const screen_t *screen,
         [ROW_BRIGHTNESS] = {"Brightness", brightness},
         [ROW_AUTO_CONNECT] = {"Auto-connect", cfg->auto_connect ? "ON" : "OFF"},
         [ROW_FLIP] = {"Flip screen", cfg->flip ? "ON" : "OFF"},
+        [ROW_ETHANOL_SENSOR] = {"Ethanol sensor", cfg->ethanol_sensor ? "ON" : "OFF"},
         [ROW_BACK] = {"Back", ""},
     };
     for (int i = 0; i < SETTINGS_ROWS; i++) {

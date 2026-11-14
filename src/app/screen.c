@@ -35,6 +35,9 @@ void screen_press(screen_t *s, settings_t *cfg) {
     case ROW_FLIP:
         cfg->flip = !cfg->flip;
         break;
+    case ROW_ETHANOL_SENSOR:
+        cfg->ethanol_sensor = !cfg->ethanol_sensor;
+        break;
     case ROW_BACK:
         s->page = PAGE_GAUGES;
         break;
