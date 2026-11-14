@@ -53,6 +53,10 @@ void screen_press(screen_t *s, settings_t *cfg) {
         s->listen_requested = true;
         s->page = PAGE_GAUGES;
         break;
+    case ROW_DISCONNECT:
+        s->disconnect_requested = true;
+        s->page = PAGE_GAUGES;
+        break;
     case ROW_BACK:
         s->page = PAGE_GAUGES;
         break;

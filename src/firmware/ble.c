@@ -52,6 +52,9 @@ typedef enum {
     RUNNING,
     FAILED,
     STANDBY,
+    // OFFLINE is a disconnect asked from the settings: like STANDBY, the
+    // dongle is let go and the radio off, but the screen stays on.
+    OFFLINE,
 } phase_t;
 
 static state_t *state;
@@ -380,7 +383,7 @@ static void hci_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, 
         break;
     case HCI_EVENT_DISCONNECTION_COMPLETE:
         connection = HCI_CON_HANDLE_INVALID;
-        if (phase == STANDBY) {
+        if (phase == STANDBY || phase == OFFLINE) {
             hci_power_control(HCI_POWER_OFF);
         } else if (phase != FAILED && !disconnecting) {
             char error[40];
@@ -484,6 +487,25 @@ void ble_poll(uint32_t now_ms) {
     check_timeouts();
 }
 
+void ble_go_offline(void) {
+    if (!stack_up || phase == STANDBY || phase == OFFLINE) {
+        return;
+    }
+    log_line("ble: disconnected from the settings");
+    phase_t was = phase;
+    set_phase(OFFLINE, "OFFLINE\npress to connect");
+    if (was == SCANNING) {
+        gap_stop_scan();
+    } else if (was == CONNECTING) {
+        gap_connect_cancel();
+    }
+    if (connection != HCI_CON_HANDLE_INVALID) {
+        gap_disconnect(connection);
+    } else {
+        hci_power_control(HCI_POWER_OFF);
+    }
+}
+
 void ble_scan_ram(void) {
     if (phase == RUNNING) {
         elm_scan_ram(&elm);
@@ -512,6 +534,7 @@ bool ble_prompt_click(uint32_t now_ms) {
         }
         return true;
     case STANDBY:
+    case OFFLINE:
         reboot_to_connect();
         return true;
     default:

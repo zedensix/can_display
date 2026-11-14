@@ -57,12 +57,12 @@ extern const int ui_tile_count;
 // in a grid. now_ms drives the spinner and staleness.
 void ui_render(canvas_t *c, const state_t *state, const screen_t *screen, const settings_t *cfg, uint32_t now_ms);
 
-// The boot animation: the logo revealed behind a scan line, the shift
-// light revving to a blue flash, then every gauge sweeping up and back.
-#define BOOT_REVEAL_MS 900
-#define BOOT_SPLASH_MS 1600
-#define BOOT_SWEEP_MS 2000
-#define BOOT_DURATION_MS (BOOT_SPLASH_MS + BOOT_SWEEP_MS)
+// The boot animation: a spinner, whose ring closes into the logo's
+// circle as the logo fades in, then the logo alone.
+#define BOOT_SPIN_MS 1100
+#define BOOT_MORPH_MS 600
+#define BOOT_HOLD_MS 600
+#define BOOT_DURATION_MS (BOOT_SPIN_MS + BOOT_MORPH_MS + BOOT_HOLD_MS)
 
 // ui_render_boot draws the boot animation elapsed_ms into it: the logo
 // fades in and out, then every gauge sweeps up to its max and back down,

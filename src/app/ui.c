@@ -330,17 +330,24 @@ static void draw_logo(canvas_t *c, int cx, int cy, int shrink, color_t color);
 #define RING_IN 68
 
 // draw_status is the source's report while it isn't delivering: the
-// logo in a ring whose lit head goes round (a comet tail behind it, a
-// step every 80ms, so a slow step doesn't look frozen), the first
+// logo in a spinner (so a slow step doesn't look frozen), the first
 // paragraph as a title, the rest centered and wrapped under it.
-static void draw_status(canvas_t *c, const theme_t *t, const char *status, uint32_t now_ms) {
+// draw_spinner draws the ring whose lit head goes round, a comet tail
+// behind it, a step every 80ms; done (0 to 1) lights the whole ring.
+static void draw_spinner(canvas_t *c, const theme_t *t, int cx, int cy, int r_in, int r_out, uint32_t now_ms,
+                         float done) {
     int head = (int)(now_ms / 80 % RING_SEGMENTS);
     color_t colors[RING_SEGMENTS];
     for (int i = 0; i < RING_SEGMENTS; i++) {
         int age = (head - i + RING_SEGMENTS) % RING_SEGMENTS;
-        colors[i] = age < 8 ? gfx_blend(t->accent, t->stale, (float)age / 8) : t->stale;
+        color_t comet = age < 8 ? gfx_blend(t->accent, t->stale, (float)age / 8) : t->stale;
+        colors[i] = gfx_blend(comet, t->accent, done);
     }
-    draw_arc(c, c->width / 2, RING_Y, RING_IN, RING_OUT, -90, 360, RING_SEGMENTS, colors);
+    draw_arc(c, cx, cy, r_in, r_out, -90, 360, RING_SEGMENTS, colors);
+}
+
+static void draw_status(canvas_t *c, const theme_t *t, const char *status, uint32_t now_ms) {
+    draw_spinner(c, t, c->width / 2, RING_Y, RING_IN, RING_OUT, now_ms, 0);
     draw_logo(c, c->width / 2, RING_Y, 2, t->accent);
 
     int y = RING_Y + RING_OUT + 34;
@@ -364,8 +371,8 @@ static void draw_status(canvas_t *c, const theme_t *t, const char *status, uint3
 }
 
 #define SETTINGS_MARGIN 8
-#define SETTINGS_TOP 46
-#define SETTINGS_ROW_HEIGHT 31
+#define SETTINGS_TOP 44
+#define SETTINGS_ROW_HEIGHT 28
 
 static void draw_settings(canvas_t *c, const theme_t *t, const screen_t *screen, const settings_t *cfg) {
     gfx_text(c, &font_bold12, SETTINGS_MARGIN + 4, 30, "SETTINGS", t->accent, 1);
@@ -381,6 +388,7 @@ static void draw_settings(canvas_t *c, const theme_t *t, const screen_t *screen,
         [ROW_ETHANOL_SENSOR] = {"Ethanol sensor", cfg->ethanol_sensor ? "ON" : "OFF"},
         [ROW_SCAN] = {"Scan ECU RAM", ""},
         [ROW_LISTEN] = {"Listen CAN", ""},
+        [ROW_DISCONNECT] = {"Disconnect", ""},
         [ROW_BACK] = {"Back", ""},
     };
     for (int i = 0; i < SETTINGS_ROWS; i++) {
@@ -399,11 +407,11 @@ static void draw_settings(canvas_t *c, const theme_t *t, const screen_t *screen,
                 value = t->warning;
             }
         }
-        gfx_text(c, label_font, SETTINGS_MARGIN + 12, y + 18, rows[i][0], label, 1);
+        gfx_text(c, label_font, SETTINGS_MARGIN + 12, y + 16, rows[i][0], label, 1);
         int width = gfx_text_width(label_font, rows[i][1]);
-        gfx_text(c, label_font, c->width - SETTINGS_MARGIN - 10 - width, y + 18, rows[i][1], value, 1);
+        gfx_text(c, label_font, c->width - SETTINGS_MARGIN - 10 - width, y + 16, rows[i][1], value, 1);
     }
-    text_centered(c, label_font, c->width / 2, c->height - 14, "hold: reboot", t->frame, 1);
+    text_centered(c, label_font, c->width / 2, c->height - 6, "hold: reboot", t->frame, 1);
 }
 
 // The shift light is a race car steering wheel's LED bar across the top:
@@ -514,50 +522,25 @@ static void draw_logo(canvas_t *c, int cx, int cy, int shrink, color_t color) {
     }
 }
 
-// The boot shift light revs over the bar's span up to this.
-#define BOOT_SHIFT_RPM 7000
+// The logo's circle, at full size: the boot spinner closes into it.
+#define LOGO_RING_IN 73
+#define LOGO_RING_OUT 80
 
 bool ui_render_boot(canvas_t *c, uint32_t elapsed_ms, uint32_t now_ms) {
     if (elapsed_ms >= BOOT_DURATION_MS) {
         return false;
     }
     const theme_t *t = &theme_dark;
+    int cx = c->width / 2, cy = c->height / 2;
     gfx_fill_rect(c, 0, 0, c->width, c->height, t->background);
-    reading_t rpm = {.valid = true, .updated_ms = now_ms};
-    if (elapsed_ms < BOOT_SPLASH_MS) {
-        // The logo, revealed top down behind a bright scan line.
-        int top = (c->height - (logo_bin[2] << 8 | logo_bin[3])) / 2, bottom = c->height - top;
-        draw_logo(c, c->width / 2, c->height / 2, 1, t->accent);
-        if (elapsed_ms < BOOT_REVEAL_MS) {
-            int line = top + (bottom - top) * (int)elapsed_ms / BOOT_REVEAL_MS;
-            gfx_fill_rect(c, 0, line, c->width, c->height - line, t->background);
-            gfx_fill_rect(c, 0, line, c->width, 3, t->alarm_text);
-            gfx_fill_rect(c, 0, line + 3, c->width, 8, gfx_blend(t->background, t->accent, 0.35f));
-        }
-        // Then a rev: the shift light fills, then flashes blue.
-        float rev = (float)((int)elapsed_ms - BOOT_REVEAL_MS) / (BOOT_SPLASH_MS - BOOT_REVEAL_MS - 200);
-        rpm.value = rev < 0 ? 0 : BOOT_SHIFT_RPM - SHIFT_SPAN_RPM + rev * SHIFT_SPAN_RPM;
-        draw_shift_light(c, t, &rpm, BOOT_SHIFT_RPM, now_ms);
-        return true;
+    if (elapsed_ms < BOOT_SPIN_MS) {
+        draw_spinner(c, t, cx, cy, LOGO_RING_IN, LOGO_RING_OUT, now_ms, 0);
+    } else if (elapsed_ms < BOOT_SPIN_MS + BOOT_MORPH_MS) {
+        float morph = (float)(elapsed_ms - BOOT_SPIN_MS) / BOOT_MORPH_MS;
+        draw_logo(c, cx, cy, 1, gfx_blend(t->background, t->accent, morph));
+        draw_spinner(c, t, cx, cy, LOGO_RING_IN, LOGO_RING_OUT, now_ms, morph);
+    } else {
+        draw_logo(c, cx, cy, 1, t->accent);
     }
-    // Like the GT86's own cluster at ignition: the tachometer sweeps to
-    // its end and back, its scale around, the logo in the middle.
-    float sweep = sinf(PI * (float)(elapsed_ms - BOOT_SPLASH_MS) / BOOT_SWEEP_MS);
-    const range_t tach = RPM_RANGE;
-    int cx = c->width / 2, cy = SHIFT_BAR_HEIGHT + 140, r_out = c->width / 2 - 8, r_in = r_out - DIAL_WIDTH;
-    color_t colors[DIAL_SEGMENTS];
-    segment_colors(&tach, sweep, -1, DIAL_SEGMENTS, false, t, colors);
-    draw_arc(c, cx, cy, r_in, r_out, DIAL_START, DIAL_SWEEP, DIAL_SEGMENTS, colors);
-    for (int k = 0; k <= 8; k++) {
-        float a = (DIAL_START + (float)k * DIAL_SWEEP / 8) * PI / 180;
-        char digit[2] = {(char)('0' + k), 0};
-        int r = r_in - 16;
-        text_centered(c, &font_bold12, cx + (int)lroundf((float)r * cosf(a)), cy + (int)lroundf((float)r * sinf(a)) + 7,
-                      digit, k * 1000 >= (int)tach.danger_high ? t->danger : t->label, 1);
-    }
-    draw_logo(c, cx, cy, 2, t->accent);
-    text_centered(c, label_font, cx, cy + r_out * 7 / 10 + 26, "x1000 r/min", t->label, 1);
-    rpm.value = BOOT_SHIFT_RPM - SHIFT_SPAN_RPM + sweep * SHIFT_SPAN_RPM * 0.99f;
-    draw_shift_light(c, t, &rpm, BOOT_SHIFT_RPM, now_ms);
     return true;
 }

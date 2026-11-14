@@ -513,6 +513,10 @@ static void test_screen(void) {
     screen_press(&s, &cfg);
     CHECK(s.listen_requested && s.page == PAGE_GAUGES, "a click on Listen CAN didn't ask to listen");
     screen_press(&s, &cfg);
+    screen_turn(&s, ROW_DISCONNECT, 6, &cfg);
+    screen_press(&s, &cfg);
+    CHECK(s.disconnect_requested && s.page == PAGE_GAUGES, "a click on Disconnect didn't ask to disconnect");
+    screen_press(&s, &cfg);
     screen_turn(&s, 10, 6, &cfg);
     screen_press(&s, &cfg);
     CHECK(s.page == PAGE_GAUGES, "a click on Back didn't return to the gauges");

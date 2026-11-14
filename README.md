@@ -31,7 +31,7 @@ The simulator needs SDL2 (`brew install sdl2`).
 - ST7789 V2.2 2.0" 240x320 SPI TFT display
 - A KY-040 rotary encoder: turn to change the gauge view, click for the
   settings (brightness, shift light, auto-connect, flip, ethanol sensor,
-  ECU RAM scan, CAN listen), hold 1s to reboot
+  ECU RAM scan, CAN listen, disconnect), hold 1s to reboot
 - Car data, one of:
   - an ELM327 BLE OBD dongle (written for a Vgate iCar Pro 2S): no wiring
   - an MCP2515 SPI CAN module on the OBD-II port's CAN H/L (pins 6/14)

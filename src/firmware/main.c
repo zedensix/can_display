@@ -82,6 +82,12 @@ static void scan_ram(void) {
 #endif
 }
 
+static void go_offline(void) {
+#if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
+    ble_go_offline();
+#endif
+}
+
 static void listen_can(void) {
 #if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
     ble_listen_can();
@@ -225,6 +231,10 @@ int main(void) {
         if (screen.listen_requested) {
             screen.listen_requested = false;
             listen_can();
+        }
+        if (screen.disconnect_requested) {
+            screen.disconnect_requested = false;
+            go_offline();
         }
         if (long_press) {
             log_line("knob: reboot");

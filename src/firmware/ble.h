@@ -37,6 +37,10 @@ void ble_scan_ram(void);
 // the session polls (elm_listen_can).
 void ble_listen_can(void);
 
+// ble_go_offline lets the dongle go and turns the radio off, until a
+// click (ble_prompt_click) reconnects: Disconnect, on the settings page.
+void ble_go_offline(void);
+
 // ble_disconnect closes the dongle connection before a reboot: a dongle
 // left on a connection that vanished can stop answering for a while.
 void ble_disconnect(void);
