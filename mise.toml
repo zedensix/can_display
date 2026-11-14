@@ -1,4 +1,10 @@
 [tools]
+cmake = "4.4.5"
+ninja = "1.13.2"
+"asdf:mise-plugins/mise-gcc-arm-none-eabi" = "14.3.Rel1"
+# Only for `mise run logo` (cmd/logo turns 86.png into the boot splash).
 go = "1.27.4"
-tinygo = "0.44.0"
-golangci-lint = "2.15.0"
+
+[env]
+PICO_SDK_VERSION = "2.2.0"
+PICO_SDK_PATH = "{{env.HOME}}/.cache/pico-sdk/2.2.0"

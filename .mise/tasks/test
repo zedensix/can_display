@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-#MISE description="Run the unit tests"
+#MISE description="Run the host-side tests of src/app (address and UB sanitizers on)"
 set -euo pipefail
 
-go test ./...
+cmake -S test -B build/test -G Ninja -DCMAKE_C_COMPILER=cc >/dev/null
+cmake --build build/test
+build/test/tests

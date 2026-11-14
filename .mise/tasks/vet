@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-#MISE description="go vet the shared code and simulator, then build-check the firmware, normal and sim"
-set -euo pipefail
-
-go vet ./internal/... ./cmd/simulator/...
-tinygo build -target "${TARGET:-pico-w}" -o /dev/null ./cmd/firmware
-tinygo build -target "${TARGET:-pico-w}" -tags sim -o /dev/null ./cmd/firmware

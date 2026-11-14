@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-#MISE description="Run the desktop dashboard simulator (fake data, no hardware needed)"
+#MISE description="Run the desktop simulator: the firmware's UI with fake data (needs SDL2: brew install sdl2)"
 set -euo pipefail
 
-go run ./cmd/simulator
+cmake -S sim -B build/sim -G Ninja -DCMAKE_C_COMPILER=cc >/dev/null
+cmake --build build/sim
+build/sim/simulator

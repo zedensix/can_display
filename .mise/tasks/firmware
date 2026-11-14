@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
-#MISE description="Cross-compile the firmware to bin/firmware.uf2 (TARGET defaults to pico-w)"
+#MISE description="Build the firmware: bin/firmware.uf2, and bin/firmware-sim.uf2 (fake data)"
 set -euo pipefail
 
-tinygo build -target "${TARGET:-pico-w}" -o bin/firmware.uf2 ./cmd/firmware
+if [ ! -d "$PICO_SDK_PATH" ]; then
+  echo "fetching pico-sdk $PICO_SDK_VERSION into $PICO_SDK_PATH (once, ~400MB)"
+  git clone -q --depth 1 --branch "$PICO_SDK_VERSION" --recurse-submodules --shallow-submodules \
+    https://github.com/raspberrypi/pico-sdk "$PICO_SDK_PATH"
+fi
+cmake -S . -B build/firmware -G Ninja >/dev/null
+cmake --build build/firmware
+mkdir -p bin
+cp build/firmware/firmware.uf2 bin/firmware.uf2
+cp build/firmware/firmware_sim.uf2 bin/firmware-sim.uf2
+arm-none-eabi-size build/firmware/firmware.elf

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Same as flash, but the firmware shows fake data instead of the car, to test the display (optional PORT)"
+#MISE description="Same as flash, but the firmware shows fake data, to check the display without a car"
 set -euo pipefail
 
-TAGS=sim exec "$(dirname "$0")/flash"
+UF2=bin/firmware-sim.uf2 exec "$(dirname "$0")/flash"

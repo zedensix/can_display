@@ -2,4 +2,4 @@
 #MISE description="Remove build output"
 set -euo pipefail
 
-rm -rf bin
+rm -rf bin build

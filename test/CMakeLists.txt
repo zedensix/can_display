@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.13)
+project(can_display_tests C)
+
+set(CMAKE_C_STANDARD 11)
+file(GLOB APP_SOURCES ${CMAKE_CURRENT_LIST_DIR}/../src/app/*.c)
+add_executable(tests tests.c ${APP_SOURCES})
+target_include_directories(tests PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../src/app)
+target_compile_options(tests PRIVATE -Wall -Wextra -Werror -fsanitize=address,undefined -g)
+target_link_options(tests PRIVATE -fsanitize=address,undefined)
+target_link_libraries(tests m)

@@ -2,7 +2,7 @@
 
 ## Why this matters
 
-The IDs and formulas in `internal/canbus/gt86` come from community
+The IDs and formulas in `src/app/obd.c` come from community
 reverse-engineering (see the source link in that package's doc comment),
 not from Toyota/Subaru factory documentation. They have **not** been
 verified against this specific car. Treat every value as "probably
@@ -18,7 +18,7 @@ especially before making driving decisions based on it.
 | Oil temp | Decoded from `0x360` byte 2, `value - 40`°C. Unverified on this car. |
 | AFR | Polled via OBD-II Mode 01 PID 0x24 (standard, not reverse-engineered) from the factory wideband sensor. Whether this ECU actually answers it hasn't been confirmed — see the dedicated section below. |
 | Battery voltage | **Not found** in any factory-bus reverse-engineering doc so far. Needs new reverse-engineering work (see below). |
-| Ethanol % | Not on CAN at all — read from a locally-wired analog sensor instead. See `docs/wiring.md` and `internal/sensors`. |
+| Ethanol % | Not on CAN at all — read from a locally-wired analog sensor instead. See `docs/wiring.md` and `src/app/sensors`. |
 
 ## How to check (or find) an ID
 
@@ -46,8 +46,8 @@ platform, nicer UI) works.
      rear defroster) and watch for a byte that dips and recovers by
      roughly the right amount (idle ~14.2V, load ~13.5-13.8V).
 4. Once you've found a candidate ID/byte/formula, add a decoder in
-   `internal/canbus/gt86/gt86.go` following the pattern of
-   `decodeTemperatures`, and register it in `Register()`.
+   `gt86_decode` (`src/app/obd.c`) following the pattern of the
+   `GT86_ID_TEMPERATURES` case.
 5. Update the status table above and the comment citing your source
    (even if the source is "captured myself on <date>, see <log file>")
    so the next person (including future you) knows what's actually been
@@ -67,37 +67,36 @@ it's easy to test with tools that already exist:
    easier than crafting raw CAN frames by hand for a first check.
 3. If you get a response: note whether it came back on the standard
    `0x7E8` address or something else, and roughly how long it took --
-   `afrPollInterval` in `internal/canbus/gt86/afr.go` assumes the ECU
-   can keep up with a request every 250ms; slow it down if not.
+   `AFR_INTERVAL_MS` in `src/firmware/mcp2515.c` assumes the ECU can
+   keep up with a request every 250ms; slow it down if not. (Through
+   the ELM327 dongle, requests go back to back, paced by its answers.)
 4. If a functional-broadcast request (`0x7DF`, what this project sends
    by default) gets no response, try a *physical* request to `0x7E0`
    instead (the engine ECU's usual address) -- some ECUs are picky
    about which addressing mode they answer. That'd mean changing
-   `obd2.FunctionalRequestID` to `0x7E0` for this specific request (or
-   generalizing `Poller`/`RequestFrame` to take a target ID per
-   request, if you want both addressing modes available at once).
+   `OBD_REQUEST_ID` (`src/app/obd.h`) to `0x7E0`, and `ATSH7DF` in
+   `src/app/elm327.c` to `ATSH7E0` for the dongle.
 5. Sanity check the actual number: with the engine warm and idling,
    AFR should hover close to 14.7 (lambda ~1.0). If it's stuck at 0,
    pegged at max, or wildly implausible, something in the request
    format or response parsing doesn't match this ECU -- compare
    against what your OBD-II tool captured in step 2-3 byte-for-byte
-   against `obd2.RequestFrame`/`ParseSingleFrameResponse`.
+   against `obd_request`/`obd_decode`.
 
 ## Adding an aftermarket AFR source instead
 
 The OBD-II route only gets you what the factory sensor's ECU-side
 scaling allows (reportedly capped around 12.2:1 rich, per community
-reports -- see `afr.go`'s doc comment). If that turns out to be too
+reports). If that turns out to be too
 limiting, or PID 0x24 doesn't work on this car at all, a standalone
 wideband controller broadcasting onto CAN (Haltech, AEM, etc. all have
 documented CAN broadcast protocols) is the fallback: find its frame
-layout, write a decoder with the same shape as `decodeTemperatures`,
-and `reg.Register(id, decoder)` it -- same pattern as everything else
-in `gt86.go`, no changes needed anywhere else in the pipeline.
+layout and add a case for its ID in `gt86_decode`, same pattern as
+everything else there, no changes needed anywhere else in the pipeline.
 
 ## Adding an aftermarket ethanol source
 
 Same idea, if you'd rather get ethanol % over CAN from an aftermarket
 controller than through the local analog sensor this project currently
-reads (`internal/sensors`): find the controller's documented frame
+reads (`src/app/sensors.c`): find the controller's documented frame
 layout and register a decoder the same way.
