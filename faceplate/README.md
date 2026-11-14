@@ -33,9 +33,11 @@ matter most:
    the window.
 4. The encoder's threaded length: the plate around it must leave room for
    the nut.
-5. The buck converter's holes: the defaults are a guess at an LM2596
-   module. Holes are measured from the board's bottom-left corner, looking
-   at it from the back of the dash.
+5. The encoder's body height (board to face, where the bushing starts)
+   and its board's holes: they set the standoffs it screws onto.
+6. The buck converter's holes: the defaults are a guess at an LM2596
+   module. Holes are measured from the board's bottom-left corner, seen
+   from the back of the dash, where you screw it on.
 
 Then `mise run faceplate` and look at the pictures. The build refuses a
 layout that can't work and names the key to fix: a standoff off the tray,
@@ -48,6 +50,7 @@ pocket and hole.
 | Screws | For |
 | --- | --- |
 | 4 × M2x4 self-tapping | the display board, into the faceplate |
+| 2 × M2x6 self-tapping | the encoder's board, into the faceplate |
 | 4 × M2x6 self-tapping | the Pico, into the tray |
 | 6 × M3x6 self-tapping | the buck converter and the MCP2515, into the tray |
 | 4 × M3x10 self-tapping | the tray, onto the faceplate's posts |
@@ -55,10 +58,10 @@ pocket and hole.
 1. Drop the display face down into its pocket, ribbon end toward the
    encoder, and screw its board on.
 2. Push the encoder through from the back, with its pin header pointing
-   down, out past the plate's bottom edge (sideways, it hits a post). Put
-   the washer and nut on from the front. If the encoder has an
-   anti-rotation tab sticking out of its face, break it off: there's no
-   slot for it.
+   down, out past the plate's bottom edge (sideways, it hits a post), and
+   screw its board onto the two standoffs beside it (2 × M2x6). Put the
+   washer and nut on from the front. If the encoder has an anti-rotation
+   tab sticking out of its face, break it off: there's no slot for it.
 3. Wire the display and the encoder, pass the wires through the tray's
    slot, and screw the tray onto the posts.
 4. Screw the boards onto the tray: the Pico with its components facing

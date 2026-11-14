@@ -1,8 +1,9 @@
 // The faceplate: the display in portrait behind a window, the encoder
 // below it, and 4 posts at the corners of its back for the tray.
 //
-// The front face is at z = 0, the back at z = thickness; X runs across, Y
-// up (the display board's top edge at y = 0). It prints the same way,
+// The front face is at z = 0, the back at z = thickness; seen from the
+// back, X runs across to the right, Y up (the display board's top edge at
+// y = 0). It prints the same way,
 // front face down on the bed: the pockets open upward, the posts stand
 // up, the window bevel is a 45 degree overhang, no supports.
 
@@ -30,6 +31,10 @@ export class Faceplate {
   private readonly glassPocketBottom: number;
   private readonly shaftY: number;
   private readonly encoderRecessHalf: number;
+  /** Where the encoder's board sits, its body against the thin plate. */
+  private readonly encoderBoardFace: number;
+  /** The encoder board's hole centers, in the plate's X and Y. */
+  private readonly encoderBoardHoles: [number, number][];
 
   constructor(readonly c: Config) {
     const { display, encoder, plate, window, tray, clearance } = c;
@@ -39,6 +44,8 @@ export class Faceplate {
     this.glassPocketBottom = this.glassTop - display.glassLength - display.ribbonAllowance - clearance;
     this.shaftY = -display.pcbLength - encoder.belowDisplay;
     this.encoderRecessHalf = encoder.bodySize / 2 + clearance;
+    this.encoderBoardFace = encoder.panelThickness + encoder.bodyHeight;
+    this.encoderBoardHoles = encoder.boardHoles.map(([x, y]): [number, number] => [x ?? 0, this.shaftY + (y ?? 0)]);
     this.halfWidth = display.pcbWidth / 2 + clearance + plate.margin;
     this.top = clearance + plate.margin;
     this.bottom = this.shaftY - this.encoderRecessHalf - plate.margin;
@@ -76,6 +83,15 @@ export class Faceplate {
     }
     if (encoder.belowDisplay - this.encoderRecessHalf - clearance < 1) {
       throw new Error("encoder.belowDisplay is too small: the encoder's recess runs into the display's pocket");
+    }
+    if (this.encoderBoardFace <= this.thickness) {
+      throw new Error("encoder.bodyHeight is too short: the encoder's board would sit inside the plate");
+    }
+    for (const [x, y] of encoder.boardHoles) {
+      const outsideRecess = Math.max(Math.abs(x ?? 0), Math.abs(y ?? 0)) - this.encoderRecessHalf;
+      if (outsideRecess < c.screw.pilotDiameter / 2 + 0.3) {
+        throw new Error("encoder.boardHoles: a screw hole runs into the encoder's recess (check encoder.bodySize)");
+      }
     }
     if (postX - tray.postDiameter / 2 < display.pcbWidth / 2 + clearance + 0.5) {
       throw new Error("plate.margin is too narrow for tray.postDiameter beside the display board");
@@ -160,7 +176,31 @@ export class Faceplate {
         this.shaftY,
         -1,
       ]),
-      box(-half, half, this.shaftY - half, this.shaftY + half, encoder.panelThickness, this.thickness + 1),
+      box(-half, half, this.shaftY - half, this.shaftY + half, encoder.panelThickness, this.encoderBoardFace + 1),
+    );
+  }
+
+  /** The 2 standoffs the encoder's board screws onto, from the plate's back up to the board. */
+  private get encoderStandoffs(): ScadObject {
+    const height = this.encoderBoardFace - this.thickness;
+    return union(
+      ...this.encoderBoardHoles.map(([x, y]) =>
+        cylinder(height + 0.01, this.c.encoder.standoffDiameter / 2, { center: false }).translate([
+          x,
+          y,
+          this.thickness - 0.01,
+        ]),
+      ),
+    );
+  }
+
+  /** Pilot holes for the encoder board's screws, through the standoffs, blind in the plate. */
+  private get encoderScrewHoles(): ScadObject {
+    const { plate, screw } = this.c;
+    return union(
+      ...this.encoderBoardHoles.map(([x, y]) =>
+        cylinder(this.encoderBoardFace, screw.pilotDiameter / 2, { center: false }).translate([x, y, plate.frontSkin]),
+      ),
     );
   }
 
@@ -182,11 +222,12 @@ export class Faceplate {
   get object(): ScadObject {
     return union(
       difference(
-        this.outline(this.thickness),
+        union(this.outline(this.thickness), this.encoderStandoffs),
         this.displayWindow,
         this.displayPockets,
         this.displayScrewHoles,
         this.encoderCutouts,
+        this.encoderScrewHoles,
       ),
       this.trayPosts,
     );

@@ -55,11 +55,11 @@ export class Tray {
     }
   }
 
-  /** A board's hole centers in the faceplate's X and Y: its holes are measured from the back, hence X mirrored. */
+  /** A board's hole centers in the faceplate's X and Y, both seen from the back. */
   static holesOf(board: Board): [number, number][] {
     const [centerX, centerY] = board.center;
     return board.holes.map(([holeX, holeY]): [number, number] => [
-      centerX + board.width / 2 - (holeX ?? 0),
+      centerX - board.width / 2 + (holeX ?? 0),
       centerY - board.length / 2 + (holeY ?? 0),
     ]);
   }

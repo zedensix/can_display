@@ -2,6 +2,9 @@
 // The defaults come from sellers' listings of these modules, which
 // disagree with each other: measure yours with calipers before printing.
 // The display stands in portrait (240 wide, 320 tall), the encoder below it.
+// Positions are seen from the back of the dash, where you screw things on:
+// x across (0 in the middle, + to the right), y up (0 at the display
+// board's top edge).
 export const config = {
   display: {
     pcbWidth: 35.7, // the module's board, across (the short side)
@@ -18,15 +21,25 @@ export const config = {
     activeFromGlassTop: 2.5, // from the panel's top edge to the lit area's top edge
   },
   screw: {
-    pilotDiameter: 1.7, // hole an M2 self-tapping screw bites into, through each board hole
+    pilotDiameter: 1.7, // hole an M2 self-tapping screw bites into: the display's and the encoder's boards
   },
   encoder: {
     bushingDiameter: 7, // the threaded bushing the shaft comes out of (M7x0.75 on an EC11)
     bushingLength: 5, // threaded length, from the encoder's face
     nutThickness: 2, // the nut that clamps the encoder to the plate, washer included
-    bodySize: 13.4, // the encoder's square metal body, its longest side (EC11: 12.4 x 13.2)
+    bodySize: 12.6, // the encoder's square metal body, its side facing the board's holes (they sit right against it)
+    bodyHeight: 6.5, // from the board's face to the encoder's face, where the bushing starts
     panelThickness: 2, // the plate at the encoder, thin enough for the nut to grab the bushing
     belowDisplay: 16, // from the display board's bottom edge to the shaft's center
+    // The board's 2 mounting holes (KY-040 / HW-040: 13.75 apart, beside
+    // the body), from the shaft's center: with its pin header pointing
+    // down, they're on the right. Screwed with M2 self-tapping screws
+    // (screw.pilotDiameter) into 2 standoffs.
+    boardHoles: [
+      [7.9, 6.875],
+      [7.9, -6.875],
+    ],
+    standoffDiameter: 4.5, // the standoffs under the board's holes, cut flat where they meet the body
   },
   plate: {
     frontSkin: 1.2, // material in front of the display glass
@@ -49,11 +62,9 @@ export const config = {
     standoffWall: 1.8, // around each standoff's pilot hole
     wireSlot: { width: 40, length: 7, center: [0, -51.25] }, // where the wires go through the tray, in the boards' frame below
   },
-  // Each board on the tray's back. center: where its middle sits, x across
-  // (0 in the middle, + to the right seen from the front), y up (0 at the
-  // display board's top edge). width runs along x, length along y. holes:
-  // from the board's bottom-left corner, looking at it from the back of
-  // the dash, as you screw it on.
+  // Each board on the tray's back. center: where its middle sits. width
+  // runs along x, length along y. holes: from the board's bottom-left
+  // corner, as you look at it screwing it on.
   boards: {
     pico: {
       width: 51,
