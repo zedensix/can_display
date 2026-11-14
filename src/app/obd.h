@@ -36,12 +36,12 @@ typedef struct {
 #define OBD_ENGINE_ECU 0x7E0
 #define OIL_RESPONSE_INDEX 28
 
-// obd_request is the Mode 01 single-frame request for pid.
-can_frame_t obd_request(uint8_t pid);
+// obd_build_request is the Mode 01 single-frame request for pid.
+can_frame_t obd_build_request(uint8_t pid);
 
-// obd_decode handles an ECU1 single-frame answer (see
+// obd_decode_frame handles an ECU1 single-frame answer (see
 // obd_decode_message). It returns false for anything else.
-bool obd_decode(const can_frame_t *f, state_t *state, uint32_t now_ms);
+bool obd_decode_frame(const can_frame_t *f, state_t *state, uint32_t now_ms);
 
 // obd_decode_message handles a whole ECU1 answer, mode byte first: Mode
 // 01 for the PIDs above (one or several in one answer), Mode 21 PID 01
@@ -57,9 +57,9 @@ typedef struct {
     uint8_t next_sequence;
 } isotp_t;
 
-// isotp_feed adds a frame and returns true once data holds a whole
+// isotp_add_frame adds a frame and returns true once data holds a whole
 // message (len bytes, mode byte first).
-bool isotp_feed(isotp_t *r, const can_frame_t *f);
+bool isotp_add_frame(isotp_t *r, const can_frame_t *f);
 
 // GT86 broadcast frames, seen by a direct CAN tap (MCP2515), never by an
 // OBD dongle. IDs and formulas come from community reverse-engineering
@@ -67,6 +67,6 @@ bool isotp_feed(isotp_t *r, const can_frame_t *f);
 #define GT86_ID_RPM 0x140
 #define GT86_ID_TEMPERATURES 0x360
 
-// gt86_decode handles the broadcast frames above. It returns false for
+// gt86_decode_broadcast handles the broadcast frames above. It returns false for
 // anything else.
-bool gt86_decode(const can_frame_t *f, state_t *state, uint32_t now_ms);
+bool gt86_decode_broadcast(const can_frame_t *f, state_t *state, uint32_t now_ms);

@@ -3,11 +3,11 @@
 #include <stdio.h>
 #include <string.h>
 
-static bool same(uint8_t dlc_a, const uint8_t *a, uint8_t dlc_b, const uint8_t *b) {
+static bool same_frame_data(uint8_t dlc_a, const uint8_t *a, uint8_t dlc_b, const uint8_t *b) {
     return dlc_a == dlc_b && memcmp(a, b, dlc_a) == 0;
 }
 
-void sniff_feed(sniff_t *s, const can_frame_t *f) {
+void sniff_add_frame(sniff_t *s, const can_frame_t *f) {
     if (f->dlc > 8) {
         return;
     }
@@ -27,7 +27,7 @@ void sniff_feed(sniff_t *s, const can_frame_t *f) {
         memcpy(e->before, f->data, f->dlc);
         return;
     }
-    if (same(e->dlc, e->data, f->dlc, f->data)) {
+    if (same_frame_data(e->dlc, e->data, f->dlc, f->data)) {
         return;
     }
     if (!s->baseline_over) {
@@ -54,13 +54,13 @@ void sniff_end_baseline(sniff_t *s) {
     }
 }
 
-static void hex(char *out, const uint8_t *data, int len) {
+static void bytes_to_hex(char *out, const uint8_t *data, int len) {
     for (int i = 0; i < len; i++) {
         snprintf(out + 2 * i, 3, "%02X", data[i]);
     }
 }
 
-void sniff_report(const sniff_t *s, void (*log)(void *ctx, const char *line), void *ctx) {
+void sniff_log_candidates(const sniff_t *s, void (*log)(void *ctx, const char *line), void *ctx) {
     int noisy = 0, candidates = 0;
     for (int i = 0; i < s->count; i++) {
         noisy += s->ids[i].noisy;
@@ -76,8 +76,8 @@ void sniff_report(const sniff_t *s, void (*log)(void *ctx, const char *line), vo
             continue;
         }
         char before[17] = "", after[17] = "";
-        hex(before, e->before, e->before_dlc);
-        hex(after, e->after, e->after_dlc);
+        bytes_to_hex(before, e->before, e->before_dlc);
+        bytes_to_hex(after, e->after, e->after_dlc);
         snprintf(line, sizeof line, "sniff: %03X x%u: %s -> %s", e->id, e->changes, before, after);
         log(ctx, line);
         logged++;

@@ -46,7 +46,7 @@ platform, nicer UI) works.
      rear defroster) and watch for a byte that dips and recovers by
      roughly the right amount (idle ~14.2V, load ~13.5-13.8V).
 4. Once you've found a candidate ID/byte/formula, add a decoder in
-   `gt86_decode` (`src/app/obd.c`) following the pattern of the
+   `gt86_decode_broadcast` (`src/app/obd.c`) following the pattern of the
    `GT86_ID_TEMPERATURES` case.
 5. Update the status table above and the comment citing your source
    (even if the source is "captured myself on <date>, see <log file>")
@@ -81,7 +81,7 @@ it's easy to test with tools that already exist:
    pegged at max, or wildly implausible, something in the request
    format or response parsing doesn't match this ECU -- compare
    against what your OBD-II tool captured in step 2-3 byte-for-byte
-   against `obd_request`/`obd_decode`.
+   against `obd_build_request`/`obd_decode_frame`.
 
 ## Adding an aftermarket AFR source instead
 
@@ -91,7 +91,7 @@ reports). If that turns out to be too
 limiting, or PID 0x24 doesn't work on this car at all, a standalone
 wideband controller broadcasting onto CAN (Haltech, AEM, etc. all have
 documented CAN broadcast protocols) is the fallback: find its frame
-layout and add a case for its ID in `gt86_decode`, same pattern as
+layout and add a case for its ID in `gt86_decode_broadcast`, same pattern as
 everything else there, no changes needed anywhere else in the pipeline.
 
 ## Reading the ethanol % from the ECU's RAM

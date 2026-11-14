@@ -25,8 +25,8 @@ int main(void) {
     SDL_Window *window = SDL_CreateWindow("GT86 Dash Simulator", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                           PANEL_WIDTH * SCALE, PANEL_HEIGHT * SCALE, 0);
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
-    SDL_Texture *texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB565, SDL_TEXTUREACCESS_STREAMING,
-                                             PANEL_WIDTH, PANEL_HEIGHT);
+    SDL_Texture *texture =
+        SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB565, SDL_TEXTUREACCESS_STREAMING, PANEL_WIDTH, PANEL_HEIGHT);
     if (!window || !renderer || !texture) {
         SDL_Log("SDL: %s", SDL_GetError());
         return 1;
@@ -47,21 +47,21 @@ int main(void) {
                 switch (event.key.keysym.sym) {
                 case SDLK_DOWN:
                 case SDLK_RIGHT:
-                    screen_turn(&screen, 1, ui_view_count, &cfg);
+                    screen_apply_turn(&screen, 1, ui_view_count, &cfg);
                     break;
                 case SDLK_UP:
                 case SDLK_LEFT:
-                    screen_turn(&screen, -1, ui_view_count, &cfg);
+                    screen_apply_turn(&screen, -1, ui_view_count, &cfg);
                     break;
                 case SDLK_SPACE:
-                    screen_press(&screen, &cfg);
+                    screen_apply_click(&screen, &cfg);
                     break;
                 }
             }
         }
 
         uint32_t now = SDL_GetTicks();
-        simdata_tick(&state, now);
+        simdata_update(&state, now);
         if (!ui_render_boot(&canvas, now - start, now)) {
             ui_render(&canvas, &state, &screen, &cfg, now);
         }

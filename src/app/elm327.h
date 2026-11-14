@@ -9,8 +9,8 @@
 #include "sniff.h"
 
 // An ELM327 session, transport-agnostic: commands go out through
-// callbacks.write, the dongle's output comes back through elm_receive.
-// It never blocks: elm_tick handles timeouts, so it runs from the same
+// callbacks.write, the dongle's output comes back through elm_feed_dongle_output.
+// It never blocks: elm_check_timers handles timeouts, so it runs from the same
 // loop as the BLE stack.
 //
 // The session resets and configures the dongle (echo off, CAN headers
@@ -19,7 +19,7 @@
 // ECU answers that), plus the battery voltage about once a second (ATRV,
 // answered by the dongle itself) and the oil temperature every few
 // seconds. With headers on, each reply line is a CAN frame; multi-frame
-// answers are reassembled (isotp_feed).
+// answers are reassembled (isotp_add_frame).
 
 #define ELM_TIMEOUT_MS 2000
 // ATZ reboots the dongle's firmware: it gets longer.
@@ -40,7 +40,7 @@
 #define ELM_SCAN_CHUNK 60
 #define ELM_SCAN_LOGGED 40
 
-// Listening to the CAN bus (elm_listen_can) for sniff_t: the bus is far
+// Listening to the CAN bus (elm_request_can_listen) for sniff_t: the bus is far
 // busier than BLE can carry, so the dongle listens to one window of 256
 // IDs at a time (ATCF/ATCM), ELM_LISTEN_DWELL_MS each, round and round:
 // ELM_LISTEN_BASELINE_MS hands off, then presses until ELM_LISTEN_MS.
@@ -96,32 +96,32 @@ typedef struct {
     bool ecu_answered;
     // multi_pid polls every PID in one request, if the ECU answers that.
     bool multi_pid;
-    // scan_requested starts a RAM scan at the next poll (elm_scan_ram);
+    // scan_requested starts a RAM scan at the next poll (elm_request_ram_scan);
     // scan_addr is the next address it reads.
     bool scan_requested;
     uint32_t scan_addr;
     int scan_candidates;
     // listen_requested starts listening to the bus at the next poll
-    // (elm_listen_can); monitoring is while the dongle prints frames.
+    // (elm_request_can_listen); monitoring is while the dongle prints frames.
     bool listen_requested, monitoring, stop_sent;
     uint32_t listen_ms, monitor_ms;
     int window;
     sniff_t sniff;
 } elm_t;
 
-void elm_start(elm_t *e, state_t *state, elm_callbacks_t cb, uint32_t now_ms);
-void elm_receive(elm_t *e, const uint8_t *data, size_t len, uint32_t now_ms);
-void elm_tick(elm_t *e, uint32_t now_ms);
+void elm_start_session(elm_t *e, state_t *state, elm_callbacks_t cb, uint32_t now_ms);
+void elm_feed_dongle_output(elm_t *e, const uint8_t *data, size_t len, uint32_t now_ms);
+void elm_check_timers(elm_t *e, uint32_t now_ms);
 
-// elm_scan_ram asks for a scan of the engine ECU's RAM for the ethanol %
+// elm_request_ram_scan asks for a scan of the engine ECU's RAM for the ethanol %
 // (see elm327.c): it starts at the next poll, shows its progress as the
 // status, logs its candidates, and polling resumes after it.
-void elm_scan_ram(elm_t *e);
+void elm_request_ram_scan(elm_t *e);
 
-// elm_listen_can asks for a sniff of the CAN bus (see sniff_t and
+// elm_request_can_listen asks for a sniff of the CAN bus (see sniff_t and
 // ELM_LISTEN_*): it starts at the next poll, tells the driver what to do
 // as the status, logs the candidates, then restarts the session.
-void elm_listen_can(elm_t *e);
+void elm_request_can_listen(elm_t *e);
 
 #define ELM_MAX_LINES 16
 

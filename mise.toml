@@ -5,6 +5,9 @@ ninja = "1.13.2"
 python = "3.14.10"
 # The web page (web/): its server, bundler and Tailwind build.
 bun = "1.4.4"
+# Git hooks (.pre-commit-config.yaml): `prek install` once per clone.
+prek = "0.5.9"
+node = "latest"
 
 [env]
 PICO_SDK_VERSION = "2.2.0"

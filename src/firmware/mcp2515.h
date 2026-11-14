@@ -10,4 +10,4 @@
 // (speculative PID 0x24) every 250ms. Untested on hardware: see
 // docs/wiring.md for the level shifting and the crystal.
 void mcp2515_source_init(state_t *state);
-void mcp2515_source_poll(uint32_t now_ms);
+void mcp2515_poll_bus(uint32_t now_ms);

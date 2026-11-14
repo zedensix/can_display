@@ -18,7 +18,7 @@ def read_ppm(path):
     return int(width), int(height), pixels
 
 
-def chunk(kind, body):
+def png_chunk(kind, body):
     return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body))
 
 
@@ -27,9 +27,9 @@ def write_png(path, width, height, pixels):
     raw = b"".join(b"\0" + pixels[y * stride : (y + 1) * stride] for y in range(height))
     with open(path, "wb") as f:
         f.write(b"\x89PNG\r\n\x1a\n")
-        f.write(chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)))
-        f.write(chunk(b"IDAT", zlib.compress(raw, 9)))
-        f.write(chunk(b"IEND", b""))
+        f.write(png_chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)))
+        f.write(png_chunk(b"IDAT", zlib.compress(raw, 9)))
+        f.write(png_chunk(b"IEND", b""))
 
 
 def main():

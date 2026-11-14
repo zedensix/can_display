@@ -55,9 +55,9 @@ typedef struct {
     action_t action;
 } screen_t;
 
-// screen_turn applies encoder detents, positive clockwise. views is how
+// screen_apply_turn applies encoder detents, positive clockwise. views is how
 // many gauges the single-gauge views cycle through.
-void screen_turn(screen_t *s, int detents, int views, settings_t *cfg);
+void screen_apply_turn(screen_t *s, int detents, int views, settings_t *cfg);
 
-// screen_press applies a click.
-void screen_press(screen_t *s, settings_t *cfg);
+// screen_apply_click applies a click.
+void screen_apply_click(screen_t *s, settings_t *cfg);

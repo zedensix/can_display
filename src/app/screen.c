@@ -1,10 +1,10 @@
 #include "screen.h"
 
-static int clamp(int v, int lo, int hi) {
+static int clamp_int(int v, int lo, int hi) {
     return v < lo ? lo : v > hi ? hi : v;
 }
 
-void screen_turn(screen_t *s, int detents, int views, settings_t *cfg) {
+void screen_apply_turn(screen_t *s, int detents, int views, settings_t *cfg) {
     if (detents == 0) {
         return;
     }
@@ -12,19 +12,19 @@ void screen_turn(screen_t *s, int detents, int views, settings_t *cfg) {
         int count = views + 1;
         s->view = ((s->view + detents) % count + count) % count;
     } else if (s->editing && s->cursor == ROW_BRIGHTNESS) {
-        cfg->brightness = clamp(cfg->brightness + detents * BRIGHTNESS_STEP, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
+        cfg->brightness = clamp_int(cfg->brightness + detents * BRIGHTNESS_STEP, BRIGHTNESS_MIN, BRIGHTNESS_MAX);
     } else if (s->editing && s->cursor == ROW_SHIFT_LIGHT) {
         // Below the minimum is off; turning up from off starts there.
         int rpm = cfg->shift_rpm ? cfg->shift_rpm + detents * SHIFT_RPM_STEP
                   : detents > 0  ? SHIFT_RPM_MIN + (detents - 1) * SHIFT_RPM_STEP
                                  : 0;
-        cfg->shift_rpm = rpm < SHIFT_RPM_MIN ? 0 : clamp(rpm, SHIFT_RPM_MIN, SHIFT_RPM_MAX);
+        cfg->shift_rpm = rpm < SHIFT_RPM_MIN ? 0 : clamp_int(rpm, SHIFT_RPM_MIN, SHIFT_RPM_MAX);
     } else {
-        s->cursor = clamp(s->cursor + detents, 0, SETTINGS_ROWS - 1);
+        s->cursor = clamp_int(s->cursor + detents, 0, SETTINGS_ROWS - 1);
     }
 }
 
-void screen_press(screen_t *s, settings_t *cfg) {
+void screen_apply_click(screen_t *s, settings_t *cfg) {
     if (s->page == PAGE_GAUGES) {
         s->page = PAGE_SETTINGS;
         s->cursor = ROW_BRIGHTNESS;
@@ -50,8 +50,10 @@ void screen_press(screen_t *s, settings_t *cfg) {
     case ROW_LISTEN:
     case ROW_DISCONNECT: {
         static const action_t actions[SETTINGS_ROWS] = {
-            [ROW_SEND_LOG] = ACTION_SEND_LOG, [ROW_SCAN] = ACTION_SCAN,
-            [ROW_LISTEN] = ACTION_LISTEN,         [ROW_DISCONNECT] = ACTION_DISCONNECT,
+            [ROW_SEND_LOG] = ACTION_SEND_LOG,
+            [ROW_SCAN] = ACTION_SCAN,
+            [ROW_LISTEN] = ACTION_LISTEN,
+            [ROW_DISCONNECT] = ACTION_DISCONNECT,
         };
         s->action = actions[s->cursor];
         s->page = PAGE_GAUGES;

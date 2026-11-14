@@ -14,9 +14,9 @@ void display_set_brightness(int percent);
 // a reboot wakes it.
 void display_sleep(void);
 
-// display_push starts sending c's band to the panel and returns at once:
-// keep the BLE stack running until display_busy is false, then call
-// display_finish before drawing into the band again.
-void display_push(const canvas_t *c);
-bool display_busy(void);
-void display_finish(void);
+// display_push_rows starts sending c's band to the panel and returns at once:
+// keep the BLE stack running until display_push_in_progress is false, then call
+// display_wait_for_push before drawing into the band again.
+void display_push_rows(const canvas_t *c);
+bool display_push_in_progress(void);
+void display_wait_for_push(void);

@@ -33,7 +33,7 @@
 // rest of the frame runs the data source.
 #define FRAME_MS 50
 
-// Watchdog scratch registers survive a reboot (not a power cut): they
+// Watchdog scratch registers survive a reboot_board (not a power cut): they
 // tell the next boot why this one ended. The SDK uses 4 to 7.
 #define SCRATCH_CONNECT_NOW 0
 #define SCRATCH_CRASH 1
@@ -50,57 +50,57 @@ static uint32_t now_ms(void) {
     return to_ms_since_boot(get_absolute_time());
 }
 
-static void source_poll(uint32_t now) {
+static void poll_data_source(uint32_t now) {
 #if SIM
     (void)now;
 #elif DATA_SOURCE == SOURCE_MCP2515
-    mcp2515_source_poll(now);
+    mcp2515_poll_bus(now);
 #else
-    ble_poll(now);
+    ble_poll_radio(now);
 #endif
 }
 
-static bool standby(void) {
+static bool in_standby(void) {
 #if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
-    return ble_standby();
+    return ble_in_standby();
 #else
     return false;
 #endif
 }
 
-static bool prompt_click(uint32_t now) {
+static bool give_click_to_prompt(uint32_t now) {
 #if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
-    return ble_prompt_click(now);
+    return ble_handle_click(now);
 #else
     (void)now;
     return false;
 #endif
 }
 
-static void scan_ram(void) {
+static void request_ram_scan(void) {
 #if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
-    ble_scan_ram();
+    ble_request_ram_scan();
 #endif
 }
 
-static void go_offline(void) {
+static void disconnect_dongle(void) {
 #if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
     ble_go_offline();
 #endif
 }
 
-static void listen_can(void) {
+static void request_can_listen(void) {
 #if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
-    ble_listen_can();
+    ble_request_can_listen();
 #endif
 }
 
-// take_dongle keeps the dongle just connected to in the settings, as
+// remember_connected_dongle keeps the dongle just connected to in the settings, as
 // the one the connect prompt offers first.
-static void take_dongle(settings_t *cfg) {
+static void remember_connected_dongle(settings_t *cfg) {
 #if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
     dongle_t d;
-    if (ble_take_dongle(&d)) {
+    if (ble_take_connected_dongle(&d)) {
         cfg->dongle = d;
     }
 #else
@@ -108,7 +108,7 @@ static void take_dongle(settings_t *cfg) {
 #endif
 }
 
-static void send_log(datalog_t *log) {
+static void send_log_to_phone(datalog_t *log) {
 #if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
     ble_send_log(log);
 #else
@@ -116,13 +116,13 @@ static void send_log(datalog_t *log) {
 #endif
 }
 
-// record samples the gauges into the data log while the engine runs (RPM
+// record_datalog_sample samples the gauges into the data log while the engine runs (RPM
 // coming in). The sim build's fake data isn't logged.
-static void record(uint32_t now) {
+static void record_datalog_sample(uint32_t now) {
 #if !SIM
     static uint32_t last;
-    datalog_t *log = store_datalog();
-    if (log && !reading_stale(&state.readings[SIG_RPM], now, 2000) && now - last >= DATALOG_SAMPLE_MS) {
+    datalog_t *log = store_get_datalog();
+    if (log && !reading_is_stale(&state.readings[SIG_RPM], now, 2000) && now - last >= DATALOG_SAMPLE_MS) {
         last = now;
         datalog_sample(log, &state, now);
     }
@@ -131,36 +131,36 @@ static void record(uint32_t now) {
 #endif
 }
 
-// act carries out a click on an action row of the settings page.
-static void act(action_t action) {
+// run_settings_action carries out a click on an action row of the settings page.
+static void run_settings_action(action_t action) {
     switch (action) {
     case ACTION_SEND_LOG: {
-        datalog_t *log = store_datalog();
+        datalog_t *log = store_get_datalog();
         if (log) {
             datalog_flush(log);
-            send_log(log);
+            send_log_to_phone(log);
         }
         break;
     }
     case ACTION_SCAN:
-        scan_ram();
+        request_ram_scan();
         break;
     case ACTION_LISTEN:
-        listen_can();
+        request_can_listen();
         break;
     case ACTION_DISCONNECT:
-        go_offline();
+        disconnect_dongle();
         break;
     case ACTION_NONE:
         break;
     }
 }
 
-static void __attribute__((noreturn)) reboot(bool connect) {
+static void __attribute__((noreturn)) reboot_board(bool connect) {
 #if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
-    ble_disconnect();
+    ble_disconnect_before_reboot();
     for (uint32_t until = now_ms() + 300; now_ms() < until;) {
-        source_poll(now_ms());
+        poll_data_source(now_ms());
     }
 #endif
     watchdog_hw->scratch[SCRATCH_CONNECT_NOW] = connect ? CONNECT_NOW : 0;
@@ -171,7 +171,7 @@ static void __attribute__((noreturn)) reboot(bool connect) {
 }
 
 void reboot_to_connect(void) {
-    reboot(true);
+    reboot_board(true);
 }
 
 // isr_hardfault replaces the SDK's, which hangs: with nothing safe left to
@@ -193,16 +193,17 @@ void __attribute__((noreturn)) crash_panic(const char *fmt, ...) {
     vsnprintf(message, sizeof message, fmt, args);
     va_end(args);
     log_line("panic: %s", message);
-    reboot(false);
+    reboot_board(false);
 }
 
-// draw renders a frame and starts pushing it, then keeps the data source
+// render_and_push_rows renders a frame and starts pushing it, then keeps the data source
 // running until it's on the panel. boot_elapsed is how far into the boot
 // animation we are, or -1 for a normal frame. It returns false once the
 // boot animation is over.
-static bool draw(int32_t boot_elapsed, const screen_t *screen, const settings_t *cfg, int top, int rows) {
+static bool render_and_push_rows(int32_t boot_elapsed, const screen_t *screen, const settings_t *cfg, int top,
+                                 int rows) {
     canvas_t canvas = {frame + top * PANEL_WIDTH, PANEL_WIDTH, PANEL_HEIGHT, top, rows};
-    display_finish();
+    display_wait_for_push();
     uint32_t now = now_ms();
     if (boot_elapsed >= 0) {
         if (!ui_render_boot(&canvas, (uint32_t)boot_elapsed, now)) {
@@ -211,22 +212,22 @@ static bool draw(int32_t boot_elapsed, const screen_t *screen, const settings_t 
     } else {
         ui_render(&canvas, &state, screen, cfg, now);
     }
-    display_push(&canvas);
-    while (display_busy()) {
-        source_poll(now_ms());
+    display_push_rows(&canvas);
+    while (display_push_in_progress()) {
+        poll_data_source(now_ms());
     }
     return true;
 }
 
 #if !SIM
-// read_ethanol averages a burst of samples: the RP2040's ADC is noisy.
-static void read_ethanol(uint32_t now) {
+// read_ethanol_sensor averages a burst of samples: the RP2040's ADC is noisy.
+static void read_ethanol_sensor(uint32_t now) {
     uint32_t sum = 0;
     for (int i = 0; i < 16; i++) {
         sum += adc_read();
     }
     float at_pin = sensors_raw_to_volts((uint16_t)(sum / 16), ADC_VREF);
-    state_set(&state, SIG_ETHANOL, sensors_ethanol_percent(divider_undo(ETHANOL_DIVIDER, at_pin)), now);
+    state_set_reading(&state, SIG_ETHANOL, sensors_ethanol_percent(divider_input_volts(ETHANOL_DIVIDER, at_pin)), now);
 }
 #endif
 
@@ -266,8 +267,8 @@ int main(void) {
     screen_t screen = {0};
     int spin_top, spin_rows;
     ui_spinner_rows(PANEL_HEIGHT, true, &spin_top, &spin_rows);
-    for (uint32_t boot = now_ms(), first = 1; draw((int32_t)(now_ms() - boot), &screen, &cfg, first ? 0 : spin_top,
-                                                  first ? PANEL_HEIGHT : spin_rows);
+    for (uint32_t boot = now_ms(), first = 1; render_and_push_rows(
+             (int32_t)(now_ms() - boot), &screen, &cfg, first ? 0 : spin_top, first ? PANEL_HEIGHT : spin_rows);
          first = 0) {
         watchdog_update();
     }
@@ -279,32 +280,32 @@ int main(void) {
     for (;;) {
         uint32_t start = now_ms();
         watchdog_update();
-        store_serve_log();
+        store_dump_log_on_request();
 #if SIM
-        simdata_tick(&state, start);
+        simdata_update(&state, start);
 #else
         if (cfg.ethanol_sensor) {
-            read_ethanol(start);
+            read_ethanol_sensor(start);
         }
 #endif
 
         bool press, long_press;
-        screen_turn(&screen, knob_poll(start, &press, &long_press), ui_view_count, &cfg);
+        screen_apply_turn(&screen, knob_read_input(start, &press, &long_press), ui_view_count, &cfg);
         // On the gauges (and in standby, where nothing is shown), a waiting
         // connection prompt takes the click.
-        if (press && !((screen.page == PAGE_GAUGES || standby()) && prompt_click(start))) {
-            screen_press(&screen, &cfg);
+        if (press && !((screen.page == PAGE_GAUGES || in_standby()) && give_click_to_prompt(start))) {
+            screen_apply_click(&screen, &cfg);
         }
-        take_dongle(&cfg);
-        act(screen.action);
+        remember_connected_dongle(&cfg);
+        run_settings_action(screen.action);
         screen.action = ACTION_NONE;
-        record(start);
+        record_datalog_sample(start);
         if (long_press) {
             log_line("knob: reboot");
-            reboot(false);
+            reboot_board(false);
         }
         if (!settings_equal(cfg, applied)) {
-            display_finish();
+            display_wait_for_push();
             display_set_flip(cfg.flip);
             display_set_brightness(cfg.brightness);
             applied = cfg;
@@ -315,31 +316,31 @@ int main(void) {
         }
 
         // In standby, only a click matters: no drawing, no busy loop.
-        if (standby()) {
+        if (in_standby()) {
             if (!asleep) {
-                datalog_t *log = store_datalog();
+                datalog_t *log = store_get_datalog();
                 if (log) {
                     datalog_flush(log);
                 }
                 display_sleep();
                 asleep = true;
             }
-            source_poll(now_ms());
+            poll_data_source(now_ms());
             sleep_ms(FRAME_MS);
             continue;
         }
         // On an unchanged status screen, only the spinner moves: its rows
         // alone, as often as they can go, for a smooth spin.
-        bool status = ui_shows_status(&state, &screen, start);
+        bool status = ui_shows_status_screen(&state, &screen, start);
         if (status && shown[0] && strcmp(shown, state.status) == 0) {
             ui_spinner_rows(PANEL_HEIGHT, false, &spin_top, &spin_rows);
-            draw(-1, &screen, &cfg, spin_top, spin_rows);
+            render_and_push_rows(-1, &screen, &cfg, spin_top, spin_rows);
             continue;
         }
-        draw(-1, &screen, &cfg, 0, PANEL_HEIGHT);
+        render_and_push_rows(-1, &screen, &cfg, 0, PANEL_HEIGHT);
         snprintf(shown, sizeof shown, "%s", status ? state.status : "");
-        while (now_ms() - start < FRAME_MS && !knob_pending()) {
-            source_poll(now_ms());
+        while (now_ms() - start < FRAME_MS && !knob_has_new_input()) {
+            poll_data_source(now_ms());
         }
     }
 }

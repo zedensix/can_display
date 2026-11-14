@@ -56,7 +56,7 @@ def read_png(path):
     return width, height, channels, rows
 
 
-def darkness(pixel, channels):
+def pixel_darkness(pixel, channels):
     """How much ink a pixel holds, 0 to 1."""
     if channels <= 2:
         luminance, alpha = pixel[0], pixel[1] if channels == 2 else 255
@@ -78,7 +78,7 @@ def main():
         for x in range(WIDTH):
             x0, x1 = x * src_w // WIDTH, (x + 1) * src_w // WIDTH
             ink = [
-                darkness(rows[sy][sx * channels : (sx + 1) * channels], channels)
+                pixel_darkness(rows[sy][sx * channels : (sx + 1) * channels], channels)
                 for sy in range(y0, y1)
                 for sx in range(x0, x1)
             ]

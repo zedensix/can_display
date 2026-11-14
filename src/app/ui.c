@@ -74,7 +74,7 @@ static const font_t *const value_fonts[] = {&font_bold24, &font_bold18, &font_bo
 
 #define PI 3.14159265f
 
-static color_t range_color(const range_t *r, float v, const theme_t *t) {
+static color_t band_color(const range_t *r, float v, const theme_t *t) {
     if (v < r->cold) {
         return t->cold;
     }
@@ -87,7 +87,7 @@ static color_t range_color(const range_t *r, float v, const theme_t *t) {
     return t->good;
 }
 
-static float range_fraction(const range_t *r, float v) {
+static float scale_fraction(const range_t *r, float v) {
     if (r->max <= r->min) {
         return 0;
     }
@@ -95,11 +95,11 @@ static float range_fraction(const range_t *r, float v) {
     return f < 0 ? 0 : f > 1 ? 1 : f;
 }
 
-// tile_value is what tile shows for reading: its text, color and gauge
+// format_tile_value is what tile shows for reading: its text, color and gauge
 // fraction, or "--" once stale (fraction -1: nothing lit).
-static void tile_value(const tile_t *tile, reading_t reading, uint32_t now_ms, const theme_t *t, char text[24],
-                       color_t *color, float *fraction) {
-    if (reading_stale(&reading, now_ms, tile->stale_ms)) {
+static void format_tile_value(const tile_t *tile, reading_t reading, uint32_t now_ms, const theme_t *t, char text[24],
+                              color_t *color, float *fraction) {
+    if (reading_is_stale(&reading, now_ms, tile->stale_ms)) {
         snprintf(text, 24, "--");
         *color = t->stale;
         *fraction = -1;
@@ -108,26 +108,26 @@ static void tile_value(const tile_t *tile, reading_t reading, uint32_t now_ms, c
     char number[16];
     snprintf(number, sizeof number, tile->format, (double)reading.value);
     snprintf(text, 24, "%s%s", number, tile->unit);
-    *color = range_color(&tile->range, reading.value, t);
-    *fraction = range_fraction(&tile->range, reading.value);
+    *color = band_color(&tile->range, reading.value, t);
+    *fraction = scale_fraction(&tile->range, reading.value);
 }
 
 #define MAX_SEGMENTS 40
 
-// segment_colors colors count gauge segments like a GT86 cluster: lit up
+// gauge_segment_colors colors count gauge segments like a GT86 cluster: lit up
 // to fraction, each in the band of the value it stands for, the unlit
 // ones a glimmer of that band so the red zone shows at rest. On an alarm
 // tile, lit segments take the alarm text color. peak (a fraction, or -1
 // for none) marks the session's highest value in the alarm text color.
-static void segment_colors(const range_t *r, float fraction, float peak, int count, bool alarm, const theme_t *t,
-                           color_t out[]) {
+static void gauge_segment_colors(const range_t *r, float fraction, float peak, int count, bool alarm, const theme_t *t,
+                                 color_t out[]) {
     color_t back = alarm ? t->alarm : t->background;
     int lit = fraction < 0 ? 0 : (int)(fraction * (float)count + 0.5f);
     if (fraction > 0 && lit == 0) {
         lit = 1;
     }
     for (int i = 0; i < count; i++) {
-        color_t band = range_color(r, r->min + ((float)i + 0.5f) / (float)count * (r->max - r->min), t);
+        color_t band = band_color(r, r->min + ((float)i + 0.5f) / (float)count * (r->max - r->min), t);
         if (i < lit) {
             out[i] = alarm ? t->alarm_text : band;
         } else {
@@ -140,8 +140,8 @@ static void segment_colors(const range_t *r, float fraction, float peak, int cou
     }
 }
 
-// draw_bar draws count segments in a row.
-static void draw_bar(canvas_t *c, int x, int y, int w, int h, int count, const color_t colors[]) {
+// draw_segment_bar draws count segments in a row.
+static void draw_segment_bar(canvas_t *c, int x, int y, int w, int h, int count, const color_t colors[]) {
     const int gap = 2;
     int seg = (w + gap) / count;
     x += (w - (seg * count - gap)) / 2;
@@ -150,11 +150,11 @@ static void draw_bar(canvas_t *c, int x, int y, int w, int h, int count, const c
     }
 }
 
-// draw_arc draws count segments around a ring centered on cx, cy, from
+// draw_segment_arc draws count segments around a ring centered on cx, cy, from
 // start degrees over sweep degrees (clockwise, 0 pointing right), out of
 // 3px squares: the panel has no line drawing.
-static void draw_arc(canvas_t *c, int cx, int cy, int r_in, int r_out, float start, float sweep, int count,
-                     const color_t colors[]) {
+static void draw_segment_arc(canvas_t *c, int cx, int cy, int r_in, int r_out, float start, float sweep, int count,
+                             const color_t colors[]) {
     float seg = sweep / (float)count;
     float step = 90.0f / (PI * (float)r_out); // about 1.5px at the rim
     for (int i = 0; i < count; i++) {
@@ -169,32 +169,33 @@ static void draw_arc(canvas_t *c, int cx, int cy, int r_in, int r_out, float sta
     }
 }
 
-static void draw_frame(canvas_t *c, int x, int y, int w, int h, color_t color) {
+static void draw_outline(canvas_t *c, int x, int y, int w, int h, color_t color) {
     gfx_fill_rect(c, x, y, w, 1, color);
     gfx_fill_rect(c, x, y + h - 1, w, 1, color);
     gfx_fill_rect(c, x, y, 1, h, color);
     gfx_fill_rect(c, x + w - 1, y, 1, h, color);
 }
 
-static void text_centered(canvas_t *c, const font_t *font, int cx, int y, const char *s, color_t color, int scale) {
+static void draw_text_centered(canvas_t *c, const font_t *font, int cx, int y, const char *s, color_t color,
+                               int scale) {
     gfx_text(c, font, cx - gfx_text_width(font, s) * scale / 2, y, s, color, scale);
 }
 
 // A reading in danger blinks: its tile lit red, then not, twice a second.
 #define ALARM_BLINK_MS 250
 
-static bool alarm_lit(uint32_t now_ms) {
+static bool alarm_blink_lit(uint32_t now_ms) {
     return now_ms / ALARM_BLINK_MS % 2 == 0;
 }
 
-// text_fit centers s in the largest font it fits max_width in.
-static void text_fit(canvas_t *c, int cx, int y, int max_width, const char *s, color_t color) {
+// draw_text_fitting centers s in the largest font it fits max_width in.
+static void draw_text_fitting(canvas_t *c, int cx, int y, int max_width, const char *s, color_t color) {
     static const font_t *const fonts[] = {&font_bold24, &font_bold18, &font_bold12, &font_bold9};
     int i = 0;
     while (i < 3 && gfx_text_width(fonts[i], s) > max_width) {
         i++;
     }
-    text_centered(c, fonts[i], cx, y, s, color, 1);
+    draw_text_centered(c, fonts[i], cx, y, s, color, 1);
 }
 
 #define BAR_SEGMENTS 12
@@ -204,12 +205,12 @@ static void draw_tile(canvas_t *c, const theme_t *t, const tile_t *tile, int x, 
     char text[24];
     color_t color;
     float fraction;
-    tile_value(tile, r, now_ms, t, text, &color, &fraction);
-    bool alarm = color == t->danger && alarm_lit(now_ms);
+    format_tile_value(tile, r, now_ms, t, text, &color, &fraction);
+    bool alarm = color == t->danger && alarm_blink_lit(now_ms);
     if (alarm) {
         gfx_fill_rect(c, x, y, w, h, t->alarm);
     }
-    draw_frame(c, x, y, w, h, color == t->danger ? t->danger : t->frame);
+    draw_outline(c, x, y, w, h, color == t->danger ? t->danger : t->frame);
     int label_y = y + 17;
     gfx_text(c, label_font, x + 8, label_y, tile->label, alarm ? t->alarm_text : t->label, 1);
 
@@ -222,8 +223,8 @@ static void draw_tile(canvas_t *c, const theme_t *t, const tile_t *tile, int x, 
     }
     gfx_text(c, font, x + 8, label_y + 42, text, alarm ? t->alarm_text : color, 1);
     color_t colors[BAR_SEGMENTS];
-    segment_colors(&tile->range, fraction, -1, BAR_SEGMENTS, alarm, t, colors);
-    draw_bar(c, x + 8, y + h - 16, w - 16, 8, BAR_SEGMENTS, colors);
+    gauge_segment_colors(&tile->range, fraction, -1, BAR_SEGMENTS, alarm, t, colors);
+    draw_segment_bar(c, x + 8, y + h - 16, w - 16, 8, BAR_SEGMENTS, colors);
 }
 
 #define DIAL_SEGMENTS 30
@@ -231,25 +232,25 @@ static void draw_tile(canvas_t *c, const theme_t *t, const tile_t *tile, int x, 
 #define DIAL_SWEEP 270
 #define DIAL_WIDTH 14
 
-// draw_tile_large draws a tile alone, as a round dial like the GT86's
+// draw_tile_dial draws a tile alone, as a round dial like the GT86's
 // tachometer: segments around the value, blown up as much as fits
 // inside, up to 3 times (chunky, but readable from the seat, without a
 // bigger font taking flash).
-static void draw_tile_large(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int y, int w, int h,
-                            reading_t r, uint32_t now_ms) {
+static void draw_tile_dial(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int y, int w, int h, reading_t r,
+                           uint32_t now_ms) {
     char text[24];
     color_t color;
     float fraction;
-    tile_value(tile, r, now_ms, t, text, &color, &fraction);
-    bool alarm = color == t->danger && alarm_lit(now_ms);
+    format_tile_value(tile, r, now_ms, t, text, &color, &fraction);
+    bool alarm = color == t->danger && alarm_blink_lit(now_ms);
     if (alarm) {
         gfx_fill_rect(c, x, y, w, h, t->alarm);
     }
     int cx = x + w / 2, r_out = w / 2 - 4, cy = y + r_out + 8, r_in = r_out - DIAL_WIDTH;
     color_t colors[DIAL_SEGMENTS];
-    float peak = r.valid ? range_fraction(&tile->range, r.max) : -1;
-    segment_colors(&tile->range, fraction, peak, DIAL_SEGMENTS, alarm, t, colors);
-    draw_arc(c, cx, cy, r_in, r_out, DIAL_START, DIAL_SWEEP, DIAL_SEGMENTS, colors);
+    float peak = r.valid ? scale_fraction(&tile->range, r.max) : -1;
+    gauge_segment_colors(&tile->range, fraction, peak, DIAL_SEGMENTS, alarm, t, colors);
+    draw_segment_arc(c, cx, cy, r_in, r_out, DIAL_START, DIAL_SWEEP, DIAL_SEGMENTS, colors);
 
     int width = gfx_text_width(&font_bold24, text);
     int scale = 3;
@@ -258,25 +259,25 @@ static void draw_tile_large(canvas_t *c, const theme_t *t, const tile_t *tile, i
     }
     // The 24pt digits rise about 26px above their baseline.
     const int cap_height = 26;
-    text_centered(c, &font_bold24, cx, cy + cap_height * scale / 2, text, alarm ? t->alarm_text : color, scale);
+    draw_text_centered(c, &font_bold24, cx, cy + cap_height * scale / 2, text, alarm ? t->alarm_text : color, scale);
 
     // The scale's ends, under the ring's opening, and the label below.
     char end[16];
     int ends_y = cy + r_out * 7 / 10 + 22, ends_dx = r_out * 7 / 10;
     color_t dim = alarm ? t->alarm_text : t->label;
     snprintf(end, sizeof end, tile->format, (double)tile->range.min);
-    text_centered(c, label_font, cx - ends_dx, ends_y, end, dim, 1);
+    draw_text_centered(c, label_font, cx - ends_dx, ends_y, end, dim, 1);
     snprintf(end, sizeof end, tile->format, (double)tile->range.max);
-    text_centered(c, label_font, cx + ends_dx, ends_y, end, dim, 1);
+    draw_text_centered(c, label_font, cx + ends_dx, ends_y, end, dim, 1);
     // The session's extremes, to read back after a run.
     if (r.valid) {
         char low[16], high[16], line[48];
         snprintf(low, sizeof low, tile->format, (double)r.min);
         snprintf(high, sizeof high, tile->format, (double)r.max);
         snprintf(line, sizeof line, "MIN %s%s   MAX %s%s", low, tile->unit, high, tile->unit);
-        text_centered(c, label_font, cx, ends_y + 30, line, alarm ? t->alarm_text : t->label, 1);
+        draw_text_centered(c, label_font, cx, ends_y + 30, line, alarm ? t->alarm_text : t->label, 1);
     }
-    text_centered(c, &font_bold12, cx, y + h - 14, tile->label, dim, 1);
+    draw_text_centered(c, &font_bold12, cx, y + h - 14, tile->label, dim, 1);
 }
 
 // draw_grid draws every tile, from top down.
@@ -285,12 +286,12 @@ static void draw_grid(canvas_t *c, const theme_t *t, const reading_t *readings, 
     int cell_w = c->width / GRID_COLUMNS, cell_h = (c->height - top) / rows;
     for (int i = 0; i < ui_tile_count; i++) {
         int col = i % GRID_COLUMNS, row = i / GRID_COLUMNS;
-        draw_tile(c, t, &ui_tiles[i], col * cell_w + GRID_GAP, top + row * cell_h + GRID_GAP,
-                  cell_w - 2 * GRID_GAP, cell_h - 2 * GRID_GAP, readings[ui_tiles[i].signal], now_ms);
+        draw_tile(c, t, &ui_tiles[i], col * cell_w + GRID_GAP, top + row * cell_h + GRID_GAP, cell_w - 2 * GRID_GAP,
+                  cell_h - 2 * GRID_GAP, readings[ui_tiles[i].signal], now_ms);
     }
 }
 
-int ui_wrap(const font_t *font, const char *s, int max_width, char out[][64], int max) {
+int ui_wrap_text(const font_t *font, const char *s, int max_width, char out[][64], int max) {
     int n = 0;
     char line[64] = "";
     while (*s && n < max) {
@@ -346,7 +347,7 @@ typedef struct {
 static ring_px_t ring_px[RING_PX_MAX];
 static int ring_px_count;
 
-static void ring_build(void) {
+static void build_spinner_ring(void) {
     for (int dy = 0; dy <= RING_OUT + 1; dy++) {
         for (int dx = 0; dx <= RING_OUT + 1; dx++) {
             float d = sqrtf((float)(dx * dx + dy * dy));
@@ -355,15 +356,15 @@ static void ring_build(void) {
                 continue;
             }
             float angle = atan2f((float)dy, (float)dx) / (PI / 2) * 64;
-            ring_px[ring_px_count++] = (ring_px_t){(uint8_t)dx, (uint8_t)dy, (uint8_t)lroundf(angle),
-                                                   (uint8_t)(fminf(cover, 1) * 255)};
+            ring_px[ring_px_count++] =
+                (ring_px_t){(uint8_t)dx, (uint8_t)dy, (uint8_t)lroundf(angle), (uint8_t)(fminf(cover, 1) * 255)};
         }
     }
 }
 
-// mix blends from into to, t out of 255, in integers: per pixel, floats
+// blend_rgb565 blends from into to, t out of 255, in integers: per pixel, floats
 // would cost the frame.
-static color_t mix(color_t from, color_t to, unsigned t) {
+static color_t blend_rgb565(color_t from, color_t to, unsigned t) {
     unsigned r = ((from >> 11) * (255 - t) + (to >> 11) * t) / 255;
     unsigned g = (((from >> 5) & 63) * (255 - t) + ((to >> 5) & 63) * t) / 255;
     unsigned b = ((from & 31) * (255 - t) + (to & 31) * t) / 255;
@@ -374,7 +375,7 @@ static color_t mix(color_t from, color_t to, unsigned t) {
 // smoothly, a tail fading behind it; done (0 to 1) lights it all.
 static void draw_spinner(canvas_t *c, const theme_t *t, int cx, int cy, uint32_t now_ms, float done) {
     if (ring_px_count == 0) {
-        ring_build();
+        build_spinner_ring();
     }
     unsigned head = (unsigned)(now_ms % SPIN_MS * 256 / SPIN_MS);
     unsigned fill = (unsigned)(done * 255);
@@ -386,16 +387,16 @@ static void draw_spinner(canvas_t *c, const theme_t *t, int cx, int cy, uint32_t
             unsigned behind = (head - angles[q]) & 255;
             unsigned lit = behind < SPIN_TAIL ? 255 - behind * 255 / SPIN_TAIL : 0;
             lit += (255 - lit) * fill / 255;
-            color_t color = mix(t->background, mix(t->stale, t->accent, lit), p->alpha);
+            color_t color = blend_rgb565(t->background, blend_rgb565(t->stale, t->accent, lit), p->alpha);
             gfx_fill_rect(c, cx + sx[q] * p->dx, cy + sy[q] * p->dy, 1, 1, color);
         }
     }
 }
 
-// draw_status is the source's report while it isn't delivering: the
+// draw_status_screen is the source's report while it isn't delivering: the
 // logo in a spinner (so a slow step doesn't look frozen), the first
 // paragraph as a title, the rest centered and wrapped under it.
-static void draw_status(canvas_t *c, const theme_t *t, const char *status, uint32_t now_ms) {
+static void draw_status_screen(canvas_t *c, const theme_t *t, const char *status, uint32_t now_ms) {
     draw_spinner(c, t, c->width / 2, RING_Y, now_ms, 0);
     draw_logo(c, c->width / 2, RING_Y, 2, t->accent);
 
@@ -410,9 +411,9 @@ static void draw_status(canvas_t *c, const theme_t *t, const char *status, uint3
         }
         const font_t *font = first ? &font_bold12 : label_font;
         char lines[8][64];
-        int n = ui_wrap(font, p, c->width - 2 * STATUS_MARGIN, lines, 8);
+        int n = ui_wrap_text(font, p, c->width - 2 * STATUS_MARGIN, lines, 8);
         for (int i = 0; i < n; i++) {
-            text_centered(c, font, c->width / 2, y, lines[i], first ? t->accent : t->label, 1);
+            draw_text_centered(c, font, c->width / 2, y, lines[i], first ? t->accent : t->label, 1);
             y += STATUS_LINE_HEIGHT + (first ? 6 : 0);
         }
         p = next;
@@ -424,7 +425,7 @@ static void draw_status(canvas_t *c, const theme_t *t, const char *status, uint3
 #define SETTINGS_ROW_HEIGHT 28
 #define SETTINGS_VISIBLE 9
 
-static void draw_settings(canvas_t *c, const theme_t *t, const screen_t *screen, const settings_t *cfg) {
+static void draw_settings_page(canvas_t *c, const theme_t *t, const screen_t *screen, const settings_t *cfg) {
     gfx_text(c, &font_bold12, SETTINGS_MARGIN + 4, 30, "SETTINGS", t->accent, 1);
     gfx_fill_rect(c, SETTINGS_MARGIN, 38, c->width - 2 * SETTINGS_MARGIN, 1, t->frame);
     char brightness[8], shift[8];
@@ -450,7 +451,7 @@ static void draw_settings(canvas_t *c, const theme_t *t, const screen_t *screen,
         color_t label = t->label, value = off ? t->frame : t->accent;
         if (i == screen->cursor) {
             int h = SETTINGS_ROW_HEIGHT - 6;
-            draw_frame(c, SETTINGS_MARGIN, y, c->width - 2 * SETTINGS_MARGIN, h, t->accent);
+            draw_outline(c, SETTINGS_MARGIN, y, c->width - 2 * SETTINGS_MARGIN, h, t->accent);
             gfx_fill_rect(c, SETTINGS_MARGIN, y, 4, h, t->accent);
             label = t->alarm_text;
             if (off) {
@@ -464,7 +465,7 @@ static void draw_settings(canvas_t *c, const theme_t *t, const screen_t *screen,
         int width = gfx_text_width(label_font, rows[i][1]);
         gfx_text(c, label_font, c->width - SETTINGS_MARGIN - 10 - width, y + 16, rows[i][1], value, 1);
     }
-    text_centered(c, label_font, c->width / 2, c->height - 6, "hold: reboot", t->frame, 1);
+    draw_text_centered(c, label_font, c->width / 2, c->height - 6, "hold: reboot", t->frame, 1);
 }
 
 // The shift light is a race car steering wheel's LED bar across the top:
@@ -481,7 +482,7 @@ static void draw_shift_light(canvas_t *c, const theme_t *t, const reading_t *rpm
     int led_w = (c->width - 2 * margin - (SHIFT_LEDS - 1) * gap) / SHIFT_LEDS;
     // What the integer LED width leaves over goes to the outer margins.
     int x0 = (c->width - SHIFT_LEDS * led_w - (SHIFT_LEDS - 1) * gap) / 2;
-    bool fresh = !reading_stale(rpm, now_ms, FAST_STALE_MS);
+    bool fresh = !reading_is_stale(rpm, now_ms, FAST_STALE_MS);
     bool shift = fresh && rpm->value >= (float)shift_rpm;
     int lit = 0;
     if (fresh && !shift) {
@@ -500,15 +501,15 @@ static void draw_shift_light(canvas_t *c, const theme_t *t, const reading_t *rpm
     }
 }
 
-// draw_oil_critical is the whole screen for an oil temperature at
+// draw_oil_overheat_screen is the whole screen for an oil temperature at
 // OIL_CRITICAL or more, blinking, in the driver's words: calm down, it's
 // getting hot. Lifting off and driving gently cools the oil; shutting the
 // engine off would stop it flowing.
-static void draw_oil_critical(canvas_t *c, const theme_t *t, float oil, uint32_t now_ms) {
-    bool lit = alarm_lit(now_ms);
+static void draw_oil_overheat_screen(canvas_t *c, const theme_t *t, float oil, uint32_t now_ms) {
+    bool lit = alarm_blink_lit(now_ms);
     color_t text = lit ? t->alarm_text : t->danger;
     gfx_fill_rect(c, 0, 0, c->width, c->height, lit ? t->alarm : t->background);
-    text_centered(c, &font_bold24, c->width / 2, 48, "OIL TEMP", text, 1);
+    draw_text_centered(c, &font_bold24, c->width / 2, 48, "OIL TEMP", text, 1);
 
     // Degrees only: with the C it wouldn't fit 3 times as big.
     char value[16];
@@ -517,19 +518,19 @@ static void draw_oil_critical(canvas_t *c, const theme_t *t, float oil, uint32_t
     while (scale > 1 && gfx_text_width(&font_bold24, value) * scale > c->width - 16) {
         scale--;
     }
-    text_centered(c, &font_bold24, c->width / 2, 158 + 13 * scale, value, text, scale);
+    draw_text_centered(c, &font_bold24, c->width / 2, 158 + 13 * scale, value, text, scale);
     // The fonts are ASCII only: no accents.
-    text_fit(c, c->width / 2, 266, c->width - 16, "CALME-TOI", text);
-    text_fit(c, c->width / 2, 304, c->width - 16, "CA CHAUFFE SA MERE", text);
+    draw_text_fitting(c, c->width / 2, 266, c->width - 16, "CALME-TOI", text);
+    draw_text_fitting(c, c->width / 2, 304, c->width - 16, "CA CHAUFFE SA MERE", text);
 }
 
-static bool oil_critical(const state_t *state, uint32_t now_ms) {
+static bool oil_is_overheating(const state_t *state, uint32_t now_ms) {
     const reading_t *oil = &state->readings[SIG_OIL];
-    return !reading_stale(oil, now_ms, OIL_STALE_MS) && oil->value >= OIL_CRITICAL;
+    return !reading_is_stale(oil, now_ms, OIL_STALE_MS) && oil->value >= OIL_CRITICAL;
 }
 
-bool ui_shows_status(const state_t *state, const screen_t *screen, uint32_t now_ms) {
-    return !oil_critical(state, now_ms) && screen->page != PAGE_SETTINGS && state->status[0];
+bool ui_shows_status_screen(const state_t *state, const screen_t *screen, uint32_t now_ms) {
+    return !oil_is_overheating(state, now_ms) && screen->page != PAGE_SETTINGS && state->status[0];
 }
 
 void ui_spinner_rows(int panel_height, bool boot, int *top, int *rows) {
@@ -540,17 +541,17 @@ void ui_spinner_rows(int panel_height, bool boot, int *top, int *rows) {
 
 void ui_render(canvas_t *c, const state_t *state, const screen_t *screen, const settings_t *cfg, uint32_t now_ms) {
     const theme_t *t = &theme_dark;
-    if (oil_critical(state, now_ms)) {
-        draw_oil_critical(c, t, state->readings[SIG_OIL].value, now_ms);
+    if (oil_is_overheating(state, now_ms)) {
+        draw_oil_overheat_screen(c, t, state->readings[SIG_OIL].value, now_ms);
         return;
     }
     gfx_fill_rect(c, 0, 0, c->width, c->height, t->background);
     if (screen->page == PAGE_SETTINGS) {
-        draw_settings(c, t, screen, cfg);
+        draw_settings_page(c, t, screen, cfg);
         return;
     }
     if (state->status[0]) {
-        draw_status(c, t, state->status, now_ms);
+        draw_status_screen(c, t, state->status, now_ms);
         return;
     }
     // With the shift light on, its bar takes the top of the gauges.
@@ -561,8 +562,8 @@ void ui_render(canvas_t *c, const state_t *state, const screen_t *screen, const 
     }
     if (screen->view > 0 && screen->view <= ui_tile_count) {
         const tile_t *tile = &ui_tiles[screen->view - 1];
-        draw_tile_large(c, t, tile, GRID_GAP, top + GRID_GAP, c->width - 2 * GRID_GAP,
-                        c->height - top - 2 * GRID_GAP, state->readings[tile->signal], now_ms);
+        draw_tile_dial(c, t, tile, GRID_GAP, top + GRID_GAP, c->width - 2 * GRID_GAP, c->height - top - 2 * GRID_GAP,
+                       state->readings[tile->signal], now_ms);
     } else {
         draw_grid(c, t, state->readings, top, now_ms);
     }

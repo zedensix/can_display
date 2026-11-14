@@ -8,11 +8,11 @@ float divider_ratio(divider_t d) {
     return d.r2 / (d.r1 + d.r2);
 }
 
-float divider_undo(divider_t d, float measured_volts) {
+float divider_input_volts(divider_t d, float measured_volts) {
     return measured_volts / divider_ratio(d);
 }
 
-bool sensors_on_ecu_adc_grid(float volts) {
+bool sensors_is_whole_ecu_adc_step(float volts) {
     float steps = volts / ECU_ADC_STEP_VOLTS;
     float off = steps - (float)(long)(steps + 0.5f);
     return off > -0.005f && off < 0.005f;

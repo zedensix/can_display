@@ -12,7 +12,7 @@
 // not before, is a candidate.
 
 #define SNIFF_MAX_IDS 160
-// sniff_report logs at most this many candidates.
+// sniff_log_candidates logs at most this many candidates.
 #define SNIFF_REPORTED 24
 
 typedef struct {
@@ -31,12 +31,12 @@ typedef struct {
     bool baseline_over;
 } sniff_t;
 
-// sniff_feed takes a frame seen on the bus.
-void sniff_feed(sniff_t *s, const can_frame_t *f);
+// sniff_add_frame takes a frame seen on the bus.
+void sniff_add_frame(sniff_t *s, const can_frame_t *f);
 
 // sniff_end_baseline starts the presses.
 void sniff_end_baseline(sniff_t *s);
 
-// sniff_report logs a summary, then each candidate as
+// sniff_log_candidates logs a summary, then each candidate as
 // "sniff: <ID> x<changes>: <data before> -> <data after>".
-void sniff_report(const sniff_t *s, void (*log)(void *ctx, const char *line), void *ctx);
+void sniff_log_candidates(const sniff_t *s, void (*log)(void *ctx, const char *line), void *ctx);

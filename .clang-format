@@ -1,0 +1,6 @@
+# The C style of this project: LLVM's, 4-space indents, 120 columns,
+# every function body on its own lines.
+BasedOnStyle: LLVM
+IndentWidth: 4
+ColumnLimit: 120
+AllowShortFunctionsOnASingleLine: None

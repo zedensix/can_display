@@ -17,8 +17,8 @@ typedef struct {
 
 float divider_ratio(divider_t d);
 
-// divider_undo turns the voltage at the ADC pin back into the sensor's.
-float divider_undo(divider_t d, float measured_volts);
+// divider_input_volts turns the voltage at the ADC pin back into the sensor's.
+float divider_input_volts(divider_t d, float measured_volts);
 
 // ETHANOL_DIVIDER brings the flex-fuel sensor's 0.5-4.5V under the
 // RP2040's 3.3V: 4.5V comes out at about 3.09V.
@@ -37,6 +37,6 @@ float sensors_ethanol_percent(float sensor_volts);
 // 25 x n x ECU_ADC_STEP_VOLTS - 12.5 (checked 2026-11-14).
 #define ECU_ADC_STEP_VOLTS (5.0f / 4096)
 
-// sensors_on_ecu_adc_grid tells whether volts (positive) is a whole
+// sensors_is_whole_ecu_adc_step tells whether volts (positive) is a whole
 // number of ECU ADC steps: how a RAM scan spots the ethanol value.
-bool sensors_on_ecu_adc_grid(float volts);
+bool sensors_is_whole_ecu_adc_step(float volts);

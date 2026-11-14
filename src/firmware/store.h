@@ -20,12 +20,12 @@ void store_init(void);
 // flash.
 void log_line(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
-// store_serve_log prints the whole flash log on the serial console when
+// store_dump_log_on_request prints the whole flash log on the serial console when
 // it has received 'l' (see the logs mise task). Called by the main loop.
-void store_serve_log(void);
+void store_dump_log_on_request(void);
 
-// store_datalog is the data log, or NULL if flash storage is off.
-datalog_t *store_datalog(void);
+// store_get_datalog is the data log, or NULL if flash storage is off.
+datalog_t *store_get_datalog(void);
 
 settings_t store_load_settings(void);
 void store_save_settings(settings_t cfg);

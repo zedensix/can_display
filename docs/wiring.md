@@ -2,7 +2,13 @@
 
 This matches the pin constants in `src/firmware/board.h`.
 Change either the wiring or the constants if yours differs: they just
-need to agree.
+need to agree. `wiring.html` draws it in a browser, in color or as a
+blueprint; `mise run wiring` captures it into the pictures below (rerun
+it when the wiring changes).
+
+![Wiring, in color](resources/wiring-color.png)
+
+![Wiring, as a blueprint](resources/wiring-blueprint.png)
 
 Board target: `pico-w` (Raspberry Pi Pico W / WH). GPIO23, 24, 25 and
 29 are used by the wireless chip on the W, so don't wire anything to
@@ -109,7 +115,8 @@ verified yet.
 
 ## Car data, option B: MCP2515 SPI CAN controller module
 
-Selected by `source = sourceMCP2515`. Wired straight to the CAN bus:
+Selected by setting `DATA_SOURCE` to `SOURCE_MCP2515` in
+`src/firmware/board.h`. Wired straight to the CAN bus:
 faster, and gets oil temperature, but needs the wiring below.
 
 | MCP2515 pin | Pico W pin | Notes |
@@ -138,8 +145,11 @@ one on the OBD stub drags the bus impedance down and causes errors.
 The firmware assumes a **16MHz crystal** on the MCP2515 board (the
 common default on cheap breakout boards, but 8MHz ones exist: read the
 marking on the can-shaped crystal) and **500kbps**, which matches the
-GT86's factory high-speed CAN bus. For an 8MHz crystal, change
-`mcp2515.Clock16MHz` to `mcp2515.Clock8MHz` in `setupCAN()`.
+GT86's factory high-speed CAN bus: the CNF1, CNF2 and CNF3 values that
+`mcp2515_source_init` writes in `src/firmware/mcp2515.c` (0x00, 0xF0,
+0x86). For an 8MHz crystal, 500kbps takes 0x00, 0x90 and 0x82: the
+values of the usual Arduino MCP2515 libraries' tables, not tried on this
+car.
 
 Ground the board only through the Pico's ground, which goes to the car
 chassis via the buck converter. Never to anything else.

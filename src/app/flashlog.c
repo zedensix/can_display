@@ -2,17 +2,17 @@
 
 #define ERASED 0xFF
 
-static uint8_t read_byte(const flashlog_t *log, uint32_t offset) {
+static uint8_t read_log_byte(const flashlog_t *log, uint32_t offset) {
     uint8_t b;
     log->dev.read(log->dev.ctx, offset, &b, 1);
     return b;
 }
 
-// find_end returns the first erased byte that follows a written one, and
+// find_log_end returns the first erased byte that follows a written one, and
 // whether the rest of its sector is blank, as appends need it to be.
-static bool find_end(const flashlog_t *log, uint32_t *end) {
+static bool find_log_end(const flashlog_t *log, uint32_t *end) {
     uint32_t size = log->dev.size;
-    uint8_t prev = read_byte(log, size - 1);
+    uint8_t prev = read_log_byte(log, size - 1);
     bool found = false, all_erased = true;
     uint8_t page[FLASHLOG_PAGE];
     for (uint32_t off = 0; off < size; off += FLASHLOG_PAGE) {
@@ -36,7 +36,7 @@ static bool find_end(const flashlog_t *log, uint32_t *end) {
     }
     uint32_t sector_end = (*end / FLASHLOG_SECTOR + 1) * FLASHLOG_SECTOR;
     for (uint32_t off = *end; off < sector_end; off++) {
-        if (read_byte(log, off) != ERASED) {
+        if (read_log_byte(log, off) != ERASED) {
             return false;
         }
     }
@@ -48,7 +48,7 @@ bool flashlog_open(flashlog_t *log, flash_dev_t dev) {
         return false;
     }
     log->dev = dev;
-    if (!find_end(log, &log->pos)) {
+    if (!find_log_end(log, &log->pos)) {
         for (uint32_t off = 0; off < dev.size; off += FLASHLOG_SECTOR) {
             dev.erase_sector(dev.ctx, off);
         }
@@ -57,7 +57,7 @@ bool flashlog_open(flashlog_t *log, flash_dev_t dev) {
     return true;
 }
 
-static void append_byte_run(flashlog_t *log, const uint8_t *data, size_t len) {
+static void append_log_bytes(flashlog_t *log, const uint8_t *data, size_t len) {
     uint8_t page[FLASHLOG_PAGE];
     while (len > 0) {
         // The flash only programs whole pages: read the page back, add to
@@ -85,8 +85,8 @@ void flashlog_append(flashlog_t *log, const char *line) {
     while (line[len]) {
         len++;
     }
-    append_byte_run(log, (const uint8_t *)line, len);
-    append_byte_run(log, (const uint8_t *)"\n", 1);
+    append_log_bytes(log, (const uint8_t *)line, len);
+    append_log_bytes(log, (const uint8_t *)"\n", 1);
 }
 
 void flashlog_dump(const flashlog_t *log, void (*write)(void *ctx, const uint8_t *data, size_t len), void *ctx) {

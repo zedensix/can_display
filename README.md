@@ -21,6 +21,8 @@ mise run flash-sim   # same, with fake data instead of the car, to test the disp
 mise run logs        # read the log the Pico kept in flash (boots, BLE steps, dongle answers, crashes)
 mise run logo        # regenerate the boot splash from 86.png
 mise run ui          # render every screen into ui/*.png (ui/sheet.png: all side by side)
+mise run wiring      # capture the wiring diagram (docs/wiring.html) for docs/wiring.md
+prek install         # once: code quality hooks on every commit (clang-format, biome, tsc, tests)
 ```
 
 The simulator needs SDL2 (`brew install sdl2`).

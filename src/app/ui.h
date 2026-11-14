@@ -54,7 +54,6 @@ extern const int ui_tile_count;
 // grid: each tile alone.
 extern const int ui_view_count;
 
-
 // ui_render draws the frame for screen into c: the settings page, the
 // data source's status while it has one, a single gauge, or every gauge
 // in a grid. now_ms drives the spinner and staleness.
@@ -73,15 +72,15 @@ void ui_render(canvas_t *c, const state_t *state, const screen_t *screen, const 
 // drawing, once BOOT_DURATION_MS is over.
 bool ui_render_boot(canvas_t *c, uint32_t elapsed_ms, uint32_t now_ms);
 
-// ui_shows_status is true when ui_render draws the status screen. Its
+// ui_shows_status_screen is true when ui_render draws the status screen. Its
 // spinner is all that moves there, as in the boot animation: between two
 // changes of the status text, drawing and pushing only the rows
 // ui_spinner_rows gives (on a panel_height tall panel; boot: the boot
 // animation's) is enough, and twice as fast as the whole frame.
-bool ui_shows_status(const state_t *state, const screen_t *screen, uint32_t now_ms);
+bool ui_shows_status_screen(const state_t *state, const screen_t *screen, uint32_t now_ms);
 void ui_spinner_rows(int panel_height, bool boot, int *top, int *rows);
 
-// ui_wrap splits s into lines that fit max_width pixels in font, breaking
+// ui_wrap_text splits s into lines that fit max_width pixels in font, breaking
 // between words, into out (at most max lines). A word wider
 // than max_width gets a line of its own. It returns the line count.
-int ui_wrap(const font_t *font, const char *s, int max_width, char out[][64], int max);
+int ui_wrap_text(const font_t *font, const char *s, int max_width, char out[][64], int max);

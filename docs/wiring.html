@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GT86 Dash Wiring</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: #f4f1ea; color: #1c1917; }
+  body.blueprint { background: #123d73; color: #e6f0ff; }
+  nav { position: sticky; top: 0; z-index: 1; display: flex; gap: 8px; padding: 12px 16px; background: inherit;
+        border-bottom: 1px solid rgb(127 127 127 / 0.3); }
+  nav a { padding: 8px 16px; border-radius: 999px; text-decoration: none; font-weight: 600; color: inherit;
+          border: 1px solid rgb(127 127 127 / 0.5); }
+  nav a.active { background: #ff5a1e; border-color: #ff5a1e; color: #fff; }
+  body.blueprint nav a.active { background: #e6f0ff; border-color: #e6f0ff; color: #123d73; }
+  nav h1 { margin: 0 auto 0 0; font-size: 18px; align-self: center; letter-spacing: 1px; }
+  main { padding: 16px; }
+  svg { display: block; width: 100%; height: auto; }
+  .notes { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); margin-top: 16px; }
+  .note { border: 1px solid rgb(127 127 127 / 0.35); border-radius: 10px; padding: 12px 14px; }
+  .note b { display: block; margin-bottom: 4px; }
+  body.blueprint .note { font-family: ui-monospace, Menlo, monospace; font-size: 13px; border-color: #7fa6dc; }
+</style>
+</head>
+<body>
+<nav>
+  <h1>GT86 DASH WIRING</h1>
+  <a href="#color" id="nav-color">Color</a>
+  <a href="#blueprint" id="nav-blueprint">Blueprint</a>
+</nav>
+<main>
+  <svg id="diagram" viewBox="0 0 1240 820" role="img" aria-label="Wiring diagram"></svg>
+  <div class="notes">
+    <div class="note"><b>Never 12V on the Pico</b>Only through the 12V to 5V buck, into VSYS. Take a switched 12V (ACC/ignition fuse tap), not OBD pin 16: it stays live with the car off.</div>
+    <div class="note"><b>3.3V logic only</b>The encoder's + goes to 3V3(OUT), not 5V: its pull-ups would put 5V on the RP2040, which isn't 5V tolerant.</div>
+    <div class="note"><b>Keep GP15 free</b>The pico-sdk borrows it at boot (RP2040-E5). GPIO23, 24, 25 and 29 belong to the wireless chip.</div>
+    <div class="note"><b>OBD dongle: no wire</b>The Vgate iCar Pro 2S plugs into the OBD port; the Pico W talks to it over BLE. One client at a time: a phone connected to it hides it.</div>
+    <div class="note"><b>MCP2515 (optional, wired CAN)</b>Its SO swings to 5V: level shift it before GP12. Remove jumper J1 (120Ω termination). 16MHz crystal, 500kbps.</div>
+    <div class="note"><b>USB and VSYS together</b>To flash or read logs with the buck feeding VSYS, put a Schottky diode between buck OUT+ and VSYS, or unplug one supply.</div>
+  </div>
+</main>
+
+<script>
+// One description of the board, its modules and wires (pins as in
+// src/firmware/board.h and docs/wiring.md), drawn in two styles.
+
+// The board, taller than its pin rows: its name goes under the USB port.
+const PICO = { x: 520, y: 112, w: 160, h: 528 };
+const PIN_TOP = 190;
+const PIN_PITCH = 22;
+const PIN_NAMES = [
+  "GP0", "GP1", "GND", "GP2", "GP3", "GP4", "GP5", "GND", "GP6", "GP7", "GP8", "GP9", "GND", "GP10", "GP11",
+  "GP12", "GP13", "GND", "GP14", "GP15", "GP16", "GP17", "GND", "GP18", "GP19", "GP20", "GP21", "GND", "GP22",
+  "RUN", "GP26", "GP27", "AGND", "GP28", "ADC_VREF", "3V3(OUT)", "3V3_EN", "GND", "VSYS", "VBUS",
+];
+
+// picoPin is where physical pin n (1-40) sits: 1-20 down the left edge,
+// 21-40 up the right one, pin 40 next to the USB port.
+function picoPin(n) {
+  const left = n <= 20;
+  return {
+    x: left ? PICO.x : PICO.x + PICO.w,
+    y: PIN_TOP + (left ? n - 1 : 40 - n) * PIN_PITCH,
+    left,
+  };
+}
+
+// Modules: a box and its pins (side, label, y). kind picks the drawing.
+const MODULES = [
+  {
+    id: "display", kind: "display", name: "ST7789 2.0\" 240x320", sub: "SPI0 display",
+    x: 900, y: 382, w: 210, h: 228,
+    pins: [["VDD", 410], ["BL", 432], ["RES", 476], ["DC", 498], ["SDA", 520], ["SCL", 542], ["GND", 564], ["CS", 586]]
+      .map(([label, y]) => ({ side: "left", label, y })),
+  },
+  {
+    id: "buck", kind: "buck", name: "12V → 5V buck", sub: "1A or more",
+    x: 900, y: 168, w: 180, h: 100,
+    pins: [
+      { side: "left", label: "OUT+", y: 212 }, { side: "left", label: "OUT−", y: 234 },
+      { side: "right", label: "IN+", y: 212 }, { side: "right", label: "IN−", y: 234 },
+    ],
+  },
+  {
+    id: "encoder", kind: "encoder", name: "KY-040 encoder", sub: "turn, click, hold",
+    x: 110, y: 176, w: 190, h: 150,
+    pins: [["+", 212], ["GND", 234], ["CLK", 256], ["DT", 278], ["SW", 300]]
+      .map(([label, y]) => ({ side: "right", label, y })),
+  },
+  {
+    id: "mcp", kind: "mcp", name: "MCP2515 + TJA1050", sub: "optional: wired CAN", optional: true,
+    x: 160, y: 446, w: 140, h: 150,
+    pins: [
+      ...[["SCK", 476], ["SI", 498], ["SO", 520], ["CS", 542], ["GND", 564]].map(([label, y]) => ({ side: "right", label, y })),
+      { side: "left", label: "VCC", y: 488, net: "5V: buck OUT+" },
+      { side: "left", label: "CAN-H", y: 520, net: "OBD pin 6" },
+      { side: "left", label: "CAN-L", y: 552, net: "OBD pin 14" },
+    ],
+  },
+];
+
+// Wires: a path of points, its net (picks the color), optional.
+const straightAcross = (pin, x) => [[picoPin(pin).x, picoPin(pin).y], [x, picoPin(pin).y]];
+const WIRES = [
+  // Display: straight across, in the order of the Pico's pins.
+  { net: "bl", label: "GP22", points: straightAcross(29, 900) },
+  { net: "res", label: "GP21", points: straightAcross(27, 900) },
+  { net: "dc", label: "GP20", points: straightAcross(26, 900) },
+  { net: "sda", label: "GP19 MOSI", points: straightAcross(25, 900) },
+  { net: "scl", label: "GP18 SCK", points: straightAcross(24, 900) },
+  { net: "gnd", points: straightAcross(23, 900) },
+  { net: "cs", label: "GP17", points: straightAcross(22, 900) },
+  // 3V3: the display's VDD and the encoder's +.
+  { net: "v33", points: [[680, 278], [760, 278], [760, 410], [900, 410]] },
+  { net: "v33", points: [[760, 278], [760, 92], [420, 92], [420, 212], [300, 212]] },
+  // Power: the buck's output on VSYS and GND, its input on the car.
+  { net: "v5", label: "VSYS", points: straightAcross(39, 900) },
+  { net: "gnd", points: straightAcross(38, 900) },
+  { net: "v12", points: [[1080, 212], [1150, 212]] },
+  { net: "gnd", points: [[1080, 234], [1150, 234]] },
+  // Encoder: straight across.
+  { net: "gnd", points: [[300, 234], [520, 234]] },
+  { net: "clk", label: "GP2", points: [[300, 256], [520, 256]] },
+  { net: "dt", label: "GP3", points: [[300, 278], [520, 278]] },
+  { net: "sw", label: "GP4", points: [[300, 300], [520, 300]] },
+  // MCP2515, optional: SPI1 straight across.
+  { net: "spi1", label: "GP10", optional: true, points: [[300, 476], [520, 476]] },
+  { net: "spi1", label: "GP11", optional: true, points: [[300, 498], [520, 498]] },
+  { net: "spi1", label: "GP12 ⚠ 3.3V", optional: true, points: [[300, 520], [520, 520]] },
+  { net: "spi1", label: "GP13", optional: true, points: [[300, 542], [520, 542]] },
+  { net: "gnd", optional: true, points: [[300, 564], [520, 564]] },
+];
+const JUNCTIONS = [[760, 278]];
+const USED_PINS = new Set([3, 4, 5, 6, 14, 15, 16, 17, 18, 22, 23, 24, 25, 26, 27, 29, 36, 38, 39]);
+
+const THEMES = {
+  color: {
+    background: "#f4f1ea",
+    text: "#1c1917",
+    dim: "#78716c",
+    font: "system-ui, sans-serif",
+    net: {
+      v12: "#991b1b", v5: "#ef4444", v33: "#f59e0b", gnd: "#1c1917", bl: "#eab308", res: "#f97316", dc: "#ec4899",
+      sda: "#8b5cf6", scl: "#3b82f6", cs: "#10b981", clk: "#06b6d4", dt: "#0d9488", sw: "#a855f7", spi1: "#64748b",
+    },
+    wireWidth: 4,
+    board: { pico: "#1f7a3c", display: "#1e3a8a", buck: "#1d4ed8", encoder: "#0f172a", mcp: "#1e40af", dongle: "#18181b" },
+    pin: "#d4a017",
+    grid: false,
+  },
+  blueprint: {
+    background: "#123d73",
+    text: "#e6f0ff",
+    dim: "#9dbbe6",
+    font: "ui-monospace, Menlo, monospace",
+    net: null, // every wire in the line color
+    line: "#e6f0ff",
+    wireWidth: 2,
+    board: null, // outlines only
+    pin: "#e6f0ff",
+    grid: true,
+  },
+};
+
+const NS = "http://www.w3.org/2000/svg";
+function svgElement(name, attrs, parent, text) {
+  const node = document.createElementNS(NS, name);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (text !== undefined) node.textContent = text;
+  parent.append(node);
+  return node;
+}
+
+function drawGrid(svg, theme) {
+  const defs = svgElement("defs", {}, svg);
+  const small = svgElement("pattern", { id: "grid-small", width: 20, height: 20, patternUnits: "userSpaceOnUse" }, defs);
+  svgElement("path", { d: "M 20 0 L 0 0 0 20", fill: "none", stroke: "rgb(230 240 255 / 0.12)", "stroke-width": 1 }, small);
+  const big = svgElement("pattern", { id: "grid-big", width: 100, height: 100, patternUnits: "userSpaceOnUse" }, defs);
+  svgElement("rect", { width: 100, height: 100, fill: "url(#grid-small)" }, big);
+  svgElement("path", { d: "M 100 0 L 0 0 0 100", fill: "none", stroke: "rgb(230 240 255 / 0.28)", "stroke-width": 1.2 }, big);
+  svgElement("rect", { width: "100%", height: "100%", fill: theme.background }, svg);
+  svgElement("rect", { width: "100%", height: "100%", fill: "url(#grid-big)" }, svg);
+  // Drawing frame and title block, as on a print.
+  svgElement("rect", { x: 12, y: 12, width: 1216, height: 796, fill: "none", stroke: theme.line, "stroke-width": 2 }, svg);
+  const tb = { x: 900, y: 690, w: 316, h: 106 };
+  svgElement("rect", { x: tb.x, y: tb.y, width: tb.w, height: tb.h, fill: "none", stroke: theme.line, "stroke-width": 1.5 }, svg);
+  svgElement("line", { x1: tb.x, y1: tb.y + 40, x2: tb.x + tb.w, y2: tb.y + 40, stroke: theme.line }, svg);
+  svgElement("line", { x1: tb.x + 158, y1: tb.y + 40, x2: tb.x + 158, y2: tb.y + tb.h, stroke: theme.line }, svg);
+  svgText(svg, theme, tb.x + 12, tb.y + 27, "GT86 GAUGE CLUSTER: WIRING", { size: 15, weight: 700 });
+  svgText(svg, theme, tb.x + 12, tb.y + 62, "PICO W + ST7789", { size: 11 });
+  svgText(svg, theme, tb.x + 12, tb.y + 82, "KY-040 + BLE OBD", { size: 11 });
+  svgText(svg, theme, tb.x + 170, tb.y + 62, "SRC: board.h", { size: 11 });
+  svgText(svg, theme, tb.x + 170, tb.y + 82, "PINS: GPn", { size: 11 });
+}
+
+function svgText(svg, theme, x, y, value, { size = 12, weight = 400, anchor = "start", color = theme.text } = {}) {
+  return svgElement("text", { x, y, "font-size": size, "font-weight": weight, "text-anchor": anchor, fill: color,
+                      "font-family": theme.font }, svg, value);
+}
+
+function wireColor(theme, net) {
+  return theme.net ? theme.net[net] : theme.line;
+}
+
+function drawPico(svg, theme) {
+  const fill = theme.board ? theme.board.pico : "none";
+  const stroke = theme.board ? "#0f3d1f" : theme.line;
+  svgElement("rect", { x: PICO.x, y: PICO.y, width: PICO.w, height: PICO.h, rx: 10, fill, stroke, "stroke-width": 2 }, svg);
+  // USB at the top, the name under it, the wireless module low down.
+  svgElement("rect", { x: PICO.x + 58, y: PICO.y - 14, width: 44, height: 26, rx: 4, fill: theme.board ? "#a8a29e" : "none",
+               stroke: theme.board ? "#57534e" : theme.line, "stroke-width": 1.5 }, svg);
+  const onBoard = theme.board ? "#fff" : theme.text;
+  svgText(svg, theme, PICO.x + 80, PICO.y + 36, "Raspberry Pi", { size: 12, anchor: "middle", color: onBoard });
+  svgText(svg, theme, PICO.x + 80, PICO.y + 54, "Pico W(H)", { size: 14, weight: 700, anchor: "middle", color: onBoard });
+  svgElement("rect", { x: PICO.x + 44, y: 548, width: 72, height: 52, rx: 4, fill: theme.board ? "#d6d3d1" : "none",
+               stroke: theme.board ? "#57534e" : theme.line, "stroke-width": 1.5, "stroke-dasharray": theme.board ? "" : "4 3" }, svg);
+  svgText(svg, theme, PICO.x + 80, 578, "CYW43", { size: 11, anchor: "middle", color: theme.board ? "#1c1917" : theme.text });
+  for (let n = 1; n <= 40; n++) {
+    const p = picoPin(n);
+    const used = USED_PINS.has(n);
+    svgElement("circle", { cx: p.x, cy: p.y, r: used ? 5 : 3.5, fill: used ? theme.pin : "none", stroke: theme.pin, "stroke-width": 1.5 }, svg);
+    const name = PIN_NAMES[n - 1];
+    const color = theme.board ? (used ? "#fff" : "rgb(255 255 255 / 0.55)") : used ? theme.text : theme.dim;
+    svgText(svg, theme, p.left ? p.x + 10 : p.x - 10, p.y + 4, name, { size: 9.5, weight: used ? 700 : 400, anchor: p.left ? "start" : "end", color });
+    svgText(svg, theme, p.left ? p.x - 9 : p.x + 9, p.y - 7, String(n), { size: 8, anchor: p.left ? "end" : "start", color: theme.dim });
+  }
+}
+
+function drawModule(svg, theme, m) {
+  const fill = theme.board ? theme.board[m.kind] : "none";
+  const stroke = theme.board ? "#0b1220" : theme.line;
+  svgElement("rect", { x: m.x, y: m.y, width: m.w, height: m.h, rx: 8, fill, stroke, "stroke-width": 2,
+               "stroke-dasharray": m.optional ? "8 5" : "", opacity: m.optional && theme.board ? 0.85 : 1 }, svg);
+  const light = theme.board ? "#fff" : theme.text;
+  // A sketch of the module's own face.
+  if (m.kind === "display") {
+    svgElement("rect", { x: m.x + 70, y: m.y + 18, width: 122, height: 160, rx: 3, fill: theme.board ? "#020617" : "none",
+                 stroke: theme.board ? "#334155" : theme.line, "stroke-width": 1.5 }, svg);
+    svgText(svg, theme, m.x + 131, m.y + 104, "240×320", { size: 11, anchor: "middle", color: theme.board ? "#ff5a1e" : theme.text });
+  } else if (m.kind === "encoder") {
+    svgElement("circle", { cx: m.x + 62, cy: m.y + 82, r: 38, fill: theme.board ? "#374151" : "none", stroke: light, "stroke-width": 1.5 }, svg);
+    svgElement("circle", { cx: m.x + 62, cy: m.y + 82, r: 14, fill: theme.board ? "#9ca3af" : "none", stroke: light, "stroke-width": 1.5 }, svg);
+  } else if (m.kind === "buck") {
+    svgElement("circle", { cx: m.x + 90, cy: m.y + 62, r: 18, fill: theme.board ? "#111827" : "none", stroke: light, "stroke-width": 1.5 }, svg);
+  } else if (m.kind === "mcp") {
+    svgElement("rect", { x: m.x + 56, y: m.y + 62, width: 44, height: 36, rx: 3, fill: theme.board ? "#0f172a" : "none", stroke: light, "stroke-width": 1.2 }, svg);
+  }
+  svgText(svg, theme, m.x + m.w / 2, m.y + m.h + 18, m.name, { size: 13, weight: 700, anchor: "middle" });
+  svgText(svg, theme, m.x + m.w / 2, m.y + m.h + 34, m.sub, { size: 11, anchor: "middle", color: theme.dim });
+  for (const pin of m.pins) {
+    const x = pin.side === "left" ? m.x : m.x + m.w;
+    svgElement("circle", { cx: x, cy: pin.y, r: 4.5, fill: theme.pin, stroke: theme.board ? "#78350f" : theme.line }, svg);
+    const inside = pin.side === "left" ? x + 10 : x - 10;
+    svgText(svg, theme, inside, pin.y + 4, pin.label, { size: 10.5, weight: 700, anchor: pin.side === "left" ? "start" : "end", color: light });
+    if (pin.net) {
+      // A net label instead of a long wire across the drawing.
+      svgElement("line", { x1: x, y1: pin.y, x2: x - 22, y2: pin.y, stroke: wireColor(theme, pin.label === "VCC" ? "v5" : "spi1"),
+                   "stroke-width": theme.wireWidth, "stroke-dasharray": "6 4" }, svg);
+      svgText(svg, theme, x - 26, pin.y + 4, pin.net, { size: 10.5, anchor: "end", color: theme.dim });
+    }
+  }
+}
+
+function drawWire(svg, theme, w) {
+  const d = w.points.map(([x, y], i) => `${i ? "L" : "M"} ${x} ${y}`).join(" ");
+  const stroke = wireColor(theme, w.net);
+  const width = theme.wireWidth + (["v5", "v12", "gnd", "v33"].includes(w.net) && !theme.net ? 1 : 0);
+  svgElement("path", { d, fill: "none", stroke, "stroke-width": width, "stroke-linejoin": "round", "stroke-linecap": "round",
+               "stroke-dasharray": w.optional ? "8 5" : "" }, svg);
+  if (w.label) {
+    const [[x0, y0], [x1]] = w.points;
+    svgText(svg, theme, (x0 + x1) / 2, y0 - 6, w.label, { size: 10, weight: 600, anchor: "middle", color: theme.net ? stroke : theme.text });
+  }
+}
+
+function drawCar(svg, theme) {
+  const stroke = theme.board ? "#1c1917" : theme.line;
+  svgElement("rect", { x: 1150, y: 196, width: 70, height: 54, rx: 6, fill: theme.board ? "#e7e5e4" : "none", stroke, "stroke-width": 1.5 }, svg);
+  svgText(svg, theme, 1185, 216, "12V ACC", { size: 10, weight: 700, anchor: "middle" });
+  svgText(svg, theme, 1185, 230, "fuse tap", { size: 9, anchor: "middle", color: theme.dim });
+  svgText(svg, theme, 1185, 244, "+ chassis", { size: 9, anchor: "middle", color: theme.dim });
+  // The OBD port, the dongle in it, and the BLE link to the Pico W.
+  svgElement("rect", { x: 540, y: 694, width: 120, height: 56, rx: 8, fill: theme.board ? theme.board.dongle : "none", stroke, "stroke-width": 2 }, svg);
+  svgText(svg, theme, 600, 720, "Vgate iCar", { size: 12, weight: 700, anchor: "middle", color: theme.board ? "#fff" : theme.text });
+  svgText(svg, theme, 600, 736, "Pro 2S", { size: 11, anchor: "middle", color: theme.board ? "#d6d3d1" : theme.text });
+  svgElement("rect", { x: 560, y: 750, width: 80, height: 16, rx: 3, fill: theme.board ? "#57534e" : "none", stroke, "stroke-width": 1.5 }, svg);
+  svgText(svg, theme, 600, 786, "OBD-II port (BLE, nothing to wire)", { size: 11, anchor: "middle", color: theme.dim });
+  const link = theme.board ? "#2563eb" : theme.line;
+  for (const r of [16, 30, 44]) {
+    svgElement("path", { d: `M ${600 - r} ${670 - r / 3} Q 600 ${670 + r / 2} ${600 + r} ${670 - r / 3}`, fill: "none", stroke: link,
+                 "stroke-width": 2, "stroke-dasharray": "5 4" }, svg);
+  }
+  svgText(svg, theme, 660, 664, "BLE", { size: 12, weight: 700, color: link });
+}
+
+function drawLegend(svg, theme) {
+  if (!theme.net) return;
+  const items = [["v12", "12V car"], ["v5", "5V"], ["v33", "3.3V"], ["gnd", "GND"], ["scl", "display SPI"], ["clk", "encoder"], ["spi1", "MCP2515 (optional)"]];
+  items.forEach(([net, label], i) => {
+    const x = 40 + i * 160;
+    svgElement("line", { x1: x, y1: 60, x2: x + 34, y2: 60, stroke: theme.net[net], "stroke-width": 5, "stroke-linecap": "round",
+                 "stroke-dasharray": net === "spi1" ? "8 5" : "" }, svg);
+    svgText(svg, theme, x + 42, 64, label, { size: 12 });
+  });
+}
+
+function drawDiagram(style) {
+  const theme = THEMES[style];
+  const svg = document.getElementById("diagram");
+  svg.replaceChildren();
+  if (theme.grid) drawGrid(svg, theme);
+  else svgElement("rect", { width: "100%", height: "100%", fill: theme.background }, svg);
+  drawLegend(svg, theme);
+  for (const w of WIRES) drawWire(svg, theme, w);
+  for (const [x, y] of JUNCTIONS) svgElement("circle", { cx: x, cy: y, r: 6, fill: wireColor(theme, "v33") }, svg);
+  drawPico(svg, theme);
+  for (const m of MODULES) drawModule(svg, theme, m);
+  drawCar(svg, theme);
+  document.body.className = style;
+  for (const s of Object.keys(THEMES)) document.getElementById(`nav-${s}`).classList.toggle("active", s === style);
+}
+
+const drawFromHash = () => drawDiagram(location.hash === "#blueprint" ? "blueprint" : "color");
+window.addEventListener("hashchange", drawFromHash);
+drawFromHash();
+</script>
+</body>
+</html>

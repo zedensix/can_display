@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "datalog.h"
 #include "elm327.h"
 #include "flashlog.h"
 #include "obd.h"
@@ -13,7 +14,6 @@
 #include "sensors.h"
 #include "settings.h"
 #include "sniff.h"
-#include "datalog.h"
 #include "ui.h"
 
 static int failures;
@@ -28,37 +28,37 @@ static int failures;
         }                                                                                                              \
     } while (0)
 
-static bool near(float a, float b) {
+static bool nearly_equal(float a, float b) {
     return fabsf(a - b) < 0.01f;
 }
 
 static void test_obd_decode(void) {
     state_t s = {0};
     can_frame_t rpm = {OBD_RESPONSE_ECU1, 8, {0x04, 0x41, 0x0C, 0x1A, 0xF8}};
-    CHECK(obd_decode(&rpm, &s, 1) && near(s.readings[SIG_RPM].value, 1726), "rpm = %f, want 1726",
+    CHECK(obd_decode_frame(&rpm, &s, 1) && nearly_equal(s.readings[SIG_RPM].value, 1726), "rpm = %f, want 1726",
           (double)s.readings[SIG_RPM].value);
     can_frame_t coolant = {OBD_RESPONSE_ECU1, 8, {0x03, 0x41, 0x05, 0x7B}};
-    CHECK(obd_decode(&coolant, &s, 1) && near(s.readings[SIG_COOLANT].value, 83), "coolant = %f, want 83",
+    CHECK(obd_decode_frame(&coolant, &s, 1) && nearly_equal(s.readings[SIG_COOLANT].value, 83), "coolant = %f, want 83",
           (double)s.readings[SIG_COOLANT].value);
     can_frame_t lambda = {OBD_RESPONSE_ECU1, 8, {0x06, 0x41, 0x24, 0x80, 0x00, 0x00, 0x00}};
-    CHECK(obd_decode(&lambda, &s, 1) && near(s.readings[SIG_AFR].value, 14.7f), "afr = %f, want 14.7",
+    CHECK(obd_decode_frame(&lambda, &s, 1) && nearly_equal(s.readings[SIG_AFR].value, 14.7f), "afr = %f, want 14.7",
           (double)s.readings[SIG_AFR].value);
     can_frame_t other_ecu = {0x7E9, 8, {0x03, 0x41, 0x05, 0x7B}};
-    CHECK(!obd_decode(&other_ecu, &s, 1), "a frame from 0x7E9 was decoded");
+    CHECK(!obd_decode_frame(&other_ecu, &s, 1), "a frame from 0x7E9 was decoded");
     can_frame_t multi = {OBD_RESPONSE_ECU1, 8, {0x10, 0x14, 0x49, 0x02}};
-    CHECK(!obd_decode(&multi, &s, 1), "an ISO-TP first frame was decoded");
+    CHECK(!obd_decode_frame(&multi, &s, 1), "an ISO-TP first frame was decoded");
 }
 
 static void test_gt86_decode(void) {
     state_t s = {0};
     can_frame_t temps = {GT86_ID_TEMPERATURES, 8, {0, 0, 130, 125}};
-    CHECK(gt86_decode(&temps, &s, 1) && near(s.readings[SIG_OIL].value, 90) &&
-              near(s.readings[SIG_COOLANT].value, 85),
+    CHECK(gt86_decode_broadcast(&temps, &s, 1) && nearly_equal(s.readings[SIG_OIL].value, 90) &&
+              nearly_equal(s.readings[SIG_COOLANT].value, 85),
           "0x360 decoded oil %f coolant %f, want 90 and 85", (double)s.readings[SIG_OIL].value,
           (double)s.readings[SIG_COOLANT].value);
     can_frame_t rpm = {GT86_ID_RPM, 8, {0, 0, 0xB8, 0xCB}};
-    CHECK(gt86_decode(&rpm, &s, 1) && near(s.readings[SIG_RPM].value, 3000), "0x140 rpm = %f, want 3000",
-          (double)s.readings[SIG_RPM].value);
+    CHECK(gt86_decode_broadcast(&rpm, &s, 1) && nearly_equal(s.readings[SIG_RPM].value, 3000),
+          "0x140 rpm = %f, want 3000", (double)s.readings[SIG_RPM].value);
 }
 
 static void test_elm_parsing(void) {
@@ -69,7 +69,7 @@ static void test_elm_parsing(void) {
     CHECK(!elm_parse_frame("NO DATA", &f), "NO DATA parsed as a frame");
     CHECK(!elm_parse_frame("18DAF110034105", &f), "29bit frame parsed as 11bit");
     float v;
-    CHECK(elm_parse_voltage("12.6V", &v) && near(v, 12.6f), "12.6V misparsed");
+    CHECK(elm_parse_voltage("12.6V", &v) && nearly_equal(v, 12.6f), "12.6V misparsed");
     CHECK(!elm_parse_voltage("?", &v), "? parsed as a voltage");
 
     char raw[] = "ATZ\r\r\rELM327 v2.3\r\rSEARCHING...\r 7E8 03 41 05 7B \r";
@@ -109,8 +109,8 @@ static void fake_failed(void *ctx, const char *step, const char *error) {
     (void)error;
 }
 
-static void answer(elm_t *e, const char *text, uint32_t now) {
-    elm_receive(e, (const uint8_t *)text, strlen(text), now);
+static void feed_dongle_answer(elm_t *e, const char *text, uint32_t now) {
+    elm_feed_dongle_output(e, (const uint8_t *)text, strlen(text), now);
 }
 
 static const char *last_sent(fake_dongle_t *d) {
@@ -122,36 +122,36 @@ static void test_elm_session(void) {
     state_t s = {0};
     elm_t e;
     elm_callbacks_t cb = {fake_write, fake_log, fake_ready, fake_failed, &d};
-    elm_start(&e, &s, cb, 0);
+    elm_start_session(&e, &s, cb, 0);
     CHECK(strcmp(last_sent(&d), "ATZ\r") == 0, "first command %s, want ATZ", last_sent(&d));
-    answer(&e, "ATZ\r\rELM327 v2.3\r\r>", 10);
+    feed_dongle_answer(&e, "ATZ\r\rELM327 v2.3\r\r>", 10);
     for (int i = 0; i < 7; i++) {
-        answer(&e, "OK\r\r>", 20);
+        feed_dongle_answer(&e, "OK\r\r>", 20);
     }
     CHECK(strcmp(last_sent(&d), "ATI\r") == 0, "after init sent %s, want the ATI probe", last_sent(&d));
     for (int i = 0; i < 7; i++) {
-        answer(&e, "whatever\r>", 30);
+        feed_dongle_answer(&e, "whatever\r>", 30);
     }
     CHECK(d.ready == 1, "ready called %d times after the probes", d.ready);
     CHECK(strcmp(last_sent(&d), "ATRV\r") == 0, "first poll %s, want ATRV", last_sent(&d));
-    answer(&e, "12.4V\r>", 40);
-    CHECK(near(s.readings[SIG_BATTERY].value, 12.4f), "battery %f, want 12.4", (double)s.readings[SIG_BATTERY].value);
+    feed_dongle_answer(&e, "12.4V\r>", 40);
+    CHECK(nearly_equal(s.readings[SIG_BATTERY].value, 12.4f), "battery %f, want 12.4",
+          (double)s.readings[SIG_BATTERY].value);
     CHECK(strcmp(last_sent(&d), "010C1\r") == 0, "then %s, want 010C1", last_sent(&d));
-    answer(&e, "?\r>", 50);
-    CHECK(strcmp(last_sent(&d), "010C\r") == 0, "after ? sent %s, want 010C without the count digit",
-          last_sent(&d));
-    answer(&e, "7E804410C1AF8\r>", 60);
-    CHECK(near(s.readings[SIG_RPM].value, 1726), "rpm %f, want 1726", (double)s.readings[SIG_RPM].value);
+    feed_dongle_answer(&e, "?\r>", 50);
+    CHECK(strcmp(last_sent(&d), "010C\r") == 0, "after ? sent %s, want 010C without the count digit", last_sent(&d));
+    feed_dongle_answer(&e, "7E804410C1AF8\r>", 60);
+    CHECK(nearly_equal(s.readings[SIG_RPM].value, 1726), "rpm %f, want 1726", (double)s.readings[SIG_RPM].value);
     CHECK(e.ecu_ms == 60, "ecu_ms %u after the ECU answered at 60, want 60 (car-off detection)", (unsigned)e.ecu_ms);
     CHECK(strcmp(last_sent(&d), "0124\r") == 0, "then %s, want 0124", last_sent(&d));
 
     int before = d.sent_count;
-    elm_tick(&e, 60 + ELM_TIMEOUT_MS + 1);
+    elm_check_timers(&e, 60 + ELM_TIMEOUT_MS + 1);
     CHECK(d.sent_count == before + 1 && strcmp(last_sent(&d), "0124\r") == 0, "a timeout didn't resend 0124");
-    elm_tick(&e, 60 + 2 * ELM_TIMEOUT_MS + 2);
-    elm_tick(&e, 60 + 3 * ELM_TIMEOUT_MS + 3);
-    CHECK(d.failed == 1 && strcmp(d.failed_step, "OBD poll") == 0, "after %d retries: failed %d, step %s",
-          ELM_RETRIES, d.failed, d.failed_step);
+    elm_check_timers(&e, 60 + 2 * ELM_TIMEOUT_MS + 2);
+    elm_check_timers(&e, 60 + 3 * ELM_TIMEOUT_MS + 3);
+    CHECK(d.failed == 1 && strcmp(d.failed_step, "OBD poll") == 0, "after %d retries: failed %d, step %s", ELM_RETRIES,
+          d.failed, d.failed_step);
 }
 
 // oil_answer is a 2101 answer: 0x2B bytes in a first frame and 6
@@ -168,33 +168,33 @@ static void test_elm_oil(void) {
     fake_dongle_t d = {0};
     state_t s = {0};
     elm_t e;
-    elm_start(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
-    answer(&e, "ELM327 v2.3\r>", 1);
+    elm_start_session(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
+    feed_dongle_answer(&e, "ELM327 v2.3\r>", 1);
     for (int i = 0; i < 7 + 7; i++) {
-        answer(&e, "OK\r>", 2);
+        feed_dongle_answer(&e, "OK\r>", 2);
     }
-    answer(&e, "12.4V\r>", 3); // ATRV, the first poll
-    answer(&e, "NO DATA\r>", ELM_OIL_INTERVAL_MS + 3);
+    feed_dongle_answer(&e, "12.4V\r>", 3); // ATRV, the first poll
+    feed_dongle_answer(&e, "NO DATA\r>", ELM_OIL_INTERVAL_MS + 3);
     CHECK(strcmp(last_sent(&d), "ATSH7E0\r") == 0, "after %dms sent %s, want the oil sequence's ATSH7E0",
           ELM_OIL_INTERVAL_MS, last_sent(&d));
-    answer(&e, "OK\r>", ELM_OIL_INTERVAL_MS + 4);
+    feed_dongle_answer(&e, "OK\r>", ELM_OIL_INTERVAL_MS + 4);
     CHECK(strcmp(last_sent(&d), "2101\r") == 0, "then %s, want 2101", last_sent(&d));
-    answer(&e, oil_answer, ELM_OIL_INTERVAL_MS + 5);
-    CHECK(near(s.readings[SIG_OIL].value, 90), "oil %f, want 90", (double)s.readings[SIG_OIL].value);
+    feed_dongle_answer(&e, oil_answer, ELM_OIL_INTERVAL_MS + 5);
+    CHECK(nearly_equal(s.readings[SIG_OIL].value, 90), "oil %f, want 90", (double)s.readings[SIG_OIL].value);
     CHECK(strcmp(last_sent(&d), "ATSH7DF\r") == 0, "then %s, want the header back to ATSH7DF", last_sent(&d));
 
     for (int miss = 0; miss < ELM_OIL_MAX_MISSES; miss++) {
         uint32_t t = (uint32_t)(miss + 2) * (ELM_OIL_INTERVAL_MS + 10);
-        answer(&e, "OK\r>", t);
+        feed_dongle_answer(&e, "OK\r>", t);
         while (strcmp(last_sent(&d), "ATSH7E0\r") != 0) {
-            answer(&e, "NO DATA\r>", t);
+            feed_dongle_answer(&e, "NO DATA\r>", t);
         }
-        answer(&e, "OK\r>", t);
-        answer(&e, "NO DATA\r>", t); // 2101 unanswered
+        feed_dongle_answer(&e, "OK\r>", t);
+        feed_dongle_answer(&e, "NO DATA\r>", t); // 2101 unanswered
     }
     int before = d.sent_count;
     for (int i = 0; i < 20; i++) {
-        answer(&e, "OK\r>", 100000 + (uint32_t)i * ELM_OIL_INTERVAL_MS);
+        feed_dongle_answer(&e, "OK\r>", 100000 + (uint32_t)i * ELM_OIL_INTERVAL_MS);
     }
     bool asked = false;
     for (int i = before; i < d.sent_count; i++) {
@@ -209,15 +209,16 @@ static void test_elm_oil_car_off(void) {
     fake_dongle_t d = {0};
     state_t s = {0};
     elm_t e;
-    elm_start(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
-    answer(&e, "ELM327 v2.3\r>", 1);
+    elm_start_session(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
+    feed_dongle_answer(&e, "ELM327 v2.3\r>", 1);
     for (int i = 0; i < 7 + 7; i++) {
-        answer(&e, "OK\r>", 2);
+        feed_dongle_answer(&e, "OK\r>", 2);
     }
     for (uint32_t t = 3; t < 10 * ELM_OIL_INTERVAL_MS; t += 100) {
-        answer(&e, strcmp(last_sent(&d), "ATSH7E0\r") == 0 || strcmp(last_sent(&d), "ATSH7DF\r") == 0 ? "OK\r>"
-                                                                                                    : "NO DATA\r>",
-               t);
+        feed_dongle_answer(
+            &e,
+            strcmp(last_sent(&d), "ATSH7E0\r") == 0 || strcmp(last_sent(&d), "ATSH7DF\r") == 0 ? "OK\r>" : "NO DATA\r>",
+            t);
     }
     int asked = 0;
     for (int i = 0; i < d.sent_count; i++) {
@@ -226,9 +227,9 @@ static void test_elm_oil_car_off(void) {
     CHECK(asked > ELM_OIL_MAX_MISSES, "2101 asked %d times with the car off, want it kept", asked);
 }
 
-// scan_answer prints a positive answer to a RAM scan read as the ELM
+// format_ram_scan_answer prints a positive answer to a RAM scan read as the ELM
 // shows it: ISO-TP frames from 7E8, a float at byte offset at.
-static void scan_answer(char *out, size_t size, float value, int at) {
+static void format_ram_scan_answer(char *out, size_t size, float value, int at) {
     uint8_t msg[1 + ELM_SCAN_CHUNK] = {0x63};
     uint32_t bits;
     memcpy(&bits, &value, sizeof bits);
@@ -253,28 +254,28 @@ static void test_elm_scan(void) {
     fake_dongle_t d = {0};
     state_t s = {0};
     elm_t e;
-    elm_start(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
-    answer(&e, "ELM327 v2.3\r>", 1);
+    elm_start_session(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
+    feed_dongle_answer(&e, "ELM327 v2.3\r>", 1);
     for (int i = 0; i < 7 + 7; i++) {
-        answer(&e, "OK\r>", 2);
+        feed_dongle_answer(&e, "OK\r>", 2);
     }
     CHECK(d.ready == 1, "polling didn't start after the probes");
-    elm_scan_ram(&e);
-    answer(&e, "12.4V\r>", 3); // the poll in flight
+    elm_request_ram_scan(&e);
+    feed_dongle_answer(&e, "12.4V\r>", 3); // the poll in flight
     CHECK(strcmp(last_sent(&d), "ATSH7E0\r") == 0, "a scan asked for sent %s, want ATSH7E0", last_sent(&d));
-    answer(&e, "OK\r>", 3);
+    feed_dongle_answer(&e, "OK\r>", 3);
     CHECK(strcmp(last_sent(&d), "2314FFF800003C\r") == 0, "first scan read %s", last_sent(&d));
     CHECK(strstr(s.status, "DEEP SCAN") == s.status, "status during the scan: %s", s.status);
     float pct = 25 * (2631 * ECU_ADC_STEP_VOLTS) - 12.5f; // 67.79%, as in the Alientech log
     char text[512];
-    scan_answer(text, sizeof text, pct, 8);
-    answer(&e, text, 4);
+    format_ram_scan_answer(text, sizeof text, pct, 8);
+    feed_dongle_answer(&e, text, 4);
     CHECK(strcmp(last_sent(&d), "2314FFF8003C3C\r") == 0, "second scan read %s", last_sent(&d));
-    scan_answer(text, sizeof text, 67.8f, 0); // off the ADC grid
-    answer(&e, text, 5);
-    answer(&e, "7E8037F2331\r>", 6); // out of range: the end of the RAM
+    format_ram_scan_answer(text, sizeof text, 67.8f, 0); // off the ADC grid
+    feed_dongle_answer(&e, text, 5);
+    feed_dongle_answer(&e, "7E8037F2331\r>", 6); // out of range: the end of the RAM
     CHECK(strcmp(last_sent(&d), "ATSH7DF\r") == 0, "after the scan sent %s, want ATSH7DF", last_sent(&d));
-    answer(&e, "OK\r>", 7);
+    feed_dongle_answer(&e, "OK\r>", 7);
     CHECK(d.ready == 2 && e.phase == ELM_POLL, "polling didn't resume after the scan");
     CHECK(strstr(d.logged, "scan: FFF80008 = 67.792 (ethanol %?)") != NULL, "candidate not logged:\n%s", d.logged);
     CHECK(strstr(d.logged, "1 candidates") != NULL, "67.8 (off the grid) counted as a candidate:\n%s", d.logged);
@@ -290,34 +291,33 @@ static void test_elm_multi_pid(void) {
     fake_dongle_t d = {0};
     state_t s = {0};
     elm_t e;
-    elm_start(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
-    answer(&e, "ELM327 v2.3\r>", 1);
+    elm_start_session(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
+    feed_dongle_answer(&e, "ELM327 v2.3\r>", 1);
     for (int i = 0; i < 7 + 6; i++) {
-        answer(&e, "OK\r>", 2);
+        feed_dongle_answer(&e, "OK\r>", 2);
     }
     CHECK(strcmp(last_sent(&d), "010C24050F1\r") == 0, "last probe %s, want the multi-PID one", last_sent(&d));
-    answer(&e, multi_answer, 3);
+    feed_dongle_answer(&e, multi_answer, 3);
     CHECK(e.multi_pid, "a full multi-PID answer didn't turn multi-PID polling on:\n%s", d.logged);
-    answer(&e, "12.4V\r>", 4); // ATRV, the first poll
+    feed_dongle_answer(&e, "12.4V\r>", 4); // ATRV, the first poll
     CHECK(strcmp(last_sent(&d), "010C24050F1\r") == 0, "polled %s, want every PID at once", last_sent(&d));
-    answer(&e, multi_answer, 5);
-    CHECK(near(s.readings[SIG_RPM].value, 1726) && near(s.readings[SIG_AFR].value, 14.7f) &&
-              near(s.readings[SIG_COOLANT].value, 83) && near(s.readings[SIG_IAT].value, 31),
+    feed_dongle_answer(&e, multi_answer, 5);
+    CHECK(nearly_equal(s.readings[SIG_RPM].value, 1726) && nearly_equal(s.readings[SIG_AFR].value, 14.7f) &&
+              nearly_equal(s.readings[SIG_COOLANT].value, 83) && nearly_equal(s.readings[SIG_IAT].value, 31),
           "multi-PID answer gave rpm %f afr %f coolant %f intake %f", (double)s.readings[SIG_RPM].value,
-          (double)s.readings[SIG_AFR].value, (double)s.readings[SIG_COOLANT].value,
-          (double)s.readings[SIG_IAT].value);
-    answer(&e, "?\r>", 6); // a dongle without the count digit
+          (double)s.readings[SIG_AFR].value, (double)s.readings[SIG_COOLANT].value, (double)s.readings[SIG_IAT].value);
+    feed_dongle_answer(&e, "?\r>", 6); // a dongle without the count digit
     CHECK(strcmp(last_sent(&d), "010C24050F\r") == 0, "after ? sent %s, want 010C24050F", last_sent(&d));
 }
 
-// listen_window answers one window of a listen: the ATCF, then the
+// answer_listen_window answers one window of a listen: the ATCF, then the
 // monitor, frames printed until the dwell is over and the stop.
-static void listen_window(elm_t *e, uint32_t *t, const char *frames) {
-    answer(e, "OK\r>", *t);
-    answer(e, frames, *t);
+static void answer_listen_window(elm_t *e, uint32_t *t, const char *frames) {
+    feed_dongle_answer(e, "OK\r>", *t);
+    feed_dongle_answer(e, frames, *t);
     *t += ELM_LISTEN_DWELL_MS;
-    elm_tick(e, *t);
-    answer(e, "STOPPED\r>", *t + 1);
+    elm_check_timers(e, *t);
+    feed_dongle_answer(e, "STOPPED\r>", *t + 1);
     *t += 2;
 }
 
@@ -326,23 +326,23 @@ static void test_elm_listen(void) {
     memset(&d, 0, sizeof d);
     state_t s = {0};
     elm_t e;
-    elm_start(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
-    answer(&e, "ELM327 v2.3\r>", 1);
+    elm_start_session(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
+    feed_dongle_answer(&e, "ELM327 v2.3\r>", 1);
     for (int i = 0; i < 7 + 7; i++) {
-        answer(&e, "OK\r>", 2);
+        feed_dongle_answer(&e, "OK\r>", 2);
     }
-    elm_listen_can(&e);
-    answer(&e, "12.4V\r>", 3); // the poll in flight
+    elm_request_can_listen(&e);
+    feed_dongle_answer(&e, "12.4V\r>", 3); // the poll in flight
     CHECK(strcmp(last_sent(&d), "ATCAF0\r") == 0, "listening sent %s, want ATCAF0", last_sent(&d));
-    answer(&e, "OK\r>", 4);
+    feed_dongle_answer(&e, "OK\r>", 4);
     CHECK(strcmp(last_sent(&d), "ATCM700\r") == 0, "then %s, want ATCM700", last_sent(&d));
-    answer(&e, "OK\r>", 5);
+    feed_dongle_answer(&e, "OK\r>", 5);
     CHECK(strcmp(last_sent(&d), "ATCF000\r") == 0, "then %s, want ATCF000", last_sent(&d));
-    answer(&e, "OK\r>", 6);
+    feed_dongle_answer(&e, "OK\r>", 6);
     CHECK(strcmp(last_sent(&d), "ATMA\r") == 0 && e.monitoring, "then %s, want ATMA", last_sent(&d));
-    elm_tick(&e, 6 + ELM_LISTEN_DWELL_MS);
+    elm_check_timers(&e, 6 + ELM_LISTEN_DWELL_MS);
     CHECK(strcmp(last_sent(&d), "\r") == 0, "the dwell over, sent %s, want a stop", last_sent(&d));
-    answer(&e, "STOPPED\r>", 6 + ELM_LISTEN_DWELL_MS);
+    feed_dongle_answer(&e, "STOPPED\r>", 6 + ELM_LISTEN_DWELL_MS);
     CHECK(strcmp(last_sent(&d), "ATCF100\r") == 0, "next window %s, want ATCF100", last_sent(&d));
 
     // 1A0 counts all along; 3B0 only changes with the presses.
@@ -351,7 +351,7 @@ static void test_elm_listen(void) {
         char frames[64];
         bool pressed = t >= ELM_LISTEN_BASELINE_MS && i % 2;
         snprintf(frames, sizeof frames, "1A0%02X\r3B000%s\rNO DATA\r", i & 0xFF, pressed ? "AB" : "AA");
-        listen_window(&e, &t, frames);
+        answer_listen_window(&e, &t, frames);
     }
     CHECK(strcmp(last_sent(&d), "ATZ\r") == 0, "after listening sent %s, want ATZ (session restart)", last_sent(&d));
     CHECK(strstr(d.logged, "sniff: 3B0 x") != NULL && strstr(d.logged, "00AA -> 00AB") != NULL,
@@ -363,21 +363,21 @@ static void test_isotp(void) {
     isotp_t r = {0};
     can_frame_t first = {OBD_RESPONSE_ECU1, 8, {0x10, 0x0A, 0x61, 0x01, 1, 2, 3, 4}};
     can_frame_t next = {OBD_RESPONSE_ECU1, 8, {0x21, 5, 6, 7, 8, 9, 10, 11}};
-    CHECK(!isotp_feed(&r, &first), "a first frame alone completed a message");
-    CHECK(isotp_feed(&r, &next) && r.len == 10 && r.data[0] == 0x61 && r.data[9] == 8,
+    CHECK(!isotp_add_frame(&r, &first), "a first frame alone completed a message");
+    CHECK(isotp_add_frame(&r, &next) && r.len == 10 && r.data[0] == 0x61 && r.data[9] == 8,
           "first + consecutive gave len %d", r.len);
     can_frame_t wrong_sequence = {OBD_RESPONSE_ECU1, 8, {0x22, 0, 0, 0, 0, 0, 0, 0}};
-    isotp_feed(&r, &first);
-    CHECK(!isotp_feed(&r, &wrong_sequence), "a consecutive frame out of sequence was accepted");
+    isotp_add_frame(&r, &first);
+    CHECK(!isotp_add_frame(&r, &wrong_sequence), "a consecutive frame out of sequence was accepted");
 }
 
 static void test_elm_init_rejected(void) {
     fake_dongle_t d = {0};
     state_t s = {0};
     elm_t e;
-    elm_start(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
-    answer(&e, "ELM327 v1.5\r>", 1);
-    answer(&e, "?\r>", 2);
+    elm_start_session(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
+    feed_dongle_answer(&e, "ELM327 v1.5\r>", 1);
+    feed_dongle_answer(&e, "?\r>", 2);
     CHECK(d.failed == 1 && strcmp(d.failed_step, "ELM327 init") == 0, "a rejected ATE0 gave failed %d, step %s",
           d.failed, d.failed_step);
 }
@@ -401,16 +401,16 @@ static void flash_erase(void *ctx, uint32_t off) {
 
 static char dumped[4 * FLASHLOG_SECTOR];
 static size_t dumped_len;
-static void collect(void *ctx, const uint8_t *data, size_t len) {
+static void collect_log_dump(void *ctx, const uint8_t *data, size_t len) {
     (void)ctx;
     memcpy(dumped + dumped_len, data, len);
     dumped_len += len;
     dumped[dumped_len] = 0;
 }
-static const char *dump(flashlog_t *log) {
+static const char *dump_flashlog(flashlog_t *log) {
     dumped_len = 0;
     dumped[0] = 0;
-    flashlog_dump(log, collect, NULL);
+    flashlog_dump(log, collect_log_dump, NULL);
     return dumped;
 }
 
@@ -424,7 +424,8 @@ static void test_flashlog(void) {
     flashlog_append(&log, "ble: connected");
     flashlog_open(&log, dev);
     flashlog_append(&log, "boot again");
-    CHECK(strcmp(dump(&log), "boot\nble: connected\nboot again\n") == 0, "after a reopen the log is %s", dumped);
+    CHECK(strcmp(dump_flashlog(&log), "boot\nble: connected\nboot again\n") == 0, "after a reopen the log is %s",
+          dumped);
 
     for (int i = 0; i < 3000; i++) {
         char line[16];
@@ -434,7 +435,7 @@ static void test_flashlog(void) {
             flashlog_open(&log, dev);
         }
     }
-    dump(&log);
+    dump_flashlog(&log);
     // The first line can be cut: its start went with the dropped sector.
     char *first = strchr(dumped, '\n') + 1;
     int previous = -1, count = 0;
@@ -450,7 +451,7 @@ static void test_flashlog(void) {
     }
     flashlog_open(&log, dev);
     flashlog_append(&log, "boot");
-    CHECK(strcmp(dump(&log), "boot\n") == 0, "foreign data wasn't erased: %s", dumped);
+    CHECK(strcmp(dump_flashlog(&log), "boot\n") == 0, "foreign data wasn't erased: %s", dumped);
 }
 
 static void test_settings(void) {
@@ -475,43 +476,43 @@ static void test_settings(void) {
 static void test_screen(void) {
     screen_t s = {0};
     settings_t cfg = SETTINGS_DEFAULT;
-    screen_turn(&s, 2, 6, &cfg);
+    screen_apply_turn(&s, 2, 6, &cfg);
     CHECK(s.view == 2, "view %d after 2 detents, want 2", s.view);
-    screen_turn(&s, -3, 6, &cfg);
+    screen_apply_turn(&s, -3, 6, &cfg);
     CHECK(s.view == 6, "view %d going back past the grid, want the last gauge", s.view);
-    screen_turn(&s, 1, 6, &cfg);
+    screen_apply_turn(&s, 1, 6, &cfg);
     CHECK(s.view == 0, "view %d after the last gauge, want the grid", s.view);
 
-    screen_press(&s, &cfg);
+    screen_apply_click(&s, &cfg);
     CHECK(s.page == PAGE_SETTINGS && s.cursor == ROW_BRIGHTNESS, "a click didn't open the settings");
-    screen_turn(&s, -1, 6, &cfg);
+    screen_apply_turn(&s, -1, 6, &cfg);
     CHECK(cfg.brightness == BRIGHTNESS_MAX, "turning without editing changed the brightness");
-    screen_press(&s, &cfg);
-    screen_turn(&s, -3, 6, &cfg);
-    screen_press(&s, &cfg);
+    screen_apply_click(&s, &cfg);
+    screen_apply_turn(&s, -3, 6, &cfg);
+    screen_apply_click(&s, &cfg);
     CHECK(cfg.brightness == BRIGHTNESS_MAX - 3 * BRIGHTNESS_STEP && !s.editing, "brightness %d, want 3 steps down",
           cfg.brightness);
-    screen_press(&s, &cfg);
-    screen_turn(&s, -50, 6, &cfg);
-    screen_press(&s, &cfg);
+    screen_apply_click(&s, &cfg);
+    screen_apply_turn(&s, -50, 6, &cfg);
+    screen_apply_click(&s, &cfg);
     CHECK(cfg.brightness == BRIGHTNESS_MIN, "brightness %d, want it stopped at the minimum", cfg.brightness);
-    screen_turn(&s, 1, 6, &cfg);
-    screen_press(&s, &cfg);
-    screen_turn(&s, 1, 6, &cfg);
+    screen_apply_turn(&s, 1, 6, &cfg);
+    screen_apply_click(&s, &cfg);
+    screen_apply_turn(&s, 1, 6, &cfg);
     CHECK(cfg.shift_rpm == SHIFT_RPM_MIN, "shift light %d turned up from off, want %d", cfg.shift_rpm, SHIFT_RPM_MIN);
-    screen_turn(&s, 50, 6, &cfg);
+    screen_apply_turn(&s, 50, 6, &cfg);
     CHECK(cfg.shift_rpm == SHIFT_RPM_MAX, "shift light %d, want it stopped at %d", cfg.shift_rpm, SHIFT_RPM_MAX);
-    screen_turn(&s, -100, 6, &cfg);
-    screen_press(&s, &cfg);
+    screen_apply_turn(&s, -100, 6, &cfg);
+    screen_apply_click(&s, &cfg);
     CHECK(cfg.shift_rpm == 0, "shift light %d turned all the way down, want off", cfg.shift_rpm);
-    screen_turn(&s, 1, 6, &cfg);
-    screen_press(&s, &cfg);
+    screen_apply_turn(&s, 1, 6, &cfg);
+    screen_apply_click(&s, &cfg);
     CHECK(cfg.auto_connect, "a click on auto-connect didn't turn it on");
-    screen_turn(&s, 1, 6, &cfg);
-    screen_press(&s, &cfg);
+    screen_apply_turn(&s, 1, 6, &cfg);
+    screen_apply_click(&s, &cfg);
     CHECK(cfg.flip, "a click on flip didn't turn it on");
-    screen_turn(&s, 1, 6, &cfg);
-    screen_press(&s, &cfg);
+    screen_apply_turn(&s, 1, 6, &cfg);
+    screen_apply_click(&s, &cfg);
     CHECK(cfg.ethanol_sensor, "a click on the ethanol sensor didn't turn it on");
     static const struct {
         int row;
@@ -521,37 +522,39 @@ static void test_screen(void) {
                    {ROW_LISTEN, ACTION_LISTEN},
                    {ROW_DISCONNECT, ACTION_DISCONNECT}};
     for (size_t i = 0; i < sizeof actions / sizeof actions[0]; i++) {
-        screen_turn(&s, actions[i].row - s.cursor, 6, &cfg);
-        screen_press(&s, &cfg);
+        screen_apply_turn(&s, actions[i].row - s.cursor, 6, &cfg);
+        screen_apply_click(&s, &cfg);
         CHECK(s.action == actions[i].action && s.page == PAGE_GAUGES, "a click on row %d gave action %d, want %d",
               actions[i].row, s.action, actions[i].action);
         s.action = ACTION_NONE;
-        screen_press(&s, &cfg);
+        screen_apply_click(&s, &cfg);
     }
-    screen_turn(&s, 10, 6, &cfg);
-    screen_press(&s, &cfg);
+    screen_apply_turn(&s, 10, 6, &cfg);
+    screen_apply_click(&s, &cfg);
     CHECK(s.page == PAGE_GAUGES, "a click on Back didn't return to the gauges");
 }
 
 static void test_sensors(void) {
     float at_pin = ETHANOL_SENSOR_MAX_VOLTS * divider_ratio(ETHANOL_DIVIDER);
     CHECK(at_pin < 3.3f, "the divider lets %fV through at the sensor's max, over the RP2040's 3.3V", (double)at_pin);
-    CHECK(near(divider_undo(ETHANOL_DIVIDER, at_pin), ETHANOL_SENSOR_MAX_VOLTS), "divider_undo isn't the inverse");
-    CHECK(near(sensors_ethanol_percent(2.5f), 50), "2.5V gave %f%%, want 50", (double)sensors_ethanol_percent(2.5f));
+    CHECK(nearly_equal(divider_input_volts(ETHANOL_DIVIDER, at_pin), ETHANOL_SENSOR_MAX_VOLTS),
+          "divider_input_volts isn't the inverse");
+    CHECK(nearly_equal(sensors_ethanol_percent(2.5f), 50), "2.5V gave %f%%, want 50",
+          (double)sensors_ethanol_percent(2.5f));
     CHECK(sensors_ethanol_percent(0) == 0 && sensors_ethanol_percent(5) == 100, "ethanol %% isn't clamped");
-    CHECK(sensors_on_ecu_adc_grid(1234 * ECU_ADC_STEP_VOLTS), "a whole number of ADC steps is off the grid");
-    CHECK(!sensors_on_ecu_adc_grid(1234.5f * ECU_ADC_STEP_VOLTS), "half an ADC step is on the grid");
+    CHECK(sensors_is_whole_ecu_adc_step(1234 * ECU_ADC_STEP_VOLTS), "a whole number of ADC steps is off the grid");
+    CHECK(!sensors_is_whole_ecu_adc_step(1234.5f * ECU_ADC_STEP_VOLTS), "half an ADC step is on the grid");
 }
 
 static void test_extremes(void) {
     state_t s = {0};
-    state_set(&s, SIG_AFR, 14.7f, 1);
-    state_set(&s, SIG_AFR, 11.9f, 2);
-    state_set(&s, SIG_AFR, 16.2f, 3);
-    state_set(&s, SIG_AFR, 14.1f, 4);
+    state_set_reading(&s, SIG_AFR, 14.7f, 1);
+    state_set_reading(&s, SIG_AFR, 11.9f, 2);
+    state_set_reading(&s, SIG_AFR, 16.2f, 3);
+    state_set_reading(&s, SIG_AFR, 14.1f, 4);
     reading_t r = s.readings[SIG_AFR];
-    CHECK(near(r.value, 14.1f) && near(r.min, 11.9f) && near(r.max, 16.2f), "afr %f, min %f, max %f",
-          (double)r.value, (double)r.min, (double)r.max);
+    CHECK(nearly_equal(r.value, 14.1f) && nearly_equal(r.min, 11.9f) && nearly_equal(r.max, 16.2f),
+          "afr %f, min %f, max %f", (double)r.value, (double)r.min, (double)r.max);
 }
 
 static void test_datalog(void) {
@@ -562,8 +565,8 @@ static void test_datalog(void) {
     state_t s = {0};
     datalog_open(&log, dev);
     CHECK(log.pos == 0 && log.session == 0, "empty flash: pos %u session %u", (unsigned)log.pos, log.session);
-    state_set(&s, SIG_RPM, 3000, 0);
-    state_set(&s, SIG_AFR, 14.7f, 0);
+    state_set_reading(&s, SIG_RPM, 3000, 0);
+    state_set_reading(&s, SIG_AFR, 14.7f, 0);
     for (uint32_t t = 0; t < 11 * DATALOG_SAMPLE_MS; t += DATALOG_SAMPLE_MS) {
         s.readings[SIG_RPM].updated_ms = s.readings[SIG_AFR].updated_ms = t;
         datalog_sample(&log, &s, t);
@@ -587,14 +590,14 @@ static void test_datalog(void) {
     uint8_t first[DATALOG_RECORD];
     datalog_read(&log, sizeof f.data - log.pos, first, sizeof first);
     CHECK(first[0] == 0 && first[4] == 0, "ring order doesn't start with the oldest record");
-    CHECK(datalog_oldest(&log) == sizeof f.data - log.pos, "oldest at %u, want %u", (unsigned)datalog_oldest(&log),
-          (unsigned)(sizeof f.data - log.pos));
+    CHECK(datalog_oldest_record_offset(&log) == sizeof f.data - log.pos, "oldest at %u, want %u",
+          (unsigned)datalog_oldest_record_offset(&log), (unsigned)(sizeof f.data - log.pos));
 }
 
 static void test_wrap(void) {
     const char *text = "BLE connect failed: no known ELM327 serial service on this device";
     char lines[8][64];
-    int n = ui_wrap(&font_bold9, text, 216, lines, 8);
+    int n = ui_wrap_text(&font_bold9, text, 216, lines, 8);
     CHECK(n >= 2, "wrap gave %d line(s), want the long error split", n);
     char joined[256] = "";
     for (int i = 0; i < n; i++) {

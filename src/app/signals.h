@@ -32,9 +32,9 @@ typedef struct {
     char status[192];
 } state_t;
 
-void state_set(state_t *s, signal_t sig, float value, uint32_t now_ms);
+void state_set_reading(state_t *s, signal_t sig, float value, uint32_t now_ms);
 void state_set_status(state_t *s, const char *status);
 
-// reading_stale is true for a reading never set, or older than max_age_ms:
+// reading_is_stale is true for a reading never set, or older than max_age_ms:
 // the UI shows "--" rather than a frozen or zero value.
-bool reading_stale(const reading_t *r, uint32_t now_ms, uint32_t max_age_ms);
+bool reading_is_stale(const reading_t *r, uint32_t now_ms, uint32_t max_age_ms);

@@ -12,7 +12,7 @@
 
 // ELM_ADDRESS pins the dongle by MAC address ("AA:BB:CC:DD:EE:FF"). Left
 // empty, the first device that looks like an OBD dongle is taken (see
-// looks_like_elm). Every candidate is logged.
+// looks_like_obd_dongle). Every candidate is logged.
 #define ELM_ADDRESS ""
 
 // Lowercase substrings of advertised names that mark an OBD dongle.
@@ -78,10 +78,10 @@ static int service_count, service_index;
 static gatt_client_characteristic_t notify_char, write_char, name_char;
 static bool have_notify, have_write, have_name;
 
-static void gatt_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size);
-static void advertise(void);
-static void resume(void);
-static void start_scan(void);
+static void handle_gatt_event(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size);
+static void advertise_to_phone(void);
+static void back_to_dongle(void);
+static void start_dongle_scan(void);
 
 // last_dongle is the dongle last connected to (from the settings);
 // picked is what a click on the prompt connects to, found by a scan in
@@ -106,7 +106,7 @@ static size_t pending_len;
 #define DATA_HANDLE ATT_CHARACTERISTIC_c0ff8602_4b1e_4c7a_9e2d_5a3f86d0a001_01_VALUE_HANDLE
 #define DATA_CCCD_HANDLE ATT_CHARACTERISTIC_c0ff8602_4b1e_4c7a_9e2d_5a3f86d0a001_01_CLIENT_CONFIGURATION_HANDLE
 #define CONTROL_HANDLE ATT_CHARACTERISTIC_c0ff8601_4b1e_4c7a_9e2d_5a3f86d0a001_01_VALUE_HANDLE
-static datalog_t *send_log;
+static datalog_t *log_to_send;
 static hci_con_handle_t phone = HCI_CON_HANDLE_INVALID;
 static bool streaming, header_sent;
 static uint32_t first, total, sent;
@@ -125,7 +125,7 @@ static void set_phase(phase_t p, const char *status) {
     }
 }
 
-static void fail(const char *step, const char *error) {
+static void fail_connection(const char *step, const char *error) {
     log_line("fatal: %s: %s", step, error);
     char status[192];
     snprintf(status, sizeof status, "NO LINK\n%s failed:\n%s\n%s", step, error,
@@ -142,7 +142,7 @@ static const char *name_or_address(const char *name, const bd_addr_t addr) {
     return out;
 }
 
-static bool looks_like_elm(const bd_addr_t addr, const char *name, uint8_t len, const uint8_t *data) {
+static bool looks_like_obd_dongle(const bd_addr_t addr, const char *name, uint8_t len, const uint8_t *data) {
     if (ELM_ADDRESS[0]) {
         return strcasecmp(bd_addr_to_str(addr), ELM_ADDRESS) == 0;
     }
@@ -165,7 +165,7 @@ static bool looks_like_elm(const bd_addr_t addr, const char *name, uint8_t len, 
     return false;
 }
 
-static void advertised_name(uint8_t len, const uint8_t *data, char name[32]) {
+static void read_advertised_name(uint8_t len, const uint8_t *data, char name[32]) {
     name[0] = 0;
     ad_context_t it;
     for (ad_iterator_init(&it, len, data); ad_iterator_has_more(&it); ad_iterator_next(&it)) {
@@ -179,7 +179,7 @@ static void advertised_name(uint8_t len, const uint8_t *data, char name[32]) {
     }
 }
 
-static const char *uuid_str(uint16_t uuid16, const uint8_t uuid128[16]) {
+static const char *uuid_to_str(uint16_t uuid16, const uint8_t uuid128[16]) {
     static char out[40];
     if (uuid16) {
         snprintf(out, sizeof out, "%04x", uuid16);
@@ -192,8 +192,8 @@ static const char *uuid_str(uint16_t uuid16, const uint8_t uuid128[16]) {
 // allows it: the dongle answers through notifications anyway. Otherwise
 // as acknowledged writes, whose data BTstack reads until they complete,
 // hence the separate sent buffer. A command the stack can't take right
-// now stays pending for ble_poll.
-static void flush_pending(void) {
+// now stays pending for ble_poll_radio.
+static void write_pending_command(void) {
     static uint8_t sent[sizeof pending];
     if (!pending_len) {
         return;
@@ -204,7 +204,7 @@ static void flush_pending(void) {
         err = gatt_client_write_value_of_characteristic_without_response(connection, write_char.value_handle,
                                                                          (uint16_t)pending_len, sent);
     } else {
-        err = gatt_client_write_value_of_characteristic(gatt_handler, connection, write_char.value_handle,
+        err = gatt_client_write_value_of_characteristic(handle_gatt_event, connection, write_char.value_handle,
                                                         (uint16_t)pending_len, sent);
     }
     if (err == ERROR_CODE_SUCCESS) {
@@ -212,45 +212,46 @@ static void flush_pending(void) {
     }
 }
 
-static void elm_write(void *ctx, const char *command) {
+static void write_to_dongle(void *ctx, const char *command) {
     (void)ctx;
     pending_len = strlen(command);
     memcpy(pending, command, pending_len);
-    flush_pending();
+    write_pending_command();
 }
 
-static void elm_log(void *ctx, const char *line) {
+static void log_from_elm(void *ctx, const char *line) {
     (void)ctx;
     log_line("%s", line);
 }
 
-static void elm_ready(void *ctx) {
+static void on_elm_ready(void *ctx) {
     (void)ctx;
     set_phase(RUNNING, "");
 }
 
-static void elm_failed(void *ctx, const char *step, const char *error) {
+static void on_elm_failed(void *ctx, const char *step, const char *error) {
     (void)ctx;
-    fail(step, error);
+    fail_connection(step, error);
 }
 
-static void discover_next_service(void) {
+static void discover_next_service_characteristics(void) {
     while (service_index < service_count) {
-        if (gatt_client_discover_characteristics_for_service(gatt_handler, connection, &services[service_index]) ==
+        if (gatt_client_discover_characteristics_for_service(handle_gatt_event, connection, &services[service_index]) ==
             ERROR_CODE_SUCCESS) {
             return;
         }
         service_index++;
     }
-    fail("BLE connect", "no known ELM327 serial service on this device");
+    fail_connection("BLE connect", "no known ELM327 serial service on this device");
 }
 
-static void characteristic_found(const gatt_client_characteristic_t *c) {
-    log_line("ble:   characteristic %s", uuid_str(c->uuid16, c->uuid128));
+static void note_characteristic(const gatt_client_characteristic_t *c) {
+    log_line("ble:   characteristic %s", uuid_to_str(c->uuid16, c->uuid128));
     const gatt_client_service_t *s = &services[service_index];
     // The GAP service's device name: dongles that don't advertise a name
     // (the Vgate) still have one here.
-    if (s->uuid16 == ORG_BLUETOOTH_SERVICE_GENERIC_ACCESS && c->uuid16 == ORG_BLUETOOTH_CHARACTERISTIC_GAP_DEVICE_NAME) {
+    if (s->uuid16 == ORG_BLUETOOTH_SERVICE_GENERIC_ACCESS &&
+        c->uuid16 == ORG_BLUETOOTH_CHARACTERISTIC_GAP_DEVICE_NAME) {
         name_char = *c;
         have_name = true;
     }
@@ -269,69 +270,69 @@ static void characteristic_found(const gatt_client_characteristic_t *c) {
     }
 }
 
-static void enable_notifications(void) {
-    gatt_client_listen_for_characteristic_value_updates(&notification_listener, gatt_handler, connection,
+static void enable_dongle_notifications(void) {
+    gatt_client_listen_for_characteristic_value_updates(&notification_listener, handle_gatt_event, connection,
                                                         &notify_char);
-    gatt_client_write_client_characteristic_configuration(gatt_handler, connection, &notify_char,
+    gatt_client_write_client_characteristic_configuration(handle_gatt_event, connection, &notify_char,
                                                           GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION);
     set_phase(ENABLING_NOTIFICATIONS, NULL);
 }
 
-static void query_complete(uint8_t status) {
+static void handle_gatt_query_complete(uint8_t status) {
     switch (phase) {
     case DISCOVERING_SERVICES:
         if (status != ATT_ERROR_SUCCESS || service_count == 0) {
             char error[64];
-            snprintf(error, sizeof error, "service discovery failed (ATT 0x%02x, %d services)", status,
-                     service_count);
-            fail("BLE connect", error);
+            snprintf(error, sizeof error, "service discovery failed (ATT 0x%02x, %d services)", status, service_count);
+            fail_connection("BLE connect", error);
             return;
         }
         for (int i = 0; i < service_count; i++) {
-            log_line("ble: service %s", uuid_str(services[i].uuid16, services[i].uuid128));
+            log_line("ble: service %s", uuid_to_str(services[i].uuid16, services[i].uuid128));
         }
         service_index = 0;
         set_phase(DISCOVERING_CHARACTERISTICS, NULL);
-        discover_next_service();
+        discover_next_service_characteristics();
         break;
     case DISCOVERING_CHARACTERISTICS:
         if (have_notify && have_write) {
             if (have_name) {
                 set_phase(READING_NAME, NULL);
-                gatt_client_read_value_of_characteristic(gatt_handler, connection, &name_char);
+                gatt_client_read_value_of_characteristic(handle_gatt_event, connection, &name_char);
             } else {
                 connected_new = true;
-                enable_notifications();
+                enable_dongle_notifications();
             }
             return;
         }
         have_notify = have_write = false;
         service_index++;
-        discover_next_service();
+        discover_next_service_characteristics();
         break;
     case READING_NAME:
         // Without a name, the address will do: not worth failing over.
         log_line("ble: dongle name \"%s\"", connected.name);
         connected_new = true;
-        enable_notifications();
+        enable_dongle_notifications();
         break;
     case ENABLING_NOTIFICATIONS:
         if (status != ATT_ERROR_SUCCESS) {
             char error[48];
             snprintf(error, sizeof error, "notifications refused (ATT 0x%02x)", status);
-            fail("BLE connect", error);
+            fail_connection("BLE connect", error);
             return;
         }
         log_line("elm327: resetting dongle");
         set_phase(RUNNING, "SYNC\ntalking to the ECU");
-        elm_start(&elm, state, (elm_callbacks_t){elm_write, elm_log, elm_ready, elm_failed, NULL}, now);
+        elm_start_session(&elm, state,
+                          (elm_callbacks_t){write_to_dongle, log_from_elm, on_elm_ready, on_elm_failed, NULL}, now);
         break;
     default:
         break;
     }
 }
 
-static void gatt_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
+static void handle_gatt_event(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
     (void)channel;
     (void)size;
     if (packet_type != HCI_EVENT_PACKET) {
@@ -346,7 +347,7 @@ static void gatt_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet,
     case GATT_EVENT_CHARACTERISTIC_QUERY_RESULT: {
         gatt_client_characteristic_t c;
         gatt_event_characteristic_query_result_get_characteristic(packet, &c);
-        characteristic_found(&c);
+        note_characteristic(&c);
         break;
     }
     case GATT_EVENT_CHARACTERISTIC_VALUE_QUERY_RESULT:
@@ -358,19 +359,19 @@ static void gatt_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet,
         }
         break;
     case GATT_EVENT_NOTIFICATION:
-        elm_receive(&elm, gatt_event_notification_get_value(packet), gatt_event_notification_get_value_length(packet),
-                    now);
+        elm_feed_dongle_output(&elm, gatt_event_notification_get_value(packet),
+                               gatt_event_notification_get_value_length(packet), now);
         break;
     case GATT_EVENT_QUERY_COMPLETE:
-        query_complete(gatt_event_query_complete_get_att_status(packet));
+        handle_gatt_query_complete(gatt_event_query_complete_get_att_status(packet));
         break;
     default:
         break;
     }
 }
 
-// connect_to stops scanning and connects to a dongle.
-static void connect_to(const bd_addr_t addr, uint8_t type, const char *name) {
+// connect_to_dongle stops scanning and connects to a dongle.
+static void connect_to_dongle(const bd_addr_t addr, uint8_t type, const char *name) {
     gap_stop_scan();
     snprintf(peer, sizeof peer, "%s", name_or_address(name, addr));
     char status[192];
@@ -384,16 +385,17 @@ static void connect_to(const bd_addr_t addr, uint8_t type, const char *name) {
     if (err != ERROR_CODE_SUCCESS) {
         char error[32];
         snprintf(error, sizeof error, "gap_connect error 0x%02x", err);
-        fail("BLE connect", error);
+        fail_connection("BLE connect", error);
     }
 }
 
-// prompt_report is a device seen while the prompt waits for a click: a
+// offer_dongle_on_prompt is a device seen while the prompt waits for a click: a
 // dongle becomes what the click connects to, the last one used first. It
 // shows by name: the one it advertises, else the one read from it last
 // time; by address only without either.
-static void prompt_report(const bd_addr_t addr, uint8_t type, const char *name, uint8_t len, const uint8_t *data) {
-    if (!looks_like_elm(addr, name, len, data)) {
+static void offer_dongle_on_prompt(const bd_addr_t addr, uint8_t type, const char *name, uint8_t len,
+                                   const uint8_t *data) {
+    if (!looks_like_obd_dongle(addr, name, len, data)) {
         return;
     }
     bool last = last_dongle.set && memcmp(last_dongle.addr, addr, sizeof last_dongle.addr) == 0;
@@ -416,12 +418,12 @@ static void prompt_report(const bd_addr_t addr, uint8_t type, const char *name, 
     }
     log_line("ble: prompt offers %s %s%s", bd_addr_to_str(addr), picked_name, last ? " (last used)" : "");
     char status[192];
-    snprintf(status, sizeof status, "READY\npress to connect to\n%s%s", picked_name[0] ? picked_name : bd_addr_to_str(addr),
-             last ? "\n(last used)" : "");
+    snprintf(status, sizeof status, "READY\npress to connect to\n%s%s",
+             picked_name[0] ? picked_name : bd_addr_to_str(addr), last ? "\n(last used)" : "");
     state_set_status(state, status);
 }
 
-static void advertising_report(uint8_t *packet) {
+static void handle_advertising_report(uint8_t *packet) {
     if (phase != SCANNING && phase != PROMPT) {
         return;
     }
@@ -431,12 +433,12 @@ static void advertising_report(uint8_t *packet) {
     uint8_t len = gap_event_advertising_report_get_data_length(packet);
     const uint8_t *data = gap_event_advertising_report_get_data(packet);
     char name[32];
-    advertised_name(len, data, name);
+    read_advertised_name(len, data, name);
     if (phase == PROMPT) {
-        prompt_report(addr, type, name, len, data);
+        offer_dongle_on_prompt(addr, type, name, len, data);
         return;
     }
-    if (!looks_like_elm(addr, name, len, data)) {
+    if (!looks_like_obd_dongle(addr, name, len, data)) {
         char status[192];
         snprintf(status, sizeof status, "SEARCHING\nlast ignored:\n%s", name_or_address(name, addr));
         state_set_status(state, status);
@@ -444,10 +446,10 @@ static void advertising_report(uint8_t *packet) {
     }
     log_line("ble: candidate %s %s RSSI %d", bd_addr_to_str(addr), name,
              (int8_t)gap_event_advertising_report_get_rssi(packet));
-    connect_to(addr, type, name);
+    connect_to_dongle(addr, type, name);
 }
 
-static void connection_complete(uint8_t *packet) {
+static void handle_connection_complete(uint8_t *packet) {
     if (phase != CONNECTING) {
         return;
     }
@@ -455,7 +457,7 @@ static void connection_complete(uint8_t *packet) {
     if (status != ERROR_CODE_SUCCESS) {
         char error[40];
         snprintf(error, sizeof error, "connection failed (HCI 0x%02x)", status);
-        fail("BLE connect", error);
+        fail_connection("BLE connect", error);
         return;
     }
     connection = gap_subevent_le_connection_complete_get_connection_handle(packet);
@@ -466,10 +468,10 @@ static void connection_complete(uint8_t *packet) {
     snprintf(text, sizeof text, "HANDSHAKE\n%s", peer);
     set_phase(DISCOVERING_SERVICES, text);
     service_count = 0;
-    gatt_client_discover_primary_services(gatt_handler, connection);
+    gatt_client_discover_primary_services(handle_gatt_event, connection);
 }
 
-static void hci_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
+static void handle_hci_event(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
     (void)channel;
     (void)size;
     if (packet_type != HCI_EVENT_PACKET) {
@@ -481,22 +483,22 @@ static void hci_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, 
             break;
         }
         radio_on = true;
-        if (send_log) {
-            advertise();
+        if (log_to_send) {
+            advertise_to_phone();
         } else if (reconnect_to.set) {
             dongle_t d = reconnect_to;
             reconnect_to.set = false;
-            connect_to(d.addr, d.type, d.name);
+            connect_to_dongle(d.addr, d.type, d.name);
         } else if (phase == PROMPT) {
             // In the background, for the prompt to name a dongle.
             gap_set_scan_parameters(1, 0x30, 0x30);
             gap_start_scan();
         } else if (phase == STARTING) {
-            start_scan();
+            start_dongle_scan();
         }
         break;
     case GAP_EVENT_ADVERTISING_REPORT:
-        advertising_report(packet);
+        handle_advertising_report(packet);
         break;
     case HCI_EVENT_META_GAP:
         // Covers both the legacy and the enhanced (BT 5) connection events.
@@ -510,7 +512,7 @@ static void hci_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, 
                 state_set_status(state, "SEND LOG\nphone connected");
             }
         } else {
-            connection_complete(packet);
+            handle_connection_complete(packet);
         }
         break;
     case HCI_EVENT_DISCONNECTION_COMPLETE:
@@ -519,21 +521,21 @@ static void hci_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, 
             phone = HCI_CON_HANDLE_INVALID;
             streaming = false;
             if (phase == SENDING && !received_at) {
-                advertise();
+                advertise_to_phone();
             }
             break;
         }
         connection = HCI_CON_HANDLE_INVALID;
         if (phase == SENDING) {
             // The dongle let go: on the air for the phone.
-            advertise();
+            advertise_to_phone();
         } else if (phase == STANDBY || phase == OFFLINE) {
             hci_power_control(HCI_POWER_OFF);
         } else if (phase != FAILED && !disconnecting) {
             char error[40];
             snprintf(error, sizeof error, "disconnected (HCI 0x%02x)",
                      hci_event_disconnection_complete_get_reason(packet));
-            fail("BLE", error);
+            fail_connection("BLE", error);
         }
         break;
     default:
@@ -541,14 +543,16 @@ static void hci_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, 
     }
 }
 
-static void advertise(void) {
+static void advertise_to_phone(void) {
     // Flags, then the service's UUID (bytes reversed) for the phone to
     // filter on; the name goes in the scan response.
+    // clang-format off: bytes as BLE packs them, one field per line.
     static uint8_t adv[] = {0x02, BLUETOOTH_DATA_TYPE_FLAGS, 0x06, 0x11,
                             BLUETOOTH_DATA_TYPE_COMPLETE_LIST_OF_128_BIT_SERVICE_CLASS_UUIDS, 0x01, 0xa0, 0xd0, 0x86,
                             0x3f, 0x5a, 0x2d, 0x9e, 0x7a, 0x4c, 0x1e, 0x4b, 0x00, 0x86, 0xff, 0xc0};
     static uint8_t scan_response[] = {0x0A, BLUETOOTH_DATA_TYPE_COMPLETE_LOCAL_NAME, 'G', 'T', '8', '6', ' ',
                                       'D', 'A', 'S', 'H'};
+    // clang-format on
     bd_addr_t anyone = {0};
     gap_advertisements_set_params(0x0030, 0x0030, 0, 0, anyone, 0x07, 0x00);
     gap_advertisements_set_data(sizeof adv, adv);
@@ -557,7 +561,7 @@ static void advertise(void) {
     set_phase(SENDING, "SEND LOG\nopen the page\non your phone\npress: back");
 }
 
-static void send_chunk(void) {
+static void send_next_log_chunk(void) {
     if (!streaming || phone == HCI_CON_HANDLE_INVALID) {
         return;
     }
@@ -571,7 +575,7 @@ static void send_chunk(void) {
         uint32_t n = att_server_get_mtu(phone) - 3;
         n = n > sizeof chunk ? sizeof chunk : n;
         n = n > total - sent ? total - sent : n;
-        datalog_read(send_log, first + sent, chunk, n);
+        datalog_read(log_to_send, first + sent, chunk, n);
         att_server_notify(phone, DATA_HANDLE, chunk, (uint16_t)n);
         uint32_t before = sent;
         sent += n;
@@ -594,22 +598,22 @@ static void send_chunk(void) {
     state_set_status(state, status);
 }
 
-static int att_write(hci_con_handle_t con, uint16_t handle, uint16_t mode, uint16_t offset, uint8_t *buffer,
-                     uint16_t size) {
+static int handle_att_write(hci_con_handle_t con, uint16_t handle, uint16_t mode, uint16_t offset, uint8_t *buffer,
+                            uint16_t size) {
     (void)mode;
     (void)offset;
     if (handle == DATA_CCCD_HANDLE) {
         return 0;
     }
-    if (handle == CONTROL_HANDLE && size >= 1 && buffer[0] == 'D' && send_log) {
+    if (handle == CONTROL_HANDLE && size >= 1 && buffer[0] == 'D' && log_to_send) {
         log_line("ble: the phone got the data log");
         state_set_status(state, "SEND LOG\ndownloaded\nback to the gauges");
         received_at = now ? now : 1;
         return 0;
     }
-    if (handle == CONTROL_HANDLE && size >= 1 && buffer[0] == 'S' && send_log) {
-        first = datalog_oldest(send_log);
-        total = send_log->dev.size - first;
+    if (handle == CONTROL_HANDLE && size >= 1 && buffer[0] == 'S' && log_to_send) {
+        first = datalog_oldest_record_offset(log_to_send);
+        total = log_to_send->dev.size - first;
         sent = 0;
         header_sent = false;
         streaming = true;
@@ -619,40 +623,40 @@ static int att_write(hci_con_handle_t con, uint16_t handle, uint16_t mode, uint1
     return 0;
 }
 
-static void att_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
+static void handle_att_event(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
     (void)channel;
     (void)size;
     if (packet_type == HCI_EVENT_PACKET && hci_event_packet_get_type(packet) == ATT_EVENT_CAN_SEND_NOW) {
-        send_chunk();
+        send_next_log_chunk();
     }
 }
 
-static void start_scan(void) {
+static void start_dongle_scan(void) {
     log_line("ble: scanning for the OBD dongle (a phone connected to it hides it)");
     set_phase(SCANNING, "SEARCHING\nlooking for the OBD dongle");
     gap_set_scan_parameters(1, 0x30, 0x30); // active: also get the scan responses, with names
     gap_start_scan();
 }
 
-// resume ends Send log: off the air, the phone let go, back to the dongle
+// back_to_dongle ends Send log: off the air, the phone let go, back to the dongle
 // without a reboot.
-static void resume(void) {
+static void back_to_dongle(void) {
     log_line("ble: send log over, back to the dongle");
-    send_log = NULL;
+    log_to_send = NULL;
     streaming = false;
     received_at = 0;
     gap_advertisements_enable(0);
     if (phone != HCI_CON_HANDLE_INVALID) {
         gap_disconnect(phone);
     }
-    start_scan();
+    start_dongle_scan();
 }
 
 // start_radio brings the radio and BTstack up; the HCI working event
 // carries on from the phase it finds.
 static void start_radio(void) {
     if (cyw43_arch_init()) {
-        fail("Bluetooth", "cyw43 init failed");
+        fail_connection("Bluetooth", "cyw43 init failed");
         return;
     }
     stack_up = true;
@@ -660,14 +664,14 @@ static void start_radio(void) {
     sm_init();
     sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
     gatt_client_init();
-    att_server_init(profile_data, NULL, att_write);
-    att_server_register_packet_handler(att_handler);
-    hci_registration.callback = hci_handler;
+    att_server_init(profile_data, NULL, handle_att_write);
+    att_server_register_packet_handler(handle_att_event);
+    hci_registration.callback = handle_hci_event;
     hci_add_event_handler(&hci_registration);
     hci_power_control(HCI_POWER_ON);
 }
 
-static void start(void) {
+static void start_bluetooth(void) {
     set_phase(STARTING, "IGNITION\nstarting Bluetooth");
     start_radio();
 }
@@ -677,14 +681,14 @@ void ble_init(state_t *s, bool auto_start, const dongle_t *last) {
     auto_connect = auto_start;
     last_dongle = *last;
     if (auto_start) {
-        start();
+        start_bluetooth();
     } else {
         set_phase(PROMPT, "READY\nlooking for dongles\npress to connect");
         start_radio();
     }
 }
 
-bool ble_take_dongle(dongle_t *out) {
+bool ble_take_connected_dongle(dongle_t *out) {
     if (!connected_new) {
         return false;
     }
@@ -693,7 +697,7 @@ bool ble_take_dongle(dongle_t *out) {
     return true;
 }
 
-static void check_timeouts(void) {
+static void check_phase_timeouts(void) {
     if (disconnecting) {
         return;
     }
@@ -701,18 +705,18 @@ static void check_timeouts(void) {
     switch (phase) {
     case STARTING:
         if (elapsed > STEP_TIMEOUT_MS) {
-            fail("Bluetooth", "the radio didn't start");
+            fail_connection("Bluetooth", "the radio didn't start");
         }
         break;
     case SCANNING:
         if (elapsed > SCAN_TIMEOUT_MS) {
-            fail("BLE scan", "no OBD dongle found");
+            fail_connection("BLE scan", "no OBD dongle found");
         }
         break;
     case CONNECTING:
         if (elapsed > STEP_TIMEOUT_MS) {
             gap_connect_cancel();
-            fail("BLE connect", "the dongle didn't answer");
+            fail_connection("BLE connect", "the dongle didn't answer");
         }
         break;
     case DISCOVERING_SERVICES:
@@ -720,12 +724,12 @@ static void check_timeouts(void) {
     case READING_NAME:
     case ENABLING_NOTIFICATIONS:
         if (elapsed > STEP_TIMEOUT_MS) {
-            fail("BLE connect", "GATT discovery timed out");
+            fail_connection("BLE connect", "GATT discovery timed out");
         }
         break;
     case SENDING:
         if (received_at && now - received_at > RESUME_MS) {
-            resume();
+            back_to_dongle();
         }
         break;
     case FAILED:
@@ -738,7 +742,7 @@ static void check_timeouts(void) {
     }
 }
 
-static void standby(void) {
+static void enter_standby(void) {
     log_line("car off: the engine ECU was silent for %ds, standby", CAR_OFF_MS / 1000);
     set_phase(STANDBY, "SLEEP\ncar off, press to wake");
     if (connection != HCI_CON_HANDLE_INVALID) {
@@ -748,19 +752,19 @@ static void standby(void) {
     }
 }
 
-void ble_poll(uint32_t now_ms) {
+void ble_poll_radio(uint32_t now_ms) {
     now = now_ms;
     if (stack_up) {
         cyw43_arch_poll();
     }
     if (phase == RUNNING && elm.phase != ELM_OFF) {
-        flush_pending();
-        elm_tick(&elm, now_ms);
+        write_pending_command();
+        elm_check_timers(&elm, now_ms);
         if (elm.phase == ELM_POLL && now_ms - elm.ecu_ms > CAR_OFF_MS) {
-            standby();
+            enter_standby();
         }
     }
-    check_timeouts();
+    check_phase_timeouts();
 }
 
 void ble_go_offline(void) {
@@ -795,10 +799,10 @@ void ble_send_log(datalog_t *log) {
     if (!log || phase == SENDING) {
         return;
     }
-    send_log = log;
+    log_to_send = log;
     log_line("ble: send log");
     if (!stack_up) {
-        start();
+        start_bluetooth();
         return;
     }
     switch (phase) {
@@ -820,35 +824,35 @@ void ble_send_log(datalog_t *log) {
         set_phase(SENDING, "SEND LOG\nletting the dongle go");
         gap_disconnect(connection);
     } else {
-        advertise();
+        advertise_to_phone();
     }
 }
 
-void ble_scan_ram(void) {
+void ble_request_ram_scan(void) {
     if (phase == RUNNING) {
-        elm_scan_ram(&elm);
+        elm_request_ram_scan(&elm);
     }
 }
 
-void ble_listen_can(void) {
+void ble_request_can_listen(void) {
     if (phase == RUNNING) {
-        elm_listen_can(&elm);
+        elm_request_can_listen(&elm);
     }
 }
 
-bool ble_standby(void) {
+bool ble_in_standby(void) {
     return phase == STANDBY;
 }
 
-bool ble_prompt_click(uint32_t now_ms) {
+bool ble_handle_click(uint32_t now_ms) {
     now = now_ms;
     switch (phase) {
     case PROMPT:
         if (picked.set) {
-            connect_to(picked.addr, picked.type, picked_name);
+            connect_to_dongle(picked.addr, picked.type, picked_name);
         } else if (radio_on) {
             gap_stop_scan();
-            start_scan();
+            start_dongle_scan();
         } else {
             // The radio is still starting: it scans once up.
             set_phase(STARTING, "IGNITION\nstarting Bluetooth");
@@ -873,14 +877,14 @@ bool ble_prompt_click(uint32_t now_ms) {
         reboot_to_connect();
         return true;
     case SENDING:
-        resume();
+        back_to_dongle();
         return true;
     default:
         return false;
     }
 }
 
-void ble_disconnect(void) {
+void ble_disconnect_before_reboot(void) {
     disconnecting = true;
     if (connection != HCI_CON_HANDLE_INVALID) {
         gap_disconnect(connection);

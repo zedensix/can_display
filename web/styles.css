@@ -14,15 +14,17 @@
 }
 
 body {
-  background:
-    radial-gradient(120% 60% at 50% -10%, rgb(255 90 30 / 0.18), transparent 60%),
-    var(--color-ink);
+  background: radial-gradient(120% 60% at 50% -10%, rgb(255 90 30 / 0.18), transparent 60%), var(--color-ink);
 }
 
 /* The progress bar's sheen, while bytes come in. */
 @keyframes sheen {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(300%); }
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
 }
 .sheen::after {
   content: "";

@@ -47,7 +47,7 @@ void datalog_flush(datalog_t *log);
 // offset 0 is the oldest byte, dev.size the end. Flush first.
 void datalog_read(const datalog_t *log, uint32_t offset, uint8_t *out, size_t len);
 
-// datalog_oldest is the offset, in datalog_read's terms, of the oldest
+// datalog_oldest_record_offset is the offset, in datalog_read's terms, of the oldest
 // record: what's before it is erased flash, not worth sending. dev.size
 // for an empty log.
-uint32_t datalog_oldest(const datalog_t *log);
+uint32_t datalog_oldest_record_offset(const datalog_t *log);

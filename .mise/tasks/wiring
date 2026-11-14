@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Capture docs/wiring.html (color and blueprint) into docs/resources/ for docs/wiring.md"
+set -euo pipefail
+
+bun install --frozen-lockfile >/dev/null
+# Downloads Playwright's Chromium the first time only.
+bunx playwright install chromium
+bun tools/capture_wiring.ts

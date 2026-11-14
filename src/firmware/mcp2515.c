@@ -35,7 +35,7 @@ static state_t *state;
 static bool ready;
 static uint32_t afr_ms;
 
-static void transfer(const uint8_t *out, uint8_t *in, size_t len) {
+static void spi_transfer(const uint8_t *out, uint8_t *in, size_t len) {
     gpio_put(CAN_CS, 0);
     if (in) {
         spi_write_read_blocking(spi1, out, in, len);
@@ -46,12 +46,12 @@ static void transfer(const uint8_t *out, uint8_t *in, size_t len) {
 }
 
 static void write_register(uint8_t reg, uint8_t value) {
-    transfer((const uint8_t[]){INSTR_WRITE, reg, value}, NULL, 3);
+    spi_transfer((const uint8_t[]){INSTR_WRITE, reg, value}, NULL, 3);
 }
 
 static uint8_t read_register(uint8_t reg) {
     uint8_t in[3];
-    transfer((const uint8_t[]){INSTR_READ, reg, 0}, in, 3);
+    spi_transfer((const uint8_t[]){INSTR_READ, reg, 0}, in, 3);
     return in[2];
 }
 
@@ -65,7 +65,7 @@ void mcp2515_source_init(state_t *s) {
     gpio_set_dir(CAN_CS, GPIO_OUT);
     gpio_put(CAN_CS, 1);
 
-    transfer((const uint8_t[]){INSTR_RESET}, NULL, 1);
+    spi_transfer((const uint8_t[]){INSTR_RESET}, NULL, 1);
     sleep_ms(10);
     // 500kbps, the GT86's high-speed CAN bus, with the 16MHz crystal most
     // breakout boards ship with. An 8MHz crystal needs other CNF values.
@@ -85,9 +85,9 @@ void mcp2515_source_init(state_t *s) {
     log_line("can: MCP2515 ready");
 }
 
-static void receive(uint8_t instruction, uint32_t now_ms) {
+static void read_rx_buffer(uint8_t instruction, uint32_t now_ms) {
     uint8_t out[14] = {instruction}, in[14];
-    transfer(out, in, sizeof in);
+    spi_transfer(out, in, sizeof in);
     // in[1..4]: SIDH SIDL EID8 EID0, in[5]: DLC, in[6..13]: data. Reading
     // through READ RX clears the buffer's interrupt flag.
     if (in[2] & 0x08) {
@@ -100,36 +100,36 @@ static void receive(uint8_t instruction, uint32_t now_ms) {
     for (int i = 0; i < f.dlc; i++) {
         f.data[i] = in[6 + i];
     }
-    if (!gt86_decode(&f, state, now_ms)) {
-        obd_decode(&f, state, now_ms);
+    if (!gt86_decode_broadcast(&f, state, now_ms)) {
+        obd_decode_frame(&f, state, now_ms);
     }
 }
 
-static void send(const can_frame_t *f) {
+static void send_obd_request(const can_frame_t *f) {
     uint8_t out[14] = {INSTR_LOAD_TX0, (uint8_t)(f->id >> 3), (uint8_t)((f->id & 7) << 5), 0, 0, f->dlc};
     for (int i = 0; i < f->dlc; i++) {
         out[6 + i] = f->data[i];
     }
-    transfer(out, NULL, 6 + f->dlc);
-    transfer((const uint8_t[]){INSTR_RTS_TX0}, NULL, 1);
+    spi_transfer(out, NULL, 6 + f->dlc);
+    spi_transfer((const uint8_t[]){INSTR_RTS_TX0}, NULL, 1);
 }
 
-void mcp2515_source_poll(uint32_t now_ms) {
+void mcp2515_poll_bus(uint32_t now_ms) {
     if (!ready) {
         return;
     }
     uint8_t in[2];
-    transfer((const uint8_t[]){INSTR_READ_STATUS, 0}, in, 2);
+    spi_transfer((const uint8_t[]){INSTR_READ_STATUS, 0}, in, 2);
     if (in[1] & 0x01) {
-        receive(INSTR_READ_RX0, now_ms);
+        read_rx_buffer(INSTR_READ_RX0, now_ms);
     }
     if (in[1] & 0x02) {
-        receive(INSTR_READ_RX1, now_ms);
+        read_rx_buffer(INSTR_READ_RX1, now_ms);
     }
     // The AFR needs a request: it isn't broadcast.
     if (now_ms - afr_ms >= AFR_INTERVAL_MS) {
         afr_ms = now_ms;
-        can_frame_t request = obd_request(PID_LAMBDA);
-        send(&request);
+        can_frame_t request = obd_build_request(PID_LAMBDA);
+        send_obd_request(&request);
     }
 }

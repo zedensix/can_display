@@ -14,15 +14,15 @@ void gfx_fill_rect(canvas_t *c, int x, int y, int w, int h, color_t color) {
     }
 }
 
-static int degree_radius(const font_t *font) {
+static int degree_ring_radius(const font_t *font) {
     int r = font->y_advance / 10;
     return r < 2 ? 2 : r;
 }
 
-// draw_degree draws a ring at the top of the line, standing for the
+// draw_degree_ring draws a ring at the top of the line, standing for the
 // degree sign, and returns its advance.
-static int draw_degree(canvas_t *c, const font_t *font, int x, int y, color_t color, int scale) {
-    int r = degree_radius(font);
+static int draw_degree_ring(canvas_t *c, const font_t *font, int x, int y, color_t color, int scale) {
+    int r = degree_ring_radius(font);
     int inner = r - (r / 2 > 1 ? r / 2 : 1);
     int cx = x + r + 1, cy = y - font->y_advance * 6 / 10 + r;
     for (int dy = -r; dy <= r; dy++) {
@@ -40,7 +40,7 @@ int gfx_text(canvas_t *c, const font_t *font, int x, int y, const char *s, color
     for (; *s; s++) {
         unsigned char ch = (unsigned char)*s;
         if (ch == 0xb0) {
-            x += draw_degree(c, font, x, y, color, scale) * scale;
+            x += draw_degree_ring(c, font, x, y, color, scale) * scale;
             continue;
         }
         if (ch < font->first || ch > font->last) {
@@ -67,7 +67,7 @@ int gfx_text_width(const font_t *font, const char *s) {
     for (; *s; s++) {
         unsigned char ch = (unsigned char)*s;
         if (ch == 0xb0) {
-            width += 2 * degree_radius(font) + 3;
+            width += 2 * degree_ring_radius(font) + 3;
         } else if (ch >= font->first && ch <= font->last) {
             width += font->glyphs[ch - font->first].x_advance;
         }

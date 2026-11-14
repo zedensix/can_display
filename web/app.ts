@@ -28,7 +28,7 @@ type Sample = {
 
 type Session = { id: number; samples: Sample[] };
 
-function el<T extends HTMLElement = HTMLElement>(id: string): T {
+function elementById<T extends HTMLElement = HTMLElement>(id: string): T {
   const found = document.getElementById(id);
   if (!found) throw new Error(`#${id} is missing from the page`);
   return found as T;
@@ -36,32 +36,32 @@ function el<T extends HTMLElement = HTMLElement>(id: string): T {
 
 let samples: Sample[] = [];
 
-const status = (text: string) => {
-  el("status").textContent = text;
+const showStatus = (text: string) => {
+  elementById("status").textContent = text;
 };
 
-// parse turns the raw log into samples, oldest first.
-export function parse(bytes: Uint8Array): Sample[] {
+// parseDataLog turns the raw log into samples, oldest first.
+export function parseDataLog(bytes: Uint8Array): Sample[] {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const out: Sample[] = [];
   for (let at = 0; at + RECORD <= bytes.length; at += RECORD) {
     const session = view.getUint16(at, true);
     // Erased flash, or a lap record from a firmware that had a lap timer.
     if (session === 0xffff || view.getUint8(at + 2) !== SAMPLE) continue;
-    const column = (i: number, scale: number) => {
+    const readColumn = (i: number, scale: number) => {
       const v = view.getInt16(at + 8 + 2 * i, true);
       return v === NONE16 ? null : v / scale;
     };
     out.push({
       session,
       t: view.getUint32(at + 4, true),
-      rpm: column(0, 1),
-      coolant: column(1, 10),
-      oil: column(2, 10),
-      intake: column(3, 10),
-      afr: column(4, 100),
-      battery: column(5, 100),
-      ethanol: column(6, 10),
+      rpm: readColumn(0, 1),
+      coolant: readColumn(1, 10),
+      oil: readColumn(2, 10),
+      intake: readColumn(3, 10),
+      afr: readColumn(4, 100),
+      battery: readColumn(5, 100),
+      ethanol: readColumn(6, 10),
     });
   }
   return out.sort((a, b) => a.session - b.session || a.t - b.t);
@@ -69,16 +69,16 @@ export function parse(bytes: Uint8Array): Sample[] {
 
 type Column = "rpm" | "coolant" | "oil" | "intake" | "afr" | "battery" | "ethanol";
 
-// extremes is the lowest and highest reading of a column, null without any.
-function extremes(of: Sample[], column: Column): [number, number] | null {
+// lowestAndHighest is the lowest and highest reading of a column, null without any.
+function lowestAndHighest(of: Sample[], column: Column): [number, number] | null {
   const values = of.map((s) => s[column]).filter((v): v is number => v !== null);
   return values.length ? [Math.min(...values), Math.max(...values)] : null;
 }
 
-const minutes = (of: Sample[]) =>
+const minutesDriven = (of: Sample[]) =>
   of.length ? Math.max(1, Math.round((of[of.length - 1].t - of[0].t) / 60000)) : 0;
 
-function peak(label: string, value: string, hot = false) {
+function peakRowHtml(label: string, value: string, hot = false) {
   return `
     <div class="flex items-baseline justify-between py-1.5">
       <span class="text-sm text-dim">${label}</span>
@@ -86,50 +86,51 @@ function peak(label: string, value: string, hot = false) {
     </div>`;
 }
 
-function sessionCard(session: Session): string {
-  const top = (column: Column, unit: string, digits = 0) => {
-    const range = extremes(session.samples, column);
+function sessionCardHtml(session: Session): string {
+  const highestReading = (column: Column, unit: string, digits = 0) => {
+    const range = lowestAndHighest(session.samples, column);
     return range ? `${range[1].toFixed(digits)}${unit}` : "--";
   };
-  const afr = extremes(session.samples, "afr");
+  const afr = lowestAndHighest(session.samples, "afr");
   return `
     <article class="rounded-2xl border border-frame bg-panel p-4">
       <header class="flex items-baseline justify-between">
         <h2 class="font-display text-2xl font-bold tracking-wider text-accent">SESSION ${session.id}</h2>
-        <span class="text-sm text-dim">${minutes(session.samples)} min</span>
+        <span class="text-sm text-dim">${minutesDriven(session.samples)} min</span>
       </header>
       <div class="mt-3 divide-y divide-frame">
-        ${peak("Top RPM", top("rpm", ""))}
-        ${peak("Hottest oil", top("oil", "°C"), (extremes(session.samples, "oil")?.[1] ?? 0) >= 120)}
-        ${peak("Hottest coolant", top("coolant", "°C"))}
-        ${peak("Hottest intake", top("intake", "°C"))}
-        ${peak("AFR range", afr ? `${afr[0].toFixed(1)} to ${afr[1].toFixed(1)}` : "--")}
+        ${peakRowHtml("Top RPM", highestReading("rpm", ""))}
+        ${peakRowHtml("Hottest oil", highestReading("oil", "°C"), (lowestAndHighest(session.samples, "oil")?.[1] ?? 0) >= 120)}
+        ${peakRowHtml("Hottest coolant", highestReading("coolant", "°C"))}
+        ${peakRowHtml("Hottest intake", highestReading("intake", "°C"))}
+        ${peakRowHtml("AFR range", afr ? `${afr[0].toFixed(1)} to ${afr[1].toFixed(1)}` : "--")}
       </div>
     </article>`;
 }
 
-function show() {
+function showResults() {
   const sessions = new Map<number, Sample[]>();
   for (const s of samples) {
     const list = sessions.get(s.session) ?? [];
     list.push(s);
     sessions.set(s.session, list);
   }
-  const oil = extremes(samples, "oil");
-  const rpm = extremes(samples, "rpm");
-  el("stat-sessions").textContent = String(sessions.size);
-  el("stat-time").textContent = `${[...sessions.values()].reduce((sum, list) => sum + minutes(list), 0)} min`;
-  el("stat-oil").textContent = oil ? `${oil[1].toFixed(0)}°C` : "--";
-  el("stat-rpm").textContent = rpm ? rpm[1].toFixed(0) : "--";
-  el("sessions").innerHTML = [...sessions]
+  const oil = lowestAndHighest(samples, "oil");
+  const rpm = lowestAndHighest(samples, "rpm");
+  elementById("stat-sessions").textContent = String(sessions.size);
+  elementById("stat-time").textContent =
+    `${[...sessions.values()].reduce((sum, list) => sum + minutesDriven(list), 0)} min`;
+  elementById("stat-oil").textContent = oil ? `${oil[1].toFixed(0)}°C` : "--";
+  elementById("stat-rpm").textContent = rpm ? rpm[1].toFixed(0) : "--";
+  elementById("sessions").innerHTML = [...sessions]
     .reverse()
-    .map(([id, list]) => sessionCard({ id, samples: list }))
+    .map(([id, list]) => sessionCardHtml({ id, samples: list }))
     .join("");
-  el<HTMLButtonElement>("csv").disabled = samples.length === 0;
-  el("results").classList.remove("hidden");
+  elementById<HTMLButtonElement>("csv").disabled = samples.length === 0;
+  elementById("results").classList.remove("hidden");
 }
 
-function save(name: string, header: string, rows: string[]) {
+function saveCsv(name: string, header: string, rows: string[]) {
   const blob = new Blob([`${header}\n${rows.join("\n")}\n`], { type: "text/csv" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
@@ -138,23 +139,32 @@ function save(name: string, header: string, rows: string[]) {
   URL.revokeObjectURL(link.href);
 }
 
-const cell = (v: number | null) => (v === null ? "" : String(v));
+const csvCell = (v: number | null) => (v === null ? "" : String(v));
 
-el("csv").onclick = () =>
-  save(
+elementById("csv").onclick = () =>
+  saveCsv(
     "gt86-log.csv",
     "session,time_s,rpm,coolant_c,oil_c,intake_c,afr,battery_v,ethanol_pct",
     samples.map((s) =>
-      [s.session, (s.t / 1000).toFixed(1), cell(s.rpm), cell(s.coolant), cell(s.oil), cell(s.intake), cell(s.afr),
-        cell(s.battery), cell(s.ethanol)].join(","),
+      [
+        s.session,
+        (s.t / 1000).toFixed(1),
+        csvCell(s.rpm),
+        csvCell(s.coolant),
+        csvCell(s.oil),
+        csvCell(s.intake),
+        csvCell(s.afr),
+        csvCell(s.battery),
+        csvCell(s.ethanol),
+      ].join(","),
     ),
   );
 
-// download connects, asks for the log and resolves with its bytes.
-async function download(): Promise<Uint8Array> {
+// downloadLogFromDash connects, asks for the log and resolves with its bytes.
+async function downloadLogFromDash(): Promise<Uint8Array> {
   const device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE] }] });
   if (!device.gatt) throw new Error("the dash has no GATT server");
-  status("Connecting...");
+  showStatus("Connecting...");
   const server = await device.gatt.connect();
   const service = await server.getPrimaryService(SERVICE);
   const data = await service.getCharacteristic(DATA);
@@ -171,21 +181,21 @@ async function download(): Promise<Uint8Array> {
       if (!buffer) {
         // The first notification is the size.
         buffer = new Uint8Array(value.getUint32(0, true));
-        el("transfer").classList.remove("hidden");
+        elementById("transfer").classList.remove("hidden");
         if (buffer.length === 0) resolve(buffer);
         return;
       }
       buffer.set(chunk.subarray(0, buffer.length - got), got);
       got += chunk.length;
       const seconds = (performance.now() - started) / 1000;
-      el("progress").style.width = `${Math.min(100, (100 * got) / buffer.length)}%`;
-      el("received").textContent = `${Math.round(got / 1024)} / ${Math.round(buffer.length / 1024)} KB`;
-      el("speed").textContent = `${(got / 1024 / seconds).toFixed(1)} KB/s`;
+      elementById("progress").style.width = `${Math.min(100, (100 * got) / buffer.length)}%`;
+      elementById("received").textContent = `${Math.round(got / 1024)} / ${Math.round(buffer.length / 1024)} KB`;
+      elementById("speed").textContent = `${(got / 1024 / seconds).toFixed(1)} KB/s`;
       if (got >= buffer.length) resolve(buffer);
     });
   });
   await data.startNotifications();
-  status("Downloading...");
+  showStatus("Downloading...");
   await control.writeValueWithoutResponse(new Uint8Array([0x53])); // 'S': send
   const received = await bytes;
   await control.writeValueWithoutResponse(new Uint8Array([0x44])); // 'D': downloaded
@@ -193,20 +203,22 @@ async function download(): Promise<Uint8Array> {
   return received;
 }
 
-const connect = el<HTMLButtonElement>("connect");
+const connect = elementById<HTMLButtonElement>("connect");
 connect.onclick = async () => {
   if (!navigator.bluetooth) {
-    status("No Web Bluetooth here: open this page in Chrome on Android.");
+    showStatus("No Web Bluetooth here: open this page in Chrome on Android.");
     return;
   }
   connect.disabled = true;
   try {
-    samples = parse(await download());
-    el("progress").classList.remove("sheen");
-    status(`${samples.length ? `${samples.length} samples.` : "The log is empty."} The dash is back on its gauges.`);
-    show();
+    samples = parseDataLog(await downloadLogFromDash());
+    elementById("progress").classList.remove("sheen");
+    showStatus(
+      `${samples.length ? `${samples.length} samples.` : "The log is empty."} The dash is back on its gauges.`,
+    );
+    showResults();
   } catch (e) {
-    status(`Failed: ${e instanceof Error ? e.message : String(e)}`);
+    showStatus(`Failed: ${e instanceof Error ? e.message : String(e)}`);
   }
   connect.disabled = false;
 };

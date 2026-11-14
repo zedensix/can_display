@@ -8,12 +8,12 @@
 // loop, debounced, acting as it goes down.
 void knob_init(void);
 
-// knob_poll returns the detents turned since the last call (positive
+// knob_read_input returns the detents turned since the last call (positive
 // clockwise; swap CLK and DT if it's backwards), whether the button just
 // went down, and whether it has just been held for KNOB_LONG_PRESS_MS.
 #define KNOB_LONG_PRESS_MS 1000
-int knob_poll(uint32_t now_ms, bool *press, bool *long_press);
+int knob_read_input(uint32_t now_ms, bool *press, bool *long_press);
 
-// knob_pending is true when knob_poll has something new: the main loop
+// knob_has_new_input is true when knob_read_input has something new: the main loop
 // cuts its wait short to draw it at once.
-bool knob_pending(void);
+bool knob_has_new_input(void);
