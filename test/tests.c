@@ -14,8 +14,6 @@
 #include "settings.h"
 #include "sniff.h"
 #include "datalog.h"
-#include "laptimer.h"
-#include "nmea.h"
 #include "ui.h"
 
 static int failures;
@@ -463,14 +461,13 @@ static void test_settings(void) {
     buf[4] = 1; // saved by a firmware without the shift light
     settings_t old = settings_decode(buf);
     CHECK(old.brightness == 40 && old.flip && old.shift_rpm == 0, "version 1 settings lost (shift %d)", old.shift_rpm);
-    cfg.lap_line = (lap_line_t){true, 481173000, -15166666, 271};
     cfg.dongle = (dongle_t){true, {0x33, 0xC0, 0x9A, 0x86, 0x42, 0x41}, 0, "IOS-Vlink"};
     settings_encode(cfg, buf);
-    CHECK(settings_equal(settings_decode(buf), cfg), "the lap line and dongle didn't round-trip");
+    CHECK(settings_equal(settings_decode(buf), cfg), "the dongle didn't round-trip");
     buf[4] = 4; // saved before the dongle's name was
     CHECK(settings_decode(buf).dongle.set && settings_decode(buf).dongle.name[0] == 0, "version 4 dongle misread");
     buf[4] = 3; // saved before the dongle was
-    CHECK(!settings_decode(buf).dongle.set && settings_decode(buf).lap_line.set, "version 3 settings misread");
+    CHECK(!settings_decode(buf).dongle.set && settings_decode(buf).brightness == 40, "version 3 settings misread");
     memset(buf, 0xFF, sizeof buf);
     CHECK(settings_equal(settings_decode(buf), SETTINGS_DEFAULT), "erased flash didn't give the defaults");
 }
@@ -519,8 +516,7 @@ static void test_screen(void) {
     static const struct {
         int row;
         action_t action;
-    } actions[] = {{ROW_LAP_LINE, ACTION_SET_LAP_LINE},
-                   {ROW_SEND_LOG, ACTION_SEND_LOG},
+    } actions[] = {{ROW_SEND_LOG, ACTION_SEND_LOG},
                    {ROW_SCAN, ACTION_SCAN},
                    {ROW_LISTEN, ACTION_LISTEN},
                    {ROW_DISCONNECT, ACTION_DISCONNECT}};
@@ -558,73 +554,6 @@ static void test_extremes(void) {
           (double)r.value, (double)r.min, (double)r.max);
 }
 
-static void test_nmea(void) {
-    gps_fix_t fix;
-    CHECK(nmea_parse_rmc("$GPRMC,123519.20,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*46", &fix) &&
-              fix.valid,
-          "a valid RMC didn't parse");
-    CHECK(fix.time_ms == (12 * 3600 + 35 * 60 + 19) * 1000 + 200, "time %u", (unsigned)fix.time_ms);
-    // 48 deg 07.038' N = 48.1173 deg; 11 deg 31.000' E = 11.516667 deg.
-    CHECK(fix.lat == 481173000 && fix.lon == 115166666, "lat %ld lon %ld", (long)fix.lat, (long)fix.lon);
-    CHECK(near(fix.speed_kmh, 22.4f * 1.852f) && near(fix.course_deg, 84.4f), "speed %f course %f",
-          (double)fix.speed_kmh, (double)fix.course_deg);
-    CHECK(!nmea_parse_rmc("$GPRMC,123519.20,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*47", &fix),
-          "a bad checksum parsed");
-    CHECK(nmea_parse_rmc("$GNRMC,123519.00,V,,,,,,,230394,,,N*61", &fix) && !fix.valid, "a void fix came out valid");
-    CHECK(!nmea_parse_rmc("$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47", &fix),
-          "a GGA parsed as RMC");
-}
-
-// fix_at is a fix d_north meters north of the line at 45N, t ms.
-static gps_fix_t fix_at(float d_north, uint32_t t) {
-    return (gps_fix_t){.valid = true, .time_ms = t, .lat = 450000000 + (int32_t)(d_north / 110574 * 1e7f),
-                       .lon = 30000000, .speed_kmh = 100, .course_deg = 0};
-}
-
-static bool feed(laptimer_t *l, const lap_line_t *line, gps_fix_t fix, uint32_t now) {
-    return laptimer_feed(l, line, &fix, now);
-}
-
-static void test_laptimer(void) {
-    gps_fix_t standing = fix_at(0, 0);
-    standing.speed_kmh = 0;
-    lap_line_t line = lap_line_at(&standing);
-    CHECK(line.set && line.heading == -1, "a line set standing still has heading %d, want -1", line.heading);
-    gps_fix_t moving = {.valid = true, .speed_kmh = 30};
-    CHECK(!lap_line_settle(&line, &standing) && lap_line_settle(&line, &moving),
-          "the line didn't take the course of the first moving fix");
-    CHECK(line.heading == 0, "heading %d, want 0 (north)", line.heading);
-
-    laptimer_t l = {0};
-    // Northbound at 100 km/h (27.8 m/s), a fix every 100ms: from 2m short
-    // of the line to 0.78m past it, the crossing is 72% of the way.
-    CHECK(!feed(&l, &line, (gps_fix_t){.valid = true, .time_ms = 900, .lat = 450000000 - 300, .lon = 30000000, .speed_kmh = 100}, 1000),
-          "the first fix ended a lap");
-    feed(&l, &line, fix_at(-2, 1000), 1100);
-    CHECK(!feed(&l, &line, fix_at(0.78f, 1100), 1200) && l.timing, "crossing didn't start the first lap");
-    CHECK(l.start_gps_ms >= 1070 && l.start_gps_ms <= 1074, "crossed at %u, want ~1072", (unsigned)l.start_gps_ms);
-    CHECK(l.start_at_ms >= 1170 && l.start_at_ms <= 1174, "on the Pico's clock %u, want ~1172", (unsigned)l.start_at_ms);
-
-    // Southbound over the line: the wrong way, no lap.
-    gps_fix_t back = fix_at(-1, 50000);
-    back.course_deg = 180;
-    feed(&l, &line, fix_at(1, 49900), 50000);
-    CHECK(!feed(&l, &line, back, 50100), "crossing backwards ended a lap");
-    // 40m to the side: outside the gate.
-    gps_fix_t wide0 = fix_at(-2, 60000), wide1 = fix_at(1, 60100);
-    wide0.lon = wide1.lon = 30000000 + 5100; // ~40m east
-    feed(&l, &line, wide0, 61000);
-    CHECK(!feed(&l, &line, wide1, 61100), "a crossing 40m beside the line ended a lap");
-
-    feed(&l, &line, fix_at(-1, 103000), 104000);
-    CHECK(feed(&l, &line, fix_at(1.78f, 103100), 104100), "the second crossing didn't end a lap");
-    CHECK(l.laps == 1 && l.last_ms >= 101962 && l.last_ms <= 101966 && l.best_ms == l.last_ms,
-          "lap 1: %d laps, last %u, best %u, want ~101964", l.laps, (unsigned)l.last_ms, (unsigned)l.best_ms);
-    // Hovering over the line a second later: too soon for a lap.
-    feed(&l, &line, fix_at(-1, 104000), 105000);
-    CHECK(!feed(&l, &line, fix_at(1, 104100), 105100), "a crossing 1s after the last ended a lap");
-}
-
 static void test_datalog(void) {
     static fake_flash_t f;
     memset(f.data, 0xFF, sizeof f.data);
@@ -635,19 +564,15 @@ static void test_datalog(void) {
     CHECK(log.pos == 0 && log.session == 0, "empty flash: pos %u session %u", (unsigned)log.pos, log.session);
     state_set(&s, SIG_RPM, 3000, 0);
     state_set(&s, SIG_AFR, 14.7f, 0);
-    for (uint32_t t = 0; t < 10 * DATALOG_SAMPLE_MS; t += DATALOG_SAMPLE_MS) {
+    for (uint32_t t = 0; t < 11 * DATALOG_SAMPLE_MS; t += DATALOG_SAMPLE_MS) {
         s.readings[SIG_RPM].updated_ms = s.readings[SIG_AFR].updated_ms = t;
         datalog_sample(&log, &s, t);
     }
-    s.lap.laps = 1;
-    datalog_lap(&log, &s, 101964, 2000);
     datalog_flush(&log);
     // 11 records: 8 in the first page, 3 flushed in the second.
     CHECK(f.data[8] == (3000 & 0xFF) && f.data[9] == 3000 >> 8, "the first sample's RPM isn't in flash");
-    CHECK(f.data[10 * 32 + 2] == DATALOG_LAP && f.data[10 * 32 + 3] == 1, "the lap record isn't the 11th");
-    uint8_t lap_ms[4];
-    memcpy(lap_ms, &f.data[10 * 32 + 22], 4);
-    CHECK((lap_ms[0] | lap_ms[1] << 8 | lap_ms[2] << 16) == 101964, "the lap record's time isn't 101964");
+    CHECK(f.data[10 * 32 + 2] == DATALOG_SAMPLE && f.data[10 * 32 + 4] == (10 * DATALOG_SAMPLE_MS & 0xFF),
+          "the 11th sample isn't in flash");
     CHECK(f.data[8 + 2 * 1] == 0x00 && f.data[8 + 2 * 1 + 1] == 0x80, "a coolant never read isn't -32768");
 
     // A new run carries on after it, in a new session.
@@ -656,7 +581,7 @@ static void test_datalog(void) {
           log.session);
     datalog_sample(&log, &s, 0);
     datalog_flush(&log);
-    CHECK(f.data[11 * 32] == 1 && f.data[10 * 32 + 2] == DATALOG_LAP, "session 1 didn't follow session 0");
+    CHECK(f.data[11 * 32] == 1 && f.data[10 * 32] == 0, "session 1 didn't follow session 0");
 
     // Read back in ring order, the oldest first.
     uint8_t first[DATALOG_RECORD];
@@ -698,8 +623,6 @@ int main(void) {
     test_screen();
     test_sensors();
     test_extremes();
-    test_nmea();
-    test_laptimer();
     test_datalog();
     test_wrap();
     if (failures) {

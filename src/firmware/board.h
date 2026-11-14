@@ -18,12 +18,6 @@
 #define CAN_MISO 12
 #define CAN_CS 13
 
-// A u-blox GPS module (BN-220, BN-880...) on UART0: the Pico's TX to the
-// module's RX, the module's TX to the Pico's RX.
-#define GPS_UART uart0
-#define GPS_TX 0
-#define GPS_RX 1
-
 #define KNOB_CLK 2
 #define KNOB_DT 3
 #define KNOB_BUTTON 4

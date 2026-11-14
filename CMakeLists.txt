@@ -18,7 +18,7 @@ function(add_firmware name)
     target_compile_definitions(${name} PRIVATE PICO_PANIC_FUNCTION=crash_panic CYW43_LWIP=0 ${ARGN})
     target_link_libraries(${name}
         pico_stdlib pico_flash
-        hardware_adc hardware_dma hardware_flash hardware_pwm hardware_spi hardware_uart hardware_watchdog
+        hardware_adc hardware_dma hardware_flash hardware_pwm hardware_spi hardware_watchdog
         pico_cyw43_arch_poll pico_btstack_ble pico_btstack_cyw43)
     pico_btstack_make_gatt_header(${name} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src/firmware/dash.gatt")
     pico_enable_stdio_usb(${name} 1)

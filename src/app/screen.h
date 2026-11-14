@@ -11,7 +11,7 @@
 // alone. A click opens the settings. There, turning moves the cursor, a
 // click toggles the row under it or, on brightness and the shift light,
 // makes turning change the value until the next click. The action rows
-// (Set lap line, Send log, Scan ECU RAM, Listen CAN, Disconnect) return
+// (Send log, Scan ECU RAM, Listen CAN, Disconnect) return
 // to the gauges and set action. Back returns to the gauges.
 
 typedef enum {
@@ -26,7 +26,6 @@ enum {
     ROW_AUTO_CONNECT,
     ROW_FLIP,
     ROW_ETHANOL_SENSOR,
-    ROW_LAP_LINE,
     ROW_SEND_LOG,
     ROW_SCAN,
     ROW_LISTEN,
@@ -39,7 +38,6 @@ enum {
 // clear.
 typedef enum {
     ACTION_NONE,
-    ACTION_SET_LAP_LINE,
     ACTION_SEND_LOG,
     ACTION_SCAN,
     ACTION_LISTEN,

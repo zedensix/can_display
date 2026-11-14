@@ -11,32 +11,22 @@ const CONTROL = "c0ff8601-4b1e-4c7a-9e2d-5a3f86d0a001";
 const DATA = "c0ff8602-4b1e-4c7a-9e2d-5a3f86d0a001";
 const RECORD = 32;
 const SAMPLE = 1;
-const LAP = 2;
 const NONE16 = -32768;
-const NO_FIX = 0x7fffffff;
 
-// Values as the CSV prints them: "" for no reading.
+// A reading per column, null where the dash had none.
 type Sample = {
   session: number;
   t: number;
-  laps: number;
-  rpm: string;
-  coolant: string;
-  oil: string;
-  intake: string;
-  afr: string;
-  battery: string;
-  ethanol: string;
-  lat: string;
-  lon: string;
-  speed: string;
+  rpm: number | null;
+  coolant: number | null;
+  oil: number | null;
+  intake: number | null;
+  afr: number | null;
+  battery: number | null;
+  ethanol: number | null;
 };
 
-type Lap = { session: number; t: number; lap: number; ms: number };
-
-type Session = { from: number; to: number; laps: Lap[] };
-
-type Log = { samples: Sample[]; laps: Lap[] };
+type Session = { id: number; samples: Sample[] };
 
 function el<T extends HTMLElement = HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -44,44 +34,27 @@ function el<T extends HTMLElement = HTMLElement>(id: string): T {
   return found as T;
 }
 
-let log: Log = { samples: [], laps: [] };
+let samples: Sample[] = [];
 
 const status = (text: string) => {
   el("status").textContent = text;
 };
 
-const lapTime = (ms: number) => {
-  const minutes = Math.floor(ms / 60000);
-  const seconds = ((ms % 60000) / 1000).toFixed(2).padStart(5, "0");
-  return `${minutes}:${seconds}`;
-};
-
-// parse turns the raw log into samples and laps, oldest first.
-export function parse(bytes: Uint8Array): Log {
+// parse turns the raw log into samples, oldest first.
+export function parse(bytes: Uint8Array): Sample[] {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const out: Log = { samples: [], laps: [] };
+  const out: Sample[] = [];
   for (let at = 0; at + RECORD <= bytes.length; at += RECORD) {
     const session = view.getUint16(at, true);
-    if (session === 0xffff) continue;
-    const kind = view.getUint8(at + 2);
-    const lapCount = view.getUint8(at + 3);
-    const t = view.getUint32(at + 4, true);
-    if (kind === LAP) {
-      out.laps.push({ session, t, lap: lapCount, ms: view.getUint32(at + 22, true) });
-      continue;
-    }
-    if (kind !== SAMPLE) continue;
+    // Erased flash, or a lap record from a firmware that had a lap timer.
+    if (session === 0xffff || view.getUint8(at + 2) !== SAMPLE) continue;
     const column = (i: number, scale: number) => {
       const v = view.getInt16(at + 8 + 2 * i, true);
-      return v === NONE16 ? "" : String(v / scale);
+      return v === NONE16 ? null : v / scale;
     };
-    const lat = view.getInt32(at + 22, true);
-    const lon = view.getInt32(at + 26, true);
-    const speed = view.getUint16(at + 30, true);
-    out.samples.push({
+    out.push({
       session,
-      t,
-      laps: lapCount,
+      t: view.getUint32(at + 4, true),
       rpm: column(0, 1),
       coolant: column(1, 10),
       oil: column(2, 10),
@@ -89,71 +62,70 @@ export function parse(bytes: Uint8Array): Log {
       afr: column(4, 100),
       battery: column(5, 100),
       ethanol: column(6, 10),
-      lat: lat === NO_FIX ? "" : (lat / 1e7).toFixed(7),
-      lon: lat === NO_FIX ? "" : (lon / 1e7).toFixed(7),
-      speed: speed === 0xffff ? "" : String(speed / 10),
     });
   }
-  const order = (a: { session: number; t: number }, b: { session: number; t: number }) =>
-    a.session - b.session || a.t - b.t;
-  out.samples.sort(order);
-  out.laps.sort(order);
-  return out;
+  return out.sort((a, b) => a.session - b.session || a.t - b.t);
 }
 
-function sessionCard(id: number, session: Session): string {
-  const best = Math.min(...session.laps.map((l) => l.ms));
-  const worst = Math.max(...session.laps.map((l) => l.ms));
-  const rows = session.laps
-    .map((l) => {
-      const isBest = l.ms === best;
-      const share = worst > best ? (l.ms - best) / (worst - best) : 0;
-      const delta = isBest ? "BEST" : `+${((l.ms - best) / 1000).toFixed(2)}`;
-      return `
-        <div class="grid grid-cols-[2.5rem_1fr_7.5rem] items-center gap-3 py-1.5 ${isBest ? "text-good" : ""}">
-          <span class="font-display text-dim">L${l.lap}</span>
-          <div class="h-1.5 overflow-hidden rounded-full bg-frame">
-            <div class="h-full rounded-full ${isBest ? "bg-good" : "bg-accent"}" style="width:${8 + 92 * share}%"></div>
-          </div>
-          <span class="text-right font-display text-lg font-semibold tabular-nums">${lapTime(l.ms)}
-            <span class="ml-1 text-xs ${isBest ? "text-good" : "text-dim"}">${delta}</span></span>
-        </div>`;
-    })
-    .join("");
-  const minutes = Math.max(1, Math.round((session.to - session.from) / 60000));
+type Column = "rpm" | "coolant" | "oil" | "intake" | "afr" | "battery" | "ethanol";
+
+// extremes is the lowest and highest reading of a column, null without any.
+function extremes(of: Sample[], column: Column): [number, number] | null {
+  const values = of.map((s) => s[column]).filter((v): v is number => v !== null);
+  return values.length ? [Math.min(...values), Math.max(...values)] : null;
+}
+
+const minutes = (of: Sample[]) =>
+  of.length ? Math.max(1, Math.round((of[of.length - 1].t - of[0].t) / 60000)) : 0;
+
+function peak(label: string, value: string, hot = false) {
+  return `
+    <div class="flex items-baseline justify-between py-1.5">
+      <span class="text-sm text-dim">${label}</span>
+      <span class="font-display text-lg font-semibold tabular-nums ${hot ? "text-accent" : ""}">${value}</span>
+    </div>`;
+}
+
+function sessionCard(session: Session): string {
+  const top = (column: Column, unit: string, digits = 0) => {
+    const range = extremes(session.samples, column);
+    return range ? `${range[1].toFixed(digits)}${unit}` : "--";
+  };
+  const afr = extremes(session.samples, "afr");
   return `
     <article class="rounded-2xl border border-frame bg-panel p-4">
       <header class="flex items-baseline justify-between">
-        <h2 class="font-display text-2xl font-bold tracking-wider text-accent">SESSION ${id}</h2>
-        <span class="text-sm text-dim">${minutes} min, ${session.laps.length} laps</span>
+        <h2 class="font-display text-2xl font-bold tracking-wider text-accent">SESSION ${session.id}</h2>
+        <span class="text-sm text-dim">${minutes(session.samples)} min</span>
       </header>
-      ${rows ? `<div class="mt-3 divide-y divide-frame">${rows}</div>` : `<p class="mt-2 text-sm text-dim">No laps: no start line set, or no GPS.</p>`}
+      <div class="mt-3 divide-y divide-frame">
+        ${peak("Top RPM", top("rpm", ""))}
+        ${peak("Hottest oil", top("oil", "°C"), (extremes(session.samples, "oil")?.[1] ?? 0) >= 120)}
+        ${peak("Hottest coolant", top("coolant", "°C"))}
+        ${peak("Hottest intake", top("intake", "°C"))}
+        ${peak("AFR range", afr ? `${afr[0].toFixed(1)} to ${afr[1].toFixed(1)}` : "--")}
+      </div>
     </article>`;
 }
 
 function show() {
-  const sessions = new Map<number, Session>();
-  const entry = (id: number, t: number) => {
-    const e = sessions.get(id) ?? { from: t, to: t, laps: [] };
-    e.from = Math.min(e.from, t);
-    e.to = Math.max(e.to, t);
-    sessions.set(id, e);
-    return e;
-  };
-  for (const s of log.samples) entry(s.session, s.t);
-  for (const l of log.laps) entry(l.session, l.t).laps.push(l);
-
-  const minutes = [...sessions.values()].reduce((sum, e) => sum + (e.to - e.from) / 60000, 0);
+  const sessions = new Map<number, Sample[]>();
+  for (const s of samples) {
+    const list = sessions.get(s.session) ?? [];
+    list.push(s);
+    sessions.set(s.session, list);
+  }
+  const oil = extremes(samples, "oil");
+  const rpm = extremes(samples, "rpm");
   el("stat-sessions").textContent = String(sessions.size);
-  el("stat-laps").textContent = String(log.laps.length);
-  el("stat-best").textContent = log.laps.length ? lapTime(Math.min(...log.laps.map((l) => l.ms))) : "--";
-  el("stat-time").textContent = `${Math.round(minutes)} min`;
+  el("stat-time").textContent = `${[...sessions.values()].reduce((sum, list) => sum + minutes(list), 0)} min`;
+  el("stat-oil").textContent = oil ? `${oil[1].toFixed(0)}°C` : "--";
+  el("stat-rpm").textContent = rpm ? rpm[1].toFixed(0) : "--";
   el("sessions").innerHTML = [...sessions]
     .reverse()
-    .map(([id, e]) => sessionCard(id, e))
+    .map(([id, list]) => sessionCard({ id, samples: list }))
     .join("");
-  el<HTMLButtonElement>("csv").disabled = log.samples.length === 0;
-  el<HTMLButtonElement>("laps").disabled = log.laps.length === 0;
+  el<HTMLButtonElement>("csv").disabled = samples.length === 0;
   el("results").classList.remove("hidden");
 }
 
@@ -166,21 +138,16 @@ function save(name: string, header: string, rows: string[]) {
   URL.revokeObjectURL(link.href);
 }
 
+const cell = (v: number | null) => (v === null ? "" : String(v));
+
 el("csv").onclick = () =>
   save(
     "gt86-log.csv",
-    "session,time_s,laps,rpm,coolant_c,oil_c,intake_c,afr,battery_v,ethanol_pct,lat,lon,speed_kmh",
-    log.samples.map((s) =>
-      [s.session, (s.t / 1000).toFixed(1), s.laps, s.rpm, s.coolant, s.oil, s.intake, s.afr, s.battery,
-        s.ethanol, s.lat, s.lon, s.speed].join(","),
+    "session,time_s,rpm,coolant_c,oil_c,intake_c,afr,battery_v,ethanol_pct",
+    samples.map((s) =>
+      [s.session, (s.t / 1000).toFixed(1), cell(s.rpm), cell(s.coolant), cell(s.oil), cell(s.intake), cell(s.afr),
+        cell(s.battery), cell(s.ethanol)].join(","),
     ),
-  );
-
-el("laps").onclick = () =>
-  save(
-    "gt86-laps.csv",
-    "session,lap,time_ms,time",
-    log.laps.map((l) => [l.session, l.lap, l.ms, lapTime(l.ms)].join(",")),
   );
 
 // download connects, asks for the log and resolves with its bytes.
@@ -234,13 +201,9 @@ connect.onclick = async () => {
   }
   connect.disabled = true;
   try {
-    log = parse(await download());
+    samples = parse(await download());
     el("progress").classList.remove("sheen");
-    const counts = log.samples.length || log.laps.length;
-    status(
-      `${counts ? `${log.samples.length} samples, ${log.laps.length} laps.` : "The log is empty."} ` +
-        "The dash is back on its gauges.",
-    );
+    status(`${samples.length ? `${samples.length} samples.` : "The log is empty."} The dash is back on its gauges.`);
     show();
   } catch (e) {
     status(`Failed: ${e instanceof Error ? e.message : String(e)}`);

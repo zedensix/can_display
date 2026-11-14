@@ -31,20 +31,17 @@ The simulator needs SDL2 (`brew install sdl2`).
 - ST7789 V2.2 2.0" 240x320 SPI TFT display
 - A KY-040 rotary encoder: turn to change the gauge view, click for the
   settings (brightness, shift light, auto-connect, flip, ethanol sensor,
-  ECU RAM scan, CAN listen, disconnect, lap line, send log), hold 1s to
-  reboot
+  ECU RAM scan, CAN listen, disconnect, send log), hold 1s to reboot
 - Car data, one of:
   - an ELM327 BLE OBD dongle (written for a Vgate iCar Pro 2S): no wiring
   - an MCP2515 SPI CAN module on the OBD-II port's CAN H/L (pins 6/14)
 - Optionally an analog (0.5-4.5V) flex-fuel sensor for ethanol %, read
   through a resistor divider on the Pico's ADC
-- Optionally a u-blox GPS module (BN-220, BN-880...) on UART0: lap timer,
-  and positions in the data log
 
-The dash logs every gauge (and the GPS) to its flash while the engine
+The dash logs every gauge to its flash while the engine
 runs; "Send log" in the settings hands it to a phone through the page in
-`web/` (Chrome on Android), which shows the sessions and laps and saves
-CSVs. Bun serves it (`bun run dev` locally); the `Dockerfile` self-hosts
+`web/` (Chrome on Android), which shows each session's peaks and saves
+a CSV. Bun serves it (`bun run dev` locally); the `Dockerfile` self-hosts
 it on port 3000, behind an https reverse proxy: Web Bluetooth refuses
 plain http.
 

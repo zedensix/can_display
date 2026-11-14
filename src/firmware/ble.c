@@ -88,6 +88,9 @@ static void start_scan(void);
 // the background: the last dongle if it's around, else the first seen.
 // connected is the dongle just connected to, for the settings.
 static dongle_t last_dongle, picked, connecting_to, connected;
+// reconnect_to is the dongle a click on OFFLINE connects back to, once
+// the radio is up again.
+static dongle_t offline_from, reconnect_to;
 static bool picked_last, connected_new, radio_on;
 static char picked_name[32];
 
@@ -458,7 +461,7 @@ static void connection_complete(uint8_t *packet) {
     connection = gap_subevent_le_connection_complete_get_connection_handle(packet);
     // Handed to the settings once its name is read (or known missing).
     connected = connecting_to;
-    have_name = false;
+    have_notify = have_write = have_name = false;
     char text[192];
     snprintf(text, sizeof text, "HANDSHAKE\n%s", peer);
     set_phase(DISCOVERING_SERVICES, text);
@@ -480,6 +483,10 @@ static void hci_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, 
         radio_on = true;
         if (send_log) {
             advertise();
+        } else if (reconnect_to.set) {
+            dongle_t d = reconnect_to;
+            reconnect_to.set = false;
+            connect_to(d.addr, d.type, d.name);
         } else if (phase == PROMPT) {
             // In the background, for the prompt to name a dongle.
             gap_set_scan_parameters(1, 0x30, 0x30);
@@ -762,7 +769,16 @@ void ble_go_offline(void) {
     }
     log_line("ble: disconnected from the settings");
     phase_t was = phase;
-    set_phase(OFFLINE, "OFFLINE\npress to connect");
+    // The dongle a click connects back to: this session's, else the last.
+    offline_from = connected.set ? connected : last_dongle;
+    char status[96];
+    if (offline_from.set) {
+        snprintf(status, sizeof status, "OFFLINE\npress to connect to\n%s",
+                 offline_from.name[0] ? offline_from.name : bd_addr_to_str(offline_from.addr));
+    } else {
+        snprintf(status, sizeof status, "OFFLINE\npress to connect");
+    }
+    set_phase(OFFLINE, status);
     if (was == SCANNING) {
         gap_stop_scan();
     } else if (was == CONNECTING) {
@@ -843,8 +859,17 @@ bool ble_prompt_click(uint32_t now_ms) {
             reboot_to_connect();
         }
         return true;
-    case STANDBY:
     case OFFLINE:
+        if (!offline_from.set) {
+            reboot_to_connect();
+            return true;
+        }
+        // Straight back to it, no reboot: the radio comes up, then connects.
+        reconnect_to = offline_from;
+        set_phase(STARTING, "IGNITION\nstarting Bluetooth");
+        hci_power_control(HCI_POWER_ON);
+        return true;
+    case STANDBY:
         reboot_to_connect();
         return true;
     case SENDING:

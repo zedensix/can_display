@@ -7,27 +7,22 @@
 #include "flashlog.h"
 #include "signals.h"
 
-// The data log: what the gauges and the GPS read, DATALOG_SAMPLE_MS apart
-// while the engine runs, in a ring of flash sectors, read back on a
+// The data log: what the gauges read, DATALOG_SAMPLE_MS apart while the
+// engine runs, in a ring of flash sectors, read back on a
 // phone after a session. Each boot is a new session.
 //
 // A record is DATALOG_RECORD bytes, little-endian:
 //   0  u16 session (0xFFFF: erased flash, no record)
-//   2  u8  kind: DATALOG_SAMPLE or DATALOG_LAP
-//   3  u8  laps completed
+//   2  u8  kind: DATALOG_SAMPLE
 //   4  u32 milliseconds since boot
 //   8  i16 x 7: RPM, coolant x10, oil x10, intake x10 (degrees C),
 //      AFR x100, battery x100 (V), ethanol x10 (%); -32768: no reading
-//   22 i32 latitude, 26 i32 longitude (degrees x 1e7)
-//   30 u16 speed (km/h x10); latitude and speed 0x7FFFFFFF / 0xFFFF
-//      without a GPS fix
-// A DATALOG_LAP record is a lap just completed: its latitude field holds
-// the lap time in milliseconds, the rest is as in a sample.
+// Bytes 3 and 22 to 31 held lap times and GPS positions, a feature
+// dropped since: 0xFF.
 
 #define DATALOG_RECORD 32
 #define DATALOG_SAMPLE_MS 200
 #define DATALOG_SAMPLE 1
-#define DATALOG_LAP 2
 
 typedef struct {
     flash_dev_t dev;
@@ -43,7 +38,6 @@ typedef struct {
 void datalog_open(datalog_t *log, flash_dev_t dev);
 
 void datalog_sample(datalog_t *log, const state_t *state, uint32_t now_ms);
-void datalog_lap(datalog_t *log, const state_t *state, uint32_t lap_ms, uint32_t now_ms);
 
 // datalog_flush writes the page in progress, so a power cut loses
 // nothing (it's written again as it fills).

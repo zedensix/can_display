@@ -18,7 +18,7 @@
       <img src="../86.png" alt="" class="size-16 shrink-0 rounded-full bg-white p-1 shadow-[0_0_30px_rgb(255_90_30/0.55)] ring-2 ring-accent">
       <div>
         <h1 class="font-display text-3xl font-bold tracking-widest text-accent">GT86 DASH</h1>
-        <p class="text-sm text-dim">Data log and lap times, straight off the dash</p>
+        <p class="text-sm text-dim">The data log, straight off the dash</p>
       </div>
     </header>
 
@@ -53,23 +53,20 @@
           <div id="stat-sessions" class="font-display text-4xl font-bold">0</div>
         </div>
         <div class="rounded-xl border border-frame bg-panel p-4">
-          <div class="text-xs tracking-widest text-dim uppercase">Laps</div>
-          <div id="stat-laps" class="font-display text-4xl font-bold">0</div>
-        </div>
-        <div class="rounded-xl border border-good/40 bg-panel p-4">
-          <div class="text-xs tracking-widest text-dim uppercase">Best lap</div>
-          <div id="stat-best" class="font-display text-4xl font-bold text-good">--</div>
-        </div>
-        <div class="rounded-xl border border-frame bg-panel p-4">
           <div class="text-xs tracking-widest text-dim uppercase">Engine running</div>
           <div id="stat-time" class="font-display text-4xl font-bold">0 min</div>
         </div>
+        <div class="rounded-xl border border-frame bg-panel p-4">
+          <div class="text-xs tracking-widest text-dim uppercase">Hottest oil</div>
+          <div id="stat-oil" class="font-display text-4xl font-bold text-accent">--</div>
+        </div>
+        <div class="rounded-xl border border-frame bg-panel p-4">
+          <div class="text-xs tracking-widest text-dim uppercase">Top RPM</div>
+          <div id="stat-rpm" class="font-display text-4xl font-bold">--</div>
+        </div>
       </div>
 
-      <div class="mt-4 grid gap-3 sm:grid-cols-2">
-        <button id="csv" class="rounded-xl border border-accent bg-panel py-3 font-display text-lg font-semibold tracking-wider uppercase transition active:scale-[0.98] disabled:opacity-30">Save data CSV</button>
-        <button id="laps" class="rounded-xl border border-accent bg-panel py-3 font-display text-lg font-semibold tracking-wider uppercase transition active:scale-[0.98] disabled:opacity-30">Save laps CSV</button>
-      </div>
+      <button id="csv" class="mt-4 w-full rounded-xl border border-accent bg-panel py-3 font-display text-lg font-semibold tracking-wider uppercase transition active:scale-[0.98] disabled:opacity-30">Save CSV</button>
 
       <div id="sessions" class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3"></div>
     </section>

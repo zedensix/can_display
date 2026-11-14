@@ -51,7 +51,7 @@ typedef struct {
 extern const tile_t ui_tiles[];
 extern const int ui_tile_count;
 // ui_view_count is how many views the encoder cycles through past the
-// grid: each tile alone, then the lap timer (one turn back from the grid).
+// grid: each tile alone.
 extern const int ui_view_count;
 
 
@@ -72,6 +72,14 @@ void ui_render(canvas_t *c, const state_t *state, const screen_t *screen, const 
 // like a car cluster's self-test at ignition. It returns false, without
 // drawing, once BOOT_DURATION_MS is over.
 bool ui_render_boot(canvas_t *c, uint32_t elapsed_ms, uint32_t now_ms);
+
+// ui_shows_status is true when ui_render draws the status screen. Its
+// spinner is all that moves there, as in the boot animation: between two
+// changes of the status text, drawing and pushing only the rows
+// ui_spinner_rows gives (on a panel_height tall panel; boot: the boot
+// animation's) is enough, and twice as fast as the whole frame.
+bool ui_shows_status(const state_t *state, const screen_t *screen, uint32_t now_ms);
+void ui_spinner_rows(int panel_height, bool boot, int *top, int *rows);
 
 // ui_wrap splits s into lines that fit max_width pixels in font, breaking
 // between words, into out (at most max lines). A word wider

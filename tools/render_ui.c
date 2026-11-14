@@ -39,10 +39,7 @@ static state_t driving(void) {
     return s;
 }
 
-static settings_t cfg = {.brightness = BRIGHTNESS_MAX,
-                         .auto_connect = true,
-                         .shift_rpm = 7000,
-                         .lap_line = {.set = true, .heading = 90}};
+static settings_t cfg = {.brightness = BRIGHTNESS_MAX, .auto_connect = true, .shift_rpm = 7000};
 
 static void render(canvas_t *c, const state_t *s, screen_t screen) {
     ui_render(c, s, &screen, &cfg, now);
@@ -111,37 +108,6 @@ static void coolant(canvas_t *c) {
     render(c, &s, (screen_t){.view = 2});
 }
 
-// A lap timer three laps in, the last one the best, just completed.
-static state_t on_track(void) {
-    state_t s = driving();
-    s.gps = (gps_fix_t){.valid = true, .speed_kmh = 142};
-    s.gps_at_ms = now;
-    s.lap = (laptimer_t){.timing = true, .start_at_ms = now - 12400, .laps = 3, .last_ms = 102310,
-                         .best_ms = 102310, .completed_at_ms = now - 12400};
-    return s;
-}
-
-static void lap(canvas_t *c) {
-    state_t s = on_track();
-    render(c, &s, (screen_t){.view = ui_view_count});
-}
-
-static void lap_banner(canvas_t *c) {
-    state_t s = on_track();
-    s.lap.start_at_ms = s.lap.completed_at_ms = now - 1200;
-    render(c, &s, (screen_t){0});
-}
-
-static void lap_no_line(canvas_t *c) {
-    state_t s = driving();
-    s.gps = (gps_fix_t){.valid = true, .speed_kmh = 0};
-    s.gps_at_ms = now;
-    settings_t no_line = cfg;
-    no_line.lap_line = (lap_line_t){0};
-    screen_t screen = {.view = ui_view_count};
-    ui_render(c, &s, &screen, &no_line, now);
-}
-
 static void status(canvas_t *c, const char *text) {
     state_t s = {0};
     snprintf(s.status, sizeof s.status, "%s", text);
@@ -150,6 +116,10 @@ static void status(canvas_t *c, const char *text) {
 
 static void ready(canvas_t *c) {
     status(c, "READY\npress to connect to\nIOS-Vlink\n(last used)");
+}
+
+static void offline(canvas_t *c) {
+    status(c, "OFFLINE\npress to connect to\nIOS-Vlink");
 }
 
 static void connecting(canvas_t *c) {
@@ -183,8 +153,8 @@ static void boot_logo(canvas_t *c) {
 }
 
 static const shot_t shots[] = {
-    {"grid", grid},         {"alarms", alarms}, {"alarms_unlit", alarms_unlit}, {"oil_critical", oil_critical}, {"cold", cold}, {"shift", shift}, {"lap", lap}, {"lap_banner", lap_banner}, {"lap_no_line", lap_no_line}, {"oil", oil},           {"coolant", coolant},
-    {"ready", ready}, {"connecting", connecting}, {"scan", scan}, {"failed", failed}, {"settings", settings}, {"boot_spin", boot_spin}, {"boot_morph", boot_morph}, {"boot_logo", boot_logo},
+    {"grid", grid},         {"alarms", alarms}, {"alarms_unlit", alarms_unlit}, {"oil_critical", oil_critical}, {"cold", cold}, {"shift", shift}, {"oil", oil},           {"coolant", coolant},
+    {"ready", ready}, {"offline", offline}, {"connecting", connecting}, {"scan", scan}, {"failed", failed}, {"settings", settings}, {"boot_spin", boot_spin}, {"boot_morph", boot_morph}, {"boot_logo", boot_logo},
 };
 #define SHOTS (int)(sizeof shots / sizeof shots[0])
 

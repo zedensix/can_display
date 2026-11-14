@@ -3,8 +3,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "laptimer.h"
-
 // settings_t is what the settings page changes. The firmware keeps it in
 // a flash sector of its own.
 // dongle_t is a BLE device's address, with its type (public or random)
@@ -32,8 +30,6 @@ typedef struct {
     // shift_rpm flashes the screen's edge from that RPM on, like a shift
     // light; 0 is off.
     int shift_rpm;
-    // lap_line is the lap timer's start/finish line.
-    lap_line_t lap_line;
     // dongle is the OBD dongle last connected to: the connect prompt
     // offers it first.
     dongle_t dongle;

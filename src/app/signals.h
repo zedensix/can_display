@@ -3,8 +3,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "laptimer.h"
-
 // signal_t names every value the dashboard shows.
 typedef enum {
     SIG_RPM,
@@ -32,10 +30,6 @@ typedef struct {
 typedef struct {
     reading_t readings[SIG_COUNT];
     char status[192];
-    // gps is the latest fix, received at gps_at_ms (no GPS: never valid).
-    gps_fix_t gps;
-    uint32_t gps_at_ms;
-    laptimer_t lap;
 } state_t;
 
 void state_set(state_t *s, signal_t sig, float value, uint32_t now_ms);

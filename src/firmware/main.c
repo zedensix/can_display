@@ -7,11 +7,11 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "ble.h"
 #include "board.h"
 #include "display.h"
-#include "gps.h"
 #include "hardware/adc.h"
 #include "hardware/watchdog.h"
 #include "knob.h"
@@ -116,32 +116,8 @@ static void send_log(datalog_t *log) {
 #endif
 }
 
-// The GPS fix counts as current this long: the lap line is only set on a
-// current one.
-#define GPS_FRESH_MS 2000
-
-// read_gps takes every fix received: the lap timer runs on them, and a
-// line set standing still gets its direction from the first one moving.
-static void read_gps(settings_t *cfg, uint32_t now) {
-    gps_fix_t fix;
-    while (gps_poll(&fix)) {
-        state.gps = fix;
-        state.gps_at_ms = now;
-        lap_line_settle(&cfg->lap_line, &fix);
-        if (!laptimer_feed(&state.lap, &cfg->lap_line, &fix, now)) {
-            continue;
-        }
-        log_line("lap %d: %lu ms%s", state.lap.laps, (unsigned long)state.lap.last_ms,
-                 state.lap.last_ms == state.lap.best_ms ? ", best" : "");
-        datalog_t *log = store_datalog();
-        if (log) {
-            datalog_lap(log, &state, state.lap.last_ms, now);
-        }
-    }
-}
-
-// record samples the gauges and the GPS into the data log while the
-// engine runs (RPM coming in). The sim build's fake data isn't logged.
+// record samples the gauges into the data log while the engine runs (RPM
+// coming in). The sim build's fake data isn't logged.
 static void record(uint32_t now) {
 #if !SIM
     static uint32_t last;
@@ -156,18 +132,8 @@ static void record(uint32_t now) {
 }
 
 // act carries out a click on an action row of the settings page.
-static void act(action_t action, settings_t *cfg, uint32_t now) {
+static void act(action_t action) {
     switch (action) {
-    case ACTION_SET_LAP_LINE:
-        if (state.gps.valid && now - state.gps_at_ms < GPS_FRESH_MS) {
-            cfg->lap_line = lap_line_at(&state.gps);
-            state.lap = (laptimer_t){0};
-            log_line("lap: line set at %ld, %ld, heading %d", (long)cfg->lap_line.lat, (long)cfg->lap_line.lon,
-                     cfg->lap_line.heading);
-        } else {
-            log_line("lap: no GPS fix, line not set");
-        }
-        break;
     case ACTION_SEND_LOG: {
         datalog_t *log = store_datalog();
         if (log) {
@@ -234,8 +200,8 @@ void __attribute__((noreturn)) crash_panic(const char *fmt, ...) {
 // running until it's on the panel. boot_elapsed is how far into the boot
 // animation we are, or -1 for a normal frame. It returns false once the
 // boot animation is over.
-static bool draw(int32_t boot_elapsed, const screen_t *screen, const settings_t *cfg) {
-    canvas_t canvas = {frame, PANEL_WIDTH, PANEL_HEIGHT, 0, PANEL_HEIGHT};
+static bool draw(int32_t boot_elapsed, const screen_t *screen, const settings_t *cfg, int top, int rows) {
+    canvas_t canvas = {frame + top * PANEL_WIDTH, PANEL_WIDTH, PANEL_HEIGHT, top, rows};
     display_finish();
     uint32_t now = now_ms();
     if (boot_elapsed >= 0) {
@@ -282,7 +248,6 @@ int main(void) {
     display_set_flip(cfg.flip);
     display_set_brightness(cfg.brightness);
     knob_init();
-    gps_init();
     adc_init();
     adc_gpio_init(ETHANOL_PIN);
     adc_select_input(ETHANOL_ADC_INPUT);
@@ -296,10 +261,19 @@ int main(void) {
     ble_init(&state, cfg.auto_connect || connect_now, &cfg.dongle);
 #endif
 
+    // The boot animation stays within the spinner's rows: after a first
+    // whole frame, only those are drawn and pushed.
     screen_t screen = {0};
-    for (uint32_t boot = now_ms(); draw((int32_t)(now_ms() - boot), &screen, &cfg);) {
+    int spin_top, spin_rows;
+    ui_spinner_rows(PANEL_HEIGHT, true, &spin_top, &spin_rows);
+    for (uint32_t boot = now_ms(), first = 1; draw((int32_t)(now_ms() - boot), &screen, &cfg, first ? 0 : spin_top,
+                                                  first ? PANEL_HEIGHT : spin_rows);
+         first = 0) {
         watchdog_update();
     }
+
+    // The status shown in the last whole frame, if a status screen.
+    char shown[sizeof state.status] = "";
 
     bool asleep = false;
     for (;;) {
@@ -322,9 +296,8 @@ int main(void) {
             screen_press(&screen, &cfg);
         }
         take_dongle(&cfg);
-        act(screen.action, &cfg, start);
+        act(screen.action);
         screen.action = ACTION_NONE;
-        read_gps(&cfg, start);
         record(start);
         if (long_press) {
             log_line("knob: reboot");
@@ -355,7 +328,16 @@ int main(void) {
             sleep_ms(FRAME_MS);
             continue;
         }
-        draw(-1, &screen, &cfg);
+        // On an unchanged status screen, only the spinner moves: its rows
+        // alone, as often as they can go, for a smooth spin.
+        bool status = ui_shows_status(&state, &screen, start);
+        if (status && shown[0] && strcmp(shown, state.status) == 0) {
+            ui_spinner_rows(PANEL_HEIGHT, false, &spin_top, &spin_rows);
+            draw(-1, &screen, &cfg, spin_top, spin_rows);
+            continue;
+        }
+        draw(-1, &screen, &cfg, 0, PANEL_HEIGHT);
+        snprintf(shown, sizeof shown, "%s", status ? state.status : "");
         while (now_ms() - start < FRAME_MS && !knob_pending()) {
             source_poll(now_ms());
         }

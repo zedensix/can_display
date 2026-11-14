@@ -79,36 +79,20 @@ static int16_t scaled(const state_t *s, signal_t sig, float scale, uint32_t now_
     return (int16_t)(v > 32767 ? 32767 : v < -32767 ? -32767 : v);
 }
 
-static void record(const datalog_t *log, const state_t *s, uint8_t kind, uint32_t now_ms, uint8_t out[]) {
-    memset(out, 0, DATALOG_RECORD);
-    put16(out, log->session);
-    out[2] = kind;
-    out[3] = (uint8_t)(s->lap.laps > 255 ? 255 : s->lap.laps);
-    put32(out + 4, now_ms);
+void datalog_sample(datalog_t *log, const state_t *s, uint32_t now_ms) {
+    uint8_t r[DATALOG_RECORD];
+    memset(r, 0xFF, sizeof r);
+    put16(r, log->session);
+    r[2] = DATALOG_SAMPLE;
+    put32(r + 4, now_ms);
     static const struct {
         signal_t sig;
         float scale;
-    } columns[7] = {{SIG_RPM, 1},     {SIG_COOLANT, 10}, {SIG_OIL, 10},    {SIG_IAT, 10},
-                    {SIG_AFR, 100},   {SIG_BATTERY, 100}, {SIG_ETHANOL, 10}};
+    } columns[7] = {{SIG_RPM, 1},   {SIG_COOLANT, 10},  {SIG_OIL, 10},    {SIG_IAT, 10},
+                    {SIG_AFR, 100}, {SIG_BATTERY, 100}, {SIG_ETHANOL, 10}};
     for (int i = 0; i < 7; i++) {
-        put16(out + 8 + 2 * i, (uint16_t)scaled(s, columns[i].sig, columns[i].scale, now_ms));
+        put16(r + 8 + 2 * i, (uint16_t)scaled(s, columns[i].sig, columns[i].scale, now_ms));
     }
-    bool fix = s->gps.valid && now_ms - s->gps_at_ms < 1000;
-    put32(out + 22, fix ? (uint32_t)s->gps.lat : 0x7FFFFFFF);
-    put32(out + 26, fix ? (uint32_t)s->gps.lon : 0x7FFFFFFF);
-    put16(out + 30, fix ? (uint16_t)(s->gps.speed_kmh * 10 + 0.5f) : 0xFFFF);
-}
-
-void datalog_sample(datalog_t *log, const state_t *state, uint32_t now_ms) {
-    uint8_t r[DATALOG_RECORD];
-    record(log, state, DATALOG_SAMPLE, now_ms, r);
-    append(log, r);
-}
-
-void datalog_lap(datalog_t *log, const state_t *state, uint32_t lap_ms, uint32_t now_ms) {
-    uint8_t r[DATALOG_RECORD];
-    record(log, state, DATALOG_LAP, now_ms, r);
-    put32(r + 22, lap_ms);
     append(log, r);
 }
 
