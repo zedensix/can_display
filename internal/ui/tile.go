@@ -102,16 +102,7 @@ func (t Tile) Draw(d display.Display, theme Theme, rect Rect, reading signals.Re
 	labelX, labelY := rect.X+8, rect.Y+18
 	tinyfont.WriteLine(d, labelFont, labelX, labelY, t.Label, theme.Label)
 
-	stale := reading.Stale(now, t.StaleAfter)
-
-	valueStr := "--"
-	valColor := theme.Stale
-	frac := float32(0)
-	if !stale {
-		valueStr = fmt.Sprintf(t.Format, reading.Value) + t.Unit
-		valColor = t.Range.ColorFor(reading.Value, theme)
-		frac = t.Range.Fraction(reading.Value)
-	}
+	valueStr, valColor, frac := t.value(reading, now, theme)
 
 	// Margin matches labelX's left offset so the value stays visually
 	// aligned with the label above it and leaves an equal gap on the
@@ -124,6 +115,52 @@ func (t Tile) Draw(d display.Display, theme Theme, rect Rect, reading signals.Re
 
 	barRect := Rect{X: rect.X + 8, Y: rect.Y + rect.H - 12, W: rect.W - 16, H: 6}
 	drawBar(d, barRect, frac, valColor, theme.Stale)
+}
+
+// DrawLarge renders the tile alone on all of rect: the same label, value
+// and bar, with the value blown up as much as fits, up to 3 times.
+func (t Tile) DrawLarge(d display.Display, theme Theme, rect Rect, reading signals.Reading, now time.Time) {
+	fillRect(d, rect, theme.Background)
+	tinyfont.WriteLine(d, labelFont, rect.X+8, rect.Y+24, t.Label, theme.Label)
+
+	valueStr, valColor, frac := t.value(reading, now, theme)
+	font := valueFonts[0]
+	_, outer := tinyfont.LineWidth(font, valueStr)
+	width := int16(outer)
+	scale := int16(3)
+	for scale > 1 && width*scale > rect.W-16 {
+		scale--
+	}
+	// The 24pt digits rise about 26px above their baseline.
+	const capHeight = 26
+	big := scaled{target: d, scale: scale, x: rect.X + (rect.W-width*scale)/2, y: rect.Y + rect.H/2 + capHeight*scale/2}
+	tinyfont.WriteLine(big, font, 0, 0, valueStr, valColor)
+
+	barRect := Rect{X: rect.X + 8, Y: rect.Y + rect.H - 28, W: rect.W - 16, H: 16}
+	drawBar(d, barRect, frac, valColor, theme.Stale)
+}
+
+// value is what the tile shows for reading: its text, color and bar
+// fraction, or "--" once it's stale.
+func (t Tile) value(reading signals.Reading, now time.Time, theme Theme) (string, color.RGBA, float32) {
+	if reading.Stale(now, t.StaleAfter) {
+		return "--", theme.Stale, 0
+	}
+	return fmt.Sprintf(t.Format, reading.Value) + t.Unit, t.Range.ColorFor(reading.Value, theme), t.Range.Fraction(reading.Value)
+}
+
+// scaled draws on target scale times bigger, from (x, y): a font blown
+// up without another, bigger font taking RAM.
+type scaled struct {
+	target      display.Display
+	scale, x, y int16
+}
+
+func (s scaled) Size() (int16, int16) { return s.target.Size() }
+func (s scaled) Display() error       { return nil }
+
+func (s scaled) SetPixel(x, y int16, c color.RGBA) {
+	fillRect(s.target, Rect{X: s.x + x*s.scale, Y: s.y + y*s.scale, W: s.scale, H: s.scale}, c)
 }
 
 // rectFiller is implemented by displays that fill a rectangle faster

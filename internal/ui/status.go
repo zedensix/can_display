@@ -27,17 +27,17 @@ func drawStatus(d display.Display, theme Theme, status string, now time.Time) {
 		if i == 0 {
 			color = theme.Warning
 		}
-		for _, line := range WrapText(paragraph, w-2*statusMargin) {
+		for _, line := range WrapText(labelFont, paragraph, w-2*statusMargin) {
 			tinyfont.WriteLine(d, labelFont, statusMargin, y, line, color)
 			y += statusLineHeight
 		}
 	}
 }
 
-// WrapText splits s into lines that fit maxWidth pixels in the status
-// font, breaking between words. A single word wider than maxWidth gets
+// WrapText splits s into lines that fit maxWidth pixels in font,
+// breaking between words. A single word wider than maxWidth gets
 // a line of its own and is clipped by the panel edge.
-func WrapText(s string, maxWidth int16) []string {
+func WrapText(font *tinyfont.Font, s string, maxWidth int16) []string {
 	var lines []string
 	line := ""
 	for _, word := range strings.Fields(s) {
@@ -45,7 +45,7 @@ func WrapText(s string, maxWidth int16) []string {
 		if line != "" {
 			candidate = line + " " + word
 		}
-		if _, width := tinyfont.LineWidth(labelFont, candidate); line != "" && int16(width) > maxWidth {
+		if _, width := tinyfont.LineWidth(font, candidate); line != "" && int16(width) > maxWidth {
 			lines = append(lines, line)
 			candidate = word
 		}

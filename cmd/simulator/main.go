@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
+	"zedensix/can_display/internal/settings"
 	"zedensix/can_display/internal/signals"
 	"zedensix/can_display/internal/sim"
 	"zedensix/can_display/internal/ui"
@@ -62,17 +64,32 @@ type game struct {
 	state     *signals.State
 	dash      ui.Dashboard
 	start     time.Time
+	screen    ui.Screen
+	cfg       settings.Settings
 }
 
+// Update reads the keyboard as the rotary encoder: the arrows turn it,
+// space clicks it.
 func (g *game) Update() error {
 	g.gen.Tick(g.state, time.Now())
+	detents := 0
+	if inpututil.IsKeyJustPressed(ebiten.KeyArrowDown) || inpututil.IsKeyJustPressed(ebiten.KeyArrowRight) {
+		detents++
+	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyArrowUp) || inpututil.IsKeyJustPressed(ebiten.KeyArrowLeft) {
+		detents--
+	}
+	g.screen.Turn(detents, len(g.dash.Tiles), &g.cfg)
+	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+		g.screen.Press(&g.cfg)
+	}
 	return nil
 }
 
 func (g *game) Draw(screen *ebiten.Image) {
 	running, err := g.dash.RenderBoot(g.fb, time.Since(g.start))
 	if !running {
-		err = g.dash.Render(g.fb, g.state.Snapshot())
+		err = g.dash.Render(g.fb, g.state.Snapshot(), g.screen, g.cfg)
 	}
 	if err != nil {
 		log.Println("render:", err)
@@ -110,6 +127,7 @@ func main() {
 			Tiles: ui.DefaultTiles(),
 		},
 		start: time.Now(),
+		cfg:   settings.Default,
 	}
 
 	ebiten.SetWindowSize(panelWidth*windowScale, panelHeight*windowScale)

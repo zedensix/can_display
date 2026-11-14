@@ -14,7 +14,7 @@ fake generator) differ between the two.
 ## Quick start
 
 ```sh
-mise run sim         # opens a desktop window with the live dashboard, fake data
+mise run sim         # opens a desktop window with the live dashboard, fake data (arrows/space = the rotary encoder)
 mise run vet         # go vet the shared/simulator code + tinygo-build-check the firmware
 mise run lint        # golangci-lint on everything but the firmware
 mise run logo        # regenerate the boot splash from 86.png

@@ -23,6 +23,26 @@ them. Pin numbers below are GPn, not physical pin numbers.
 
 It's SPI, not I2C: no MISO, the display is write-only.
 
+## Rotary encoder: KY-040 (EC11)
+
+| KY-040 pin | Pico W pin | Notes |
+|---|---|---|
+| CLK | GP2 | quadrature A, read on interrupts |
+| DT | GP3 | quadrature B |
+| SW | GP4 | push button, active low; the Pico's internal pull-up is used |
+| + | 3V3(OUT) | **not 5V**: the board's pull-ups go to +, and the RP2040 isn't 5V tolerant |
+| GND | GND | |
+
+Turn on the gauges: every gauge, then each one alone, big. Click on the
+gauges: settings page (turn to pick a row, click to change it, Back to
+leave); while the screen says "press to connect" or "press to retry",
+the click goes to the connection instead. Hold 1s: reboot. If turning
+goes the wrong way, swap CLK and DT; if one click moves two steps, the
+encoder is half-step: set `Precision: 2` in `knob.go`.
+
+Keep GP15 free: TinyGo drives it briefly at boot for the RP2040 USB
+enumeration workaround (erratum RP2040-E5).
+
 ## Power
 
 On the bench, USB is enough. In the car, the Pico W needs 5V from the

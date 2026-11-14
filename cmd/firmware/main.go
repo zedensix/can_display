@@ -93,8 +93,12 @@ const (
 // leaves the rest of the time to the data source goroutines.
 const tickInterval = 50 * time.Millisecond
 
+// minYield is the least time each frame leaves to the other goroutines.
+const minYield = 10 * time.Millisecond
+
 func main() {
 	openLog()
+	connectRetry := connectAsked()
 	if rp.WATCHDOG.REASON.HasBits(rp.WATCHDOG_REASON_TIMER) {
 		logLine("boot: the watchdog reset the board, the previous run froze")
 	} else {
@@ -107,9 +111,14 @@ func main() {
 
 	panel := setupDisplay()
 	frame := newFrameBuffer(&panel)
+	cfg := loadSettings()
+	savedCfg, appliedCfg := cfg, cfg
+	setBrightness := setupBacklight()
+	applySettings(&panel, setBrightness, cfg)
 	ethanolADC := setupEthanolADC()
 
 	state := &signals.State{}
+	defer recoverCrash(state)
 	reg := canbus.NewRegistry()
 	gt86.Register(reg, state)
 
@@ -124,9 +133,12 @@ func main() {
 		gt86.RegisterOBD(reg, state)
 		// Connecting takes seconds (scan, connect, dongle reset), so it
 		// runs in the background: the dash draws "--" until data flows.
-		go runELM327BLE(reg, state)
+		go func() {
+			defer recoverCrash(state)
+			runELM327BLE(reg, state, cfg.AutoConnect || connectRetry)
+		}()
 	case source == sourceMCP2515:
-		runMCP2515(reg)
+		runMCP2515(reg, state)
 	}
 
 	dash := ui.Dashboard{Theme: ui.Dark, Tiles: ui.DefaultTiles()}
@@ -149,32 +161,59 @@ func main() {
 		time.Sleep(10 * time.Millisecond)
 	}
 
+	knob := setupKnob()
+	var screen ui.Screen
 	for {
 		frameStart := time.Now()
 		machine.Watchdog.Update()
 		serveLog()
 		if generator != nil {
-			generator.Tick(state, time.Now())
+			generator.Tick(state, frameStart)
 		} else {
 			updateEthanolPercent(ethanolADC, state)
 		}
 
+		detents, press, long := knob.poll(frameStart)
+		screen.Turn(detents, len(dash.Tiles), &cfg)
+		// On the gauges, a waiting connection prompt takes the click.
+		if press && !(screen.Page == ui.PageGauges && answerPrompt()) {
+			screen.Press(&cfg)
+		}
+		if long {
+			logLine("knob: reboot")
+			// In a goroutine so the main loop keeps drawing meanwhile.
+			go reboot(state, "rebooting...", 500*time.Millisecond, false)
+		}
+		if cfg != appliedCfg {
+			applySettings(&panel, setBrightness, cfg)
+			appliedCfg = cfg
+		}
+		if screen.Page == ui.PageGauges && cfg != savedCfg {
+			saveSettings(cfg)
+			savedCfg = cfg
+		}
+
 		snap := state.Snapshot()
-		if err := frame.draw(func() error { return dash.Render(frame, snap) }); err != nil {
+		if err := frame.draw(func() error { return dash.Render(frame, snap, screen, cfg) }); err != nil {
 			println("render error:", err.Error())
 		}
-		time.Sleep(tickInterval - time.Since(frameStart))
+		// Sleep is the only place the main loop lets the BLE and OBD
+		// goroutines run (the scheduler is cooperative), and TinyGo's
+		// Sleep doesn't yield at all for a zero or negative duration: a
+		// frame slower than tickInterval would starve them for good.
+		time.Sleep(max(tickInterval-time.Since(frameStart), minYield))
 	}
 }
 
 // runMCP2515 starts the direct CAN path: passive listening plus the
 // AFR OBD request, both through the MCP2515.
-func runMCP2515(reg *canbus.Registry) {
+func runMCP2515(reg *canbus.Registry, state *signals.State) {
 	bus := mcp2515Bus{dev: setupCAN()}
 
 	// The CAN read loop runs forever in its own goroutine; the main
 	// goroutine polls the ADC and redraws on a timer.
 	go func() {
+		defer recoverCrash(state)
 		err := reg.Run(bus)
 		// Run only returns on a read error, which means the MCP2515 (or
 		// its SPI link) is in a bad state -- crash loudly rather than
@@ -187,6 +226,7 @@ func runMCP2515(reg *canbus.Registry) {
 	// speculative this one is. Its response comes back through reg
 	// above like any other frame.
 	go func() {
+		defer recoverCrash(state)
 		if err := gt86.AFRPoller(bus).Run(); err != nil {
 			panic("AFR poll loop exited: " + err.Error())
 		}

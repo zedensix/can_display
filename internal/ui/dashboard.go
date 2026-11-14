@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"zedensix/can_display/internal/display"
+	"zedensix/can_display/internal/settings"
 	"zedensix/can_display/internal/signals"
 )
 
@@ -81,19 +82,24 @@ type Dashboard struct {
 // edge) so adjacent tiles don't visually merge into one another.
 const gridGap = 3
 
-// Render lays the tiles out in a grid sized to d and draws every one
-// against snap, then flushes the frame. While snap.Status is set, it
-// draws the status screen instead.
-func (dash Dashboard) Render(d display.Display, snap signals.Snapshot) error {
+// Render draws one frame for screen, then flushes it: the settings
+// page, the data source's status while it has one, a single gauge, or
+// every gauge in a grid.
+func (dash Dashboard) Render(d display.Display, snap signals.Snapshot, screen Screen, cfg settings.Settings) error {
 	w, h := d.Size()
 	fillRect(d, Rect{X: 0, Y: 0, W: w, H: h}, dash.Theme.Background)
 
-	if snap.Status != "" {
+	switch {
+	case screen.Page == PageSettings:
+		drawSettings(d, dash.Theme, screen, cfg)
+	case snap.Status != "":
 		drawStatus(d, dash.Theme, snap.Status, snap.At)
-		return d.Display()
+	case screen.View > 0 && screen.View <= len(dash.Tiles):
+		t := dash.Tiles[screen.View-1]
+		t.DrawLarge(d, dash.Theme, Rect{X: gridGap, Y: gridGap, W: w - 2*gridGap, H: h - 2*gridGap}, t.Value(snap), snap.At)
+	default:
+		dash.drawTiles(d, snap.At, func(t DashTile) signals.Reading { return t.Value(snap) })
 	}
-
-	dash.drawTiles(d, snap.At, func(t DashTile) signals.Reading { return t.Value(snap) })
 	return d.Display()
 }
 

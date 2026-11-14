@@ -3,7 +3,6 @@
 package main
 
 import (
-	"device/arm"
 	"errors"
 	"strconv"
 	"strings"
@@ -49,29 +48,63 @@ var elmProfiles = []elmProfile{
 // ui.DefaultStaleAfter.
 const batteryPollInterval = time.Second
 
+// connectClicks carries a click from the main loop to a connection
+// prompt. Unbuffered: a click only lands here while a prompt waits for
+// one, otherwise it's the screen's.
+var connectClicks = make(chan struct{})
+
+// answerPrompt hands a click to a waiting connection prompt, and reports
+// whether one was waiting.
+func answerPrompt() bool {
+	select {
+	case connectClicks <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
 // runELM327BLE connects to the dongle and runs the OBD poll loop
-// forever. Any failure (dongle unplugged, BLE dropped, car off) reboots
-// the Pico, which is the simplest reliable reconnect: the whole thing
-// starts over from the scan.
-func runELM327BLE(reg *canbus.Registry, state *signals.State) {
+// forever. It waits for a click first, unless auto is set (the
+// auto-connect setting, or a retry). Any failure (dongle unplugged, BLE
+// dropped, car off) waits for a click to retry, or retries by itself
+// with auto.
+func runELM327BLE(reg *canbus.Registry, state *signals.State, auto bool) {
+	if !auto {
+		state.SetStatus(statusTitle + "press to connect")
+		<-connectClicks
+	}
 	client, err := connectELMBLE(state)
 	if err != nil {
-		rebootAfter(state, "BLE connect", err)
+		failed(state, "BLE connect", err, auto)
 	}
 	logLine("elm327: resetting dongle")
 	state.SetStatus(statusTitle + "init ELM327...")
 	if err := client.Init(); err != nil {
-		rebootAfter(state, "ELM327 init", err)
+		failed(state, "ELM327 init", err, auto)
 	}
 	logLine("elm327: ready")
+	// The raw replies, kept in the flash log: an ECU that doesn't answer
+	// ("NO DATA", "UNABLE TO CONNECT") is otherwise only a dash full of
+	// "--".
+	for _, cmd := range []string{"ATI", "ATRV", "0100", "010C"} {
+		lines, err := client.Command(cmd)
+		if err != nil {
+			logLine("elm327: " + cmd + " -> error: " + err.Error())
+			continue
+		}
+		logLine("elm327: " + cmd + " -> " + strings.Join(lines, " | "))
+	}
 	state.SetStatus("")
 
 	bus := elm327.NewBus(client)
 	go func() {
+		defer recoverCrash(state)
 		// elm327.Bus.ReadFrame never fails, so this never returns.
 		reg.Run(bus)
 	}()
 	go func() {
+		defer recoverCrash(state)
 		for {
 			if v, err := client.Voltage(); err == nil {
 				state.SetBatteryVoltage(v, time.Now())
@@ -80,7 +113,7 @@ func runELM327BLE(reg *canbus.Registry, state *signals.State) {
 		}
 	}()
 	if err := gt86.OBDPoller(bus).Run(); err != nil {
-		rebootAfter(state, "OBD poll", err)
+		failed(state, "OBD poll", err, auto)
 	}
 }
 
@@ -226,16 +259,15 @@ func (w bleWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// rebootAfter shows why on the panel and the serial console, then resets
-// the RP2040 after a pause long enough to read it.
-func rebootAfter(state *signals.State, step string, err error) {
-	logLine("fatal: " + step + ": " + err.Error() + " -- rebooting")
-	state.SetStatus(statusTitle + step + " failed:\n" + err.Error() + "\nrebooting...")
-	if dongle != nil {
-		if err := dongle.Disconnect(); err != nil {
-			logLine("ble: disconnect: " + err.Error())
-		}
+// failed shows what went wrong, waits for a click (5s with auto), then
+// reboots to connect again.
+func failed(state *signals.State, step string, err error, auto bool) {
+	logLine("fatal: " + step + ": " + err.Error())
+	status := statusTitle + step + " failed:\n" + err.Error()
+	if auto {
+		reboot(state, status+"\nretrying...", 5*time.Second, true)
 	}
-	time.Sleep(5 * time.Second)
-	arm.SystemReset()
+	state.SetStatus(status + "\npress to retry")
+	<-connectClicks
+	reboot(state, statusTitle+"retrying...", 0, true)
 }

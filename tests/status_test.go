@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"tinygo.org/x/tinyfont/freesans"
+
 	"zedensix/can_display/internal/signals"
 	"zedensix/can_display/internal/ui"
 )
@@ -25,14 +27,14 @@ func TestStateStatus(t *testing.T) {
 
 func TestWrapTextKeepsEveryWordAndSplitsLongLines(t *testing.T) {
 	text := "BLE connect failed: no known ELM327 serial service on this device, see elmProfiles"
-	lines := ui.WrapText(text, 216)
+	lines := ui.WrapText(&freesans.Bold9pt7b, text, 216)
 	if len(lines) < 2 {
 		t.Fatalf("WrapText returned %d line(s), want the long error split: %q", len(lines), lines)
 	}
 	if got := strings.Join(lines, " "); got != text {
 		t.Errorf("rejoined lines = %q, want %q", got, text)
 	}
-	if lines := ui.WrapText("", 216); len(lines) != 1 || lines[0] != "" {
+	if lines := ui.WrapText(&freesans.Bold9pt7b, "", 216); len(lines) != 1 || lines[0] != "" {
 		t.Errorf("WrapText(\"\") = %q, want one empty line", lines)
 	}
 }
