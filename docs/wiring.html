@@ -36,7 +36,7 @@
     <div class="note"><b>3.3V logic only</b>The encoder's + goes to 3V3(OUT), not 5V: its pull-ups would put 5V on the RP2040, which isn't 5V tolerant.</div>
     <div class="note"><b>Keep GP15 free</b>The pico-sdk borrows it at boot (RP2040-E5). GPIO23, 24, 25 and 29 belong to the wireless chip.</div>
     <div class="note"><b>OBD dongle: no wire</b>The Vgate iCar Pro 2S plugs into the OBD port; the Pico W talks to it over BLE. One client at a time: a phone connected to it hides it.</div>
-    <div class="note"><b>MCP2515 (optional, wired CAN)</b>Its SO swings to 5V: level shift it before GP12. Remove jumper J1 (120Ω termination). 16MHz crystal, 500kbps.</div>
+    <div class="note"><b>MCP2515 (optional, wired CAN)</b>Its SO swings to 5V: level shift it before GP12. Remove jumper J1 (120Ω termination). 8MHz crystal, 500kbps.</div>
     <div class="note"><b>USB and VSYS together</b>To flash or read logs with the buck feeding VSYS, put a Schottky diode between buck OUT+ and VSYS, or unplug one supply.</div>
   </div>
 </main>

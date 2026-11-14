@@ -9,6 +9,26 @@ bun = "1.4.4"
 prek = "0.5.9"
 node = "latest"
 
+# OpenSCAD, for the faceplate's PNG previews (`mise run faceplate`; its STL
+# renders in-process with openscad-wasm). The last release (2021.01) is
+# Intel-only, so this pins a nightly snapshot, native on Apple Silicon.
+# Snapshots stay up about a year on files.openscad.org: bump the version
+# when this one is gone. mise can't unpack a .dmg itself, hence the
+# postinstall.
+[tools.'http:openscad']
+version = "2026.10.11"
+url = "https://files.openscad.org/snapshots/OpenSCAD-{{ version }}.dmg"
+bin_path = "OpenSCAD.app/Contents/MacOS"
+postinstall = '''
+set -e
+dmg=$(find "$MISE_TOOL_INSTALL_PATH" -name '*.dmg' | head -1)
+mnt=$(mktemp -d)
+hdiutil attach -nobrowse -quiet -mountpoint "$mnt" "$dmg"
+rm -rf "$MISE_TOOL_INSTALL_PATH/OpenSCAD.app"
+cp -R "$mnt/OpenSCAD.app" "$MISE_TOOL_INSTALL_PATH/"
+hdiutil detach -quiet "$mnt"
+'''
+
 [env]
 PICO_SDK_VERSION = "2.2.0"
 PICO_SDK_PATH = "{{env.HOME}}/.cache/pico-sdk/2.2.0"

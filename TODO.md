@@ -13,3 +13,8 @@
 - [ ] Vérifier sur la carte : encodeur demi-pas (un cran = une ligne), loader fluide
 - [ ] Héberger la page web sur gt.ombrage.space (`Dockerfile` à la racine, derrière le proxy https)
 - [x] Doc câblage, section MCP2515 : plus de références au code Go, `DATA_SOURCE` et les registres CNF à la place
+- [x] Façade imprimable (écran ST7789 + encodeur KY-040) : modèle scad-js, rendu STL + PNG par `mise run faceplate`
+- [x] Plateau vissé derrière la façade : Pico, convertisseur 12V/5V et MCP2515 sur entretoises, fente pour les fils
+- [x] MCP2515 : registres CNF pour le quartz 8 MHz de la carte bleue (500 kbps, échantillonnage à 75 %)
+- [ ] Façade : mesurer l'écran, l'encodeur et les trous du convertisseur au pied à coulisse, corriger `faceplate/config.ts`, imprimer un essai
+- [ ] Façade : fixation dans la voiture (où elle va, comment elle tient)

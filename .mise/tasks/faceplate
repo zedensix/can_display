@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Render the faceplate (display + encoder) to faceplate/faceplate.stl and its pictures"
+set -euo pipefail
+
+bun install --frozen-lockfile >/dev/null
+bun tools/render_faceplate.ts

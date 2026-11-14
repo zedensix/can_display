@@ -38,7 +38,7 @@ repos:
         name: tsc
         entry: bunx tsc -p tsconfig.json
         language: system
-        files: ^(web|tools)/.*\.ts$
+        files: ^(web|tools|faceplate)/.*\.ts$
         pass_filenames: false
       - id: tests
         name: host tests

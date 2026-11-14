@@ -142,14 +142,13 @@ TJA1050 on 5V. The Pico's 3.3V outputs on SCK/SI/CS are read fine by a
 resistor, but the car's bus is already terminated at both ends; a third
 one on the OBD stub drags the bus impedance down and causes errors.
 
-The firmware assumes a **16MHz crystal** on the MCP2515 board (the
-common default on cheap breakout boards, but 8MHz ones exist: read the
-marking on the can-shaped crystal) and **500kbps**, which matches the
-GT86's factory high-speed CAN bus: the CNF1, CNF2 and CNF3 values that
-`mcp2515_source_init` writes in `src/firmware/mcp2515.c` (0x00, 0xF0,
-0x86). For an 8MHz crystal, 500kbps takes 0x00, 0x90 and 0x82: the
-values of the usual Arduino MCP2515 libraries' tables, not tried on this
-car.
+The firmware assumes an **8MHz crystal** on the MCP2515 board (the one
+on the blue MCP2515 + TJA1050 board used here: read the marking on the
+can-shaped crystal) and **500kbps**, which matches the GT86's factory
+high-speed CAN bus: the CNF1, CNF2 and CNF3 values that
+`mcp2515_source_init` writes in `src/firmware/mcp2515.c` (0x00, 0x91,
+0x01: 8 time quanta of 250ns, sampled at 75%), not tried on this car
+yet. A 16MHz crystal takes 0x00, 0xF0 and 0x86.
 
 Ground the board only through the Pico's ground, which goes to the car
 chassis via the buck converter. Never to anything else.

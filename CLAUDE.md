@@ -17,11 +17,12 @@ mise run logo        # 86.png -> src/app/logo.c (tools/logo.py, then xxd)
 bun run dev          # the web page on localhost:3000, hot reload
 mise run ui          # every screen with fixed readings -> ui/*.png, ui/sheet.png (tools/render_ui.c): rerun after a UI change and look at it
 mise run wiring      # docs/wiring.html (color, blueprint) -> docs/resources/*.png for docs/wiring.md (Playwright Chromium, fetched once)
+mise run faceplate   # the printed parts (scad-js, one class per part, dimensions in faceplate/config.ts): faceplate (display + encoder) and tray (Pico, buck, MCP2515) -> faceplate/*.stl (binary, openscad-wasm) + PNGs (OpenSCAD from mise): rerun after a change and look at them
 prek install         # once per clone: the git hooks (.pre-commit-config.yaml): clang-format, biome, tsc, host tests
 prek run --all-files # every hook on every tracked file
 ```
 
-The ARM toolchain (14.3.Rel1), CMake, Ninja, Python, Bun, prek and the SDK version/path are pinned in `mise.toml`; the web and tooling packages (Tailwind, Biome, Playwright) in `package.json`. Our sources build with `-Wall -Wextra -Werror` on every target (SDK sources excepted): a warning is a failed build, there's no C linter beyond it; clang-format (`.clang-format`) formats the C, Biome (`biome.json`) lints and formats the TypeScript, CSS and JSON, both through the prek hooks.
+The ARM toolchain (14.3.Rel1), CMake, Ninja, Python, Bun, prek, OpenSCAD (a nightly snapshot) and the SDK version/path are pinned in `mise.toml`; the web and tooling packages (Tailwind, Biome, Playwright, scad-js, openscad-wasm) in `package.json`. Our sources build with `-Wall -Wextra -Werror` on every target (SDK sources excepted): a warning is a failed build, there's no C linter beyond it; clang-format (`.clang-format`) formats the C, Biome (`biome.json`) lints and formats the TypeScript, CSS and JSON, both through the prek hooks.
 
 This project started in Go/TinyGo and was rewritten in C (see git history before `cbb43b4`): TinyGo's cooperative scheduler, 8KB goroutine stacks, fonts in RAM and its USB and BLE stacks kept breaking on the Pico W.
 

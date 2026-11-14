@@ -67,11 +67,14 @@ void mcp2515_source_init(state_t *s) {
 
     spi_transfer((const uint8_t[]){INSTR_RESET}, NULL, 1);
     sleep_ms(10);
-    // 500kbps, the GT86's high-speed CAN bus, with the 16MHz crystal most
-    // breakout boards ship with. An 8MHz crystal needs other CNF values.
-    write_register(REG_CNF1, 0x00);
-    write_register(REG_CNF2, 0xF0);
-    write_register(REG_CNF3, 0x86);
+    // 500kbps, the GT86's high-speed CAN bus, with the 8MHz crystal of the
+    // blue MCP2515 + TJA1050 board. One time quantum is 2 / 8MHz = 250ns,
+    // a bit is 8 of them: sync 1, propagation 2, phase 1 3, phase 2 2,
+    // sampled at 75%. SJW 1, no prescaler. A 16MHz crystal takes 0x00,
+    // 0xF0, 0x86 instead.
+    write_register(REG_CNF1, 0x00); // SJW 1, BRP 0
+    write_register(REG_CNF2, 0x91); // phase 2 set in CNF3, phase 1 3, propagation 2
+    write_register(REG_CNF3, 0x01); // phase 2 2
     write_register(REG_RXB0CTRL, 0x64); // any frame, roll over into RXB1
     write_register(REG_RXB1CTRL, 0x60); // any frame
     write_register(REG_CANCTRL, 0x00);  // normal mode
