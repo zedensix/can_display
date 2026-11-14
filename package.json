@@ -11,6 +11,7 @@
     "tailwindcss": "4.3.3"
   },
   "devDependencies": {
-    "@types/bun": "1.4.4"
+    "@types/bun": "1.4.4",
+    "@types/web-bluetooth": "0.0.22"
   }
 }

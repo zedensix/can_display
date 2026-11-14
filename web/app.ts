@@ -2,7 +2,8 @@
 //
 // The dash's GATT service is src/firmware/dash.gatt: write 'S' to the
 // control characteristic, then the data characteristic notifies a 4-byte
-// little-endian size and the log. The log is src/app/datalog.h's 32-byte
+// little-endian size and the log; 'D' once it's all in tells the dash,
+// which goes back to its gauges. The log is src/app/datalog.h's 32-byte
 // little-endian records.
 
 const SERVICE = "c0ff8600-4b1e-4c7a-9e2d-5a3f86d0a001";
@@ -14,24 +15,51 @@ const LAP = 2;
 const NONE16 = -32768;
 const NO_FIX = 0x7fffffff;
 
-const $ = (id) => document.getElementById(id);
-let samples = [];
-let laps = [];
-
-const status = (text) => {
-  $("status").textContent = text;
+// Values as the CSV prints them: "" for no reading.
+type Sample = {
+  session: number;
+  t: number;
+  laps: number;
+  rpm: string;
+  coolant: string;
+  oil: string;
+  intake: string;
+  afr: string;
+  battery: string;
+  ethanol: string;
+  lat: string;
+  lon: string;
+  speed: string;
 };
 
-const lapTime = (ms) => {
+type Lap = { session: number; t: number; lap: number; ms: number };
+
+type Session = { from: number; to: number; laps: Lap[] };
+
+type Log = { samples: Sample[]; laps: Lap[] };
+
+function el<T extends HTMLElement = HTMLElement>(id: string): T {
+  const found = document.getElementById(id);
+  if (!found) throw new Error(`#${id} is missing from the page`);
+  return found as T;
+}
+
+let log: Log = { samples: [], laps: [] };
+
+const status = (text: string) => {
+  el("status").textContent = text;
+};
+
+const lapTime = (ms: number) => {
   const minutes = Math.floor(ms / 60000);
   const seconds = ((ms % 60000) / 1000).toFixed(2).padStart(5, "0");
   return `${minutes}:${seconds}`;
 };
 
 // parse turns the raw log into samples and laps, oldest first.
-export function parse(bytes) {
+export function parse(bytes: Uint8Array): Log {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const out = { samples: [], laps: [] };
+  const out: Log = { samples: [], laps: [] };
   for (let at = 0; at + RECORD <= bytes.length; at += RECORD) {
     const session = view.getUint16(at, true);
     if (session === 0xffff) continue;
@@ -43,7 +71,7 @@ export function parse(bytes) {
       continue;
     }
     if (kind !== SAMPLE) continue;
-    const column = (i, scale) => {
+    const column = (i: number, scale: number) => {
       const v = view.getInt16(at + 8 + 2 * i, true);
       return v === NONE16 ? "" : String(v / scale);
     };
@@ -66,13 +94,14 @@ export function parse(bytes) {
       speed: speed === 0xffff ? "" : String(speed / 10),
     });
   }
-  const order = (a, b) => a.session - b.session || a.t - b.t;
+  const order = (a: { session: number; t: number }, b: { session: number; t: number }) =>
+    a.session - b.session || a.t - b.t;
   out.samples.sort(order);
   out.laps.sort(order);
   return out;
 }
 
-function sessionCard(id, session) {
+function sessionCard(id: number, session: Session): string {
   const best = Math.min(...session.laps.map((l) => l.ms));
   const worst = Math.max(...session.laps.map((l) => l.ms));
   const rows = session.laps
@@ -103,29 +132,32 @@ function sessionCard(id, session) {
 }
 
 function show() {
-  const sessions = new Map();
-  const entry = (id, t) => {
+  const sessions = new Map<number, Session>();
+  const entry = (id: number, t: number) => {
     const e = sessions.get(id) ?? { from: t, to: t, laps: [] };
     e.from = Math.min(e.from, t);
     e.to = Math.max(e.to, t);
     sessions.set(id, e);
     return e;
   };
-  for (const s of samples) entry(s.session, s.t);
-  for (const l of laps) entry(l.session, l.t).laps.push(l);
+  for (const s of log.samples) entry(s.session, s.t);
+  for (const l of log.laps) entry(l.session, l.t).laps.push(l);
 
   const minutes = [...sessions.values()].reduce((sum, e) => sum + (e.to - e.from) / 60000, 0);
-  $("stat-sessions").textContent = sessions.size;
-  $("stat-laps").textContent = laps.length;
-  $("stat-best").textContent = laps.length ? lapTime(Math.min(...laps.map((l) => l.ms))) : "--";
-  $("stat-time").textContent = `${Math.round(minutes)} min`;
-  $("sessions").innerHTML = [...sessions].reverse().map(([id, e]) => sessionCard(id, e)).join("");
-  $("csv").disabled = samples.length === 0;
-  $("laps").disabled = laps.length === 0;
-  $("results").classList.remove("hidden");
+  el("stat-sessions").textContent = String(sessions.size);
+  el("stat-laps").textContent = String(log.laps.length);
+  el("stat-best").textContent = log.laps.length ? lapTime(Math.min(...log.laps.map((l) => l.ms))) : "--";
+  el("stat-time").textContent = `${Math.round(minutes)} min`;
+  el("sessions").innerHTML = [...sessions]
+    .reverse()
+    .map(([id, e]) => sessionCard(id, e))
+    .join("");
+  el<HTMLButtonElement>("csv").disabled = log.samples.length === 0;
+  el<HTMLButtonElement>("laps").disabled = log.laps.length === 0;
+  el("results").classList.remove("hidden");
 }
 
-function save(name, header, rows) {
+function save(name: string, header: string, rows: string[]) {
   const blob = new Blob([`${header}\n${rows.join("\n")}\n`], { type: "text/csv" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
@@ -134,71 +166,84 @@ function save(name, header, rows) {
   URL.revokeObjectURL(link.href);
 }
 
-$("csv").onclick = () =>
+el("csv").onclick = () =>
   save(
     "gt86-log.csv",
     "session,time_s,laps,rpm,coolant_c,oil_c,intake_c,afr,battery_v,ethanol_pct,lat,lon,speed_kmh",
-    samples.map((s) =>
+    log.samples.map((s) =>
       [s.session, (s.t / 1000).toFixed(1), s.laps, s.rpm, s.coolant, s.oil, s.intake, s.afr, s.battery,
         s.ethanol, s.lat, s.lon, s.speed].join(","),
     ),
   );
 
-$("laps").onclick = () =>
-  save("gt86-laps.csv", "session,lap,time_ms,time", laps.map((l) => [l.session, l.lap, l.ms, lapTime(l.ms)].join(",")));
+el("laps").onclick = () =>
+  save(
+    "gt86-laps.csv",
+    "session,lap,time_ms,time",
+    log.laps.map((l) => [l.session, l.lap, l.ms, lapTime(l.ms)].join(",")),
+  );
 
 // download connects, asks for the log and resolves with its bytes.
-async function download() {
+async function download(): Promise<Uint8Array> {
   const device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE] }] });
+  if (!device.gatt) throw new Error("the dash has no GATT server");
   status("Connecting...");
   const server = await device.gatt.connect();
   const service = await server.getPrimaryService(SERVICE);
   const data = await service.getCharacteristic(DATA);
   const control = await service.getCharacteristic(CONTROL);
-  let buffer = null;
+  let buffer: Uint8Array | null = null;
   let got = 0;
   const started = performance.now();
-  const bytes = new Promise((resolve, reject) => {
+  const bytes = new Promise<Uint8Array>((resolve, reject) => {
     device.addEventListener("gattserverdisconnected", () => reject(new Error("the dash disconnected")));
     data.addEventListener("characteristicvaluechanged", (event) => {
-      const chunk = new Uint8Array(event.target.value.buffer);
+      const value = (event.target as BluetoothRemoteGATTCharacteristic).value;
+      if (!value) return;
+      const chunk = new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
       if (!buffer) {
         // The first notification is the size.
-        buffer = new Uint8Array(new DataView(chunk.buffer).getUint32(0, true));
-        $("transfer").classList.remove("hidden");
+        buffer = new Uint8Array(value.getUint32(0, true));
+        el("transfer").classList.remove("hidden");
         if (buffer.length === 0) resolve(buffer);
         return;
       }
       buffer.set(chunk.subarray(0, buffer.length - got), got);
       got += chunk.length;
       const seconds = (performance.now() - started) / 1000;
-      $("progress").style.width = `${Math.min(100, (100 * got) / buffer.length)}%`;
-      $("received").textContent = `${Math.round(got / 1024)} / ${Math.round(buffer.length / 1024)} KB`;
-      $("speed").textContent = `${(got / 1024 / seconds).toFixed(1)} KB/s`;
+      el("progress").style.width = `${Math.min(100, (100 * got) / buffer.length)}%`;
+      el("received").textContent = `${Math.round(got / 1024)} / ${Math.round(buffer.length / 1024)} KB`;
+      el("speed").textContent = `${(got / 1024 / seconds).toFixed(1)} KB/s`;
       if (got >= buffer.length) resolve(buffer);
     });
   });
   await data.startNotifications();
   status("Downloading...");
   await control.writeValueWithoutResponse(new Uint8Array([0x53])); // 'S': send
-  const log = await bytes;
+  const received = await bytes;
+  await control.writeValueWithoutResponse(new Uint8Array([0x44])); // 'D': downloaded
   device.gatt.disconnect();
-  return log;
+  return received;
 }
 
-$("connect").onclick = async () => {
+const connect = el<HTMLButtonElement>("connect");
+connect.onclick = async () => {
   if (!navigator.bluetooth) {
     status("No Web Bluetooth here: open this page in Chrome on Android.");
     return;
   }
-  $("connect").disabled = true;
+  connect.disabled = true;
   try {
-    ({ samples, laps } = parse(await download()));
-    $("progress").classList.remove("sheen");
-    status(samples.length || laps.length ? `${samples.length} samples, ${laps.length} laps.` : "The log is empty.");
+    log = parse(await download());
+    el("progress").classList.remove("sheen");
+    const counts = log.samples.length || log.laps.length;
+    status(
+      `${counts ? `${log.samples.length} samples, ${log.laps.length} laps.` : "The log is empty."} ` +
+        "The dash is back on its gauges.",
+    );
     show();
   } catch (e) {
-    status(`Failed: ${e.message}`);
+    status(`Failed: ${e instanceof Error ? e.message : String(e)}`);
   }
-  $("connect").disabled = false;
+  connect.disabled = false;
 };

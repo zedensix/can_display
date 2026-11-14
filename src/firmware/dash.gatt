@@ -1,6 +1,7 @@
 // The dash's own GATT server, up only while it sends its data log to a
 // phone (Send log, in the settings): the phone writes 'S' to the control
-// characteristic and gets the log as notifications of the data one.
+// characteristic and gets the log as notifications of the data one, then
+// 'D' once it has it all.
 PRIMARY_SERVICE, GAP_SERVICE
 CHARACTERISTIC, GAP_DEVICE_NAME, READ, "GT86 DASH"
 

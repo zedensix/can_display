@@ -79,6 +79,8 @@ static bool have_notify, have_write;
 
 static void gatt_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size);
 static void advertise(void);
+static void resume(void);
+static void start_scan(void);
 
 static elm_t elm;
 // disconnecting is set once a reboot is on its way: the disconnection it
@@ -96,6 +98,10 @@ static datalog_t *send_log;
 static hci_con_handle_t phone = HCI_CON_HANDLE_INVALID;
 static bool streaming, header_sent;
 static uint32_t first, total, sent;
+// received_at is when the phone said it got the whole log ('D'): the
+// dash goes back to the dongle RESUME_MS later, by itself.
+static uint32_t received_at;
+#define RESUME_MS 2500
 
 // set_phase moves to p and shows status, or keeps the current one when
 // status is NULL.
@@ -383,10 +389,7 @@ static void hci_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, 
         if (btstack_event_state_get_state(packet) == HCI_STATE_WORKING && send_log) {
             advertise();
         } else if (btstack_event_state_get_state(packet) == HCI_STATE_WORKING && phase == STARTING) {
-            log_line("ble: scanning for the OBD dongle (a phone connected to it hides it)");
-            set_phase(SCANNING, "SEARCHING\nlooking for the OBD dongle");
-            gap_set_scan_parameters(1, 0x30, 0x30); // active: also get the scan responses, with names
-            gap_start_scan();
+            start_scan();
         }
         break;
     case GAP_EVENT_ADVERTISING_REPORT:
@@ -408,11 +411,18 @@ static void hci_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, 
         }
         break;
     case HCI_EVENT_DISCONNECTION_COMPLETE:
-        connection = HCI_CON_HANDLE_INVALID;
-        if (phase == SENDING) {
-            // The dongle let go, or the phone gone: (back) on the air.
+        if (hci_event_disconnection_complete_get_connection_handle(packet) == phone) {
+            // The phone gone: still sending, back on the air for it.
             phone = HCI_CON_HANDLE_INVALID;
             streaming = false;
+            if (phase == SENDING && !received_at) {
+                advertise();
+            }
+            break;
+        }
+        connection = HCI_CON_HANDLE_INVALID;
+        if (phase == SENDING) {
+            // The dongle let go: on the air for the phone.
             advertise();
         } else if (phase == STANDBY || phase == OFFLINE) {
             hci_power_control(HCI_POWER_OFF);
@@ -441,7 +451,7 @@ static void advertise(void) {
     gap_advertisements_set_data(sizeof adv, adv);
     gap_scan_response_set_data(sizeof scan_response, scan_response);
     gap_advertisements_enable(1);
-    set_phase(SENDING, "SEND LOG\nopen the page\non your phone");
+    set_phase(SENDING, "SEND LOG\nopen the page\non your phone\npress: back");
 }
 
 static void send_chunk(void) {
@@ -476,7 +486,8 @@ static void send_chunk(void) {
     streaming = false;
     log_line("ble: data log sent, %lu bytes", (unsigned long)total);
     char status[96];
-    snprintf(status, sizeof status, "SEND LOG\ndone: %lu KB\npress to reconnect", (unsigned long)(total / 1024));
+    snprintf(status, sizeof status, "SEND LOG\nsent %lu KB\nwaiting for the phone\npress: back",
+             (unsigned long)(total / 1024));
     state_set_status(state, status);
 }
 
@@ -485,6 +496,12 @@ static int att_write(hci_con_handle_t con, uint16_t handle, uint16_t mode, uint1
     (void)mode;
     (void)offset;
     if (handle == DATA_CCCD_HANDLE) {
+        return 0;
+    }
+    if (handle == CONTROL_HANDLE && size >= 1 && buffer[0] == 'D' && send_log) {
+        log_line("ble: the phone got the data log");
+        state_set_status(state, "SEND LOG\ndownloaded\nback to the gauges");
+        received_at = now ? now : 1;
         return 0;
     }
     if (handle == CONTROL_HANDLE && size >= 1 && buffer[0] == 'S' && send_log) {
@@ -505,6 +522,27 @@ static void att_handler(uint8_t packet_type, uint16_t channel, uint8_t *packet, 
     if (packet_type == HCI_EVENT_PACKET && hci_event_packet_get_type(packet) == ATT_EVENT_CAN_SEND_NOW) {
         send_chunk();
     }
+}
+
+static void start_scan(void) {
+    log_line("ble: scanning for the OBD dongle (a phone connected to it hides it)");
+    set_phase(SCANNING, "SEARCHING\nlooking for the OBD dongle");
+    gap_set_scan_parameters(1, 0x30, 0x30); // active: also get the scan responses, with names
+    gap_start_scan();
+}
+
+// resume ends Send log: off the air, the phone let go, back to the dongle
+// without a reboot.
+static void resume(void) {
+    log_line("ble: send log over, back to the dongle");
+    send_log = NULL;
+    streaming = false;
+    received_at = 0;
+    gap_advertisements_enable(0);
+    if (phone != HCI_CON_HANDLE_INVALID) {
+        gap_disconnect(phone);
+    }
+    start_scan();
 }
 
 static void start(void) {
@@ -562,6 +600,11 @@ static void check_timeouts(void) {
     case ENABLING_NOTIFICATIONS:
         if (elapsed > STEP_TIMEOUT_MS) {
             fail("BLE connect", "GATT discovery timed out");
+        }
+        break;
+    case SENDING:
+        if (received_at && now - received_at > RESUME_MS) {
+            resume();
         }
         break;
     case FAILED:
@@ -680,8 +723,10 @@ bool ble_prompt_click(uint32_t now_ms) {
         return true;
     case STANDBY:
     case OFFLINE:
-    case SENDING:
         reboot_to_connect();
+        return true;
+    case SENDING:
+        resume();
         return true;
     default:
         return false;

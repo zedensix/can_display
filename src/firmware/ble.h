@@ -39,7 +39,8 @@ void ble_scan_ram(void);
 void ble_listen_can(void);
 
 // ble_send_log lets the dongle go and advertises the dash to a phone,
-// which gets log (see web/), until a click reconnects.
+// which gets log (see web/). Once the phone says it got it all, or on a
+// click, the dash goes back to the dongle.
 void ble_send_log(datalog_t *log);
 
 // ble_go_offline lets the dongle go and turns the radio off, until a
