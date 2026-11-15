@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "bun --hot web/server.ts",
-    "start": "bun web/server.ts"
+    "start": "bun web/server.ts",
+    "wiring": "open docs/wiring.html"
   },
   "dependencies": {
     "bun-plugin-tailwind": "0.1.2",

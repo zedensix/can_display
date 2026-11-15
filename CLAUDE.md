@@ -17,6 +17,7 @@ mise run logo        # 86.png -> src/app/logo.c (tools/logo.py, then xxd)
 bun run dev          # the web page on localhost:3000, hot reload
 mise run ui          # every screen with fixed readings -> ui/*.png, ui/sheet.png (tools/render_ui.c): rerun after a UI change and look at it
 mise run wiring      # docs/wiring.html (color, blueprint) -> docs/resources/*.png for docs/wiring.md (Playwright Chromium, fetched once)
+bun run wiring       # docs/wiring.html in the browser: drag to move, cmd+scroll or pinch to zoom, double-click to fit, click a wire to follow its net
 mise run faceplate   # the printed parts (scad-js, one class per part, dimensions in faceplate/config.ts): faceplate (display + encoder) and tray (Pico, buck, MCP2515) -> faceplate/*.stl (binary, openscad-wasm) + PNGs (OpenSCAD from mise): rerun after a change and look at them
 prek install         # once per clone: the git hooks (.pre-commit-config.yaml): clang-format, biome, tsc, host tests
 prek run --all-files # every hook on every tracked file

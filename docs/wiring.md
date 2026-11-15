@@ -3,7 +3,8 @@
 This matches the pin constants in `src/firmware/board.h`.
 Change either the wiring or the constants if yours differs: they just
 need to agree. `wiring.html` draws it in a browser, in color or as a
-blueprint; `mise run wiring` captures it into the pictures below (rerun
+blueprint, to zoom into and click a wire to follow it (`bun run wiring`
+opens it); `mise run wiring` captures it into the pictures below (rerun
 it when the wiring changes).
 
 ![Wiring, in color](resources/wiring-color.png)

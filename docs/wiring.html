@@ -16,7 +16,9 @@
   body.blueprint nav a.active { background: #e6f0ff; border-color: #e6f0ff; color: #123d73; }
   nav h1 { margin: 0 auto 0 0; font-size: 18px; align-self: center; letter-spacing: 1px; }
   main { padding: 16px; }
-  svg { display: block; width: 100%; height: auto; }
+  svg { display: block; width: 100%; height: auto; cursor: grab; touch-action: none; user-select: none; }
+  svg.dragging { cursor: grabbing; }
+  nav .hint { align-self: center; font-size: 13px; opacity: 0.7; }
   .notes { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); margin-top: 16px; }
   .note { border: 1px solid rgb(127 127 127 / 0.35); border-radius: 10px; padding: 12px 14px; }
   .note b { display: block; margin-bottom: 4px; }
@@ -26,6 +28,7 @@
 <body>
 <nav>
   <h1>GT86 DASH WIRING</h1>
+  <span class="hint">Drag to move · cmd+scroll or pinch to zoom · double-click to fit · click a wire to follow it</span>
   <a href="#color" id="nav-color">Color</a>
   <a href="#blueprint" id="nav-blueprint">Blueprint</a>
 </nav>
@@ -132,6 +135,13 @@ const WIRES = [
   { net: "gnd", optional: true, points: [[300, 564], [520, 564]] },
 ];
 const JUNCTIONS = [[760, 278]];
+// What each net carries, shown when hovering a wire.
+const NET_NAMES = {
+  v12: "12V from the car", v5: "5V: buck OUT+ to VSYS", v33: "3.3V from 3V3(OUT)", gnd: "GND",
+  bl: "display backlight", res: "display reset", dc: "display data/command", sda: "display SPI data (MOSI)",
+  scl: "display SPI clock", cs: "display chip select", clk: "encoder CLK", dt: "encoder DT", sw: "encoder button",
+  spi1: "MCP2515 on SPI1 (optional)",
+};
 const USED_PINS = new Set([3, 4, 5, 6, 14, 15, 16, 17, 18, 22, 23, 24, 25, 26, 27, 29, 36, 38, 39]);
 
 const THEMES = {
@@ -164,6 +174,9 @@ const THEMES = {
 };
 
 const NS = "http://www.w3.org/2000/svg";
+// The background (and the blueprint's grid) runs one drawing's size past
+// each edge, as far as panning and zooming out can show.
+const PAPER = { x: -1240, y: -820, width: 3720, height: 2460 };
 function svgElement(name, attrs, parent, text) {
   const node = document.createElementNS(NS, name);
   for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
@@ -179,8 +192,8 @@ function drawGrid(svg, theme) {
   const big = svgElement("pattern", { id: "grid-big", width: 100, height: 100, patternUnits: "userSpaceOnUse" }, defs);
   svgElement("rect", { width: 100, height: 100, fill: "url(#grid-small)" }, big);
   svgElement("path", { d: "M 100 0 L 0 0 0 100", fill: "none", stroke: "rgb(230 240 255 / 0.28)", "stroke-width": 1.2 }, big);
-  svgElement("rect", { width: "100%", height: "100%", fill: theme.background }, svg);
-  svgElement("rect", { width: "100%", height: "100%", fill: "url(#grid-big)" }, svg);
+  svgElement("rect", { ...PAPER, fill: theme.background }, svg);
+  svgElement("rect", { ...PAPER, fill: "url(#grid-big)" }, svg);
   // Drawing frame and title block, as on a print.
   svgElement("rect", { x: 12, y: 12, width: 1216, height: 796, fill: "none", stroke: theme.line, "stroke-width": 2 }, svg);
   const tb = { x: 900, y: 690, w: 316, h: 106 };
@@ -267,7 +280,10 @@ function drawWire(svg, theme, w) {
   const stroke = wireColor(theme, w.net);
   const width = theme.wireWidth + (["v5", "v12", "gnd", "v33"].includes(w.net) && !theme.net ? 1 : 0);
   svgElement("path", { d, fill: "none", stroke, "stroke-width": width, "stroke-linejoin": "round", "stroke-linecap": "round",
-               "stroke-dasharray": w.optional ? "8 5" : "" }, svg);
+               "stroke-dasharray": w.optional ? "8 5" : "", class: "wire", "data-net": w.net }, svg);
+  // A wider invisible copy, easier to hover and click than the wire itself.
+  const hit = svgElement("path", { d, fill: "none", stroke: "transparent", "stroke-width": 14, "data-net": w.net }, svg);
+  svgElement("title", {}, hit, w.label ? `${NET_NAMES[w.net]}: ${w.label}` : NET_NAMES[w.net]);
   if (w.label) {
     const [[x0, y0], [x1]] = w.points;
     svgText(svg, theme, (x0 + x1) / 2, y0 - 6, w.label, { size: 10, weight: 600, anchor: "middle", color: theme.net ? stroke : theme.text });
@@ -310,7 +326,7 @@ function drawDiagram(style) {
   const svg = document.getElementById("diagram");
   svg.replaceChildren();
   if (theme.grid) drawGrid(svg, theme);
-  else svgElement("rect", { width: "100%", height: "100%", fill: theme.background }, svg);
+  else svgElement("rect", { ...PAPER, fill: theme.background }, svg);
   drawLegend(svg, theme);
   for (const w of WIRES) drawWire(svg, theme, w);
   for (const [x, y] of JUNCTIONS) svgElement("circle", { cx: x, cy: y, r: 6, fill: wireColor(theme, "v33") }, svg);
@@ -319,7 +335,96 @@ function drawDiagram(style) {
   drawCar(svg, theme);
   document.body.className = style;
   for (const s of Object.keys(THEMES)) document.getElementById(`nav-${s}`).classList.toggle("active", s === style);
+  showSelectedNet();
 }
+
+// Clicking a wire dims every other net; clicking it again, or anywhere
+// else, shows them all.
+let selectedNet = null;
+function showSelectedNet() {
+  for (const wire of document.querySelectorAll("#diagram .wire")) {
+    wire.style.opacity = selectedNet && wire.dataset.net !== selectedNet ? "0.12" : "";
+  }
+}
+function selectNet(net) {
+  selectedNet = net && net !== selectedNet ? net : null;
+  showSelectedNet();
+}
+
+// Pan and zoom through the viewBox, the drawing stays vector at any zoom:
+// drag to move, cmd+scroll (ctrl+scroll, a trackpad pinch) to zoom at the
+// pointer, scroll to move once zoomed in (at full size it scrolls the
+// page), double-click to fit. From half size to 20x, the view's center
+// never off the drawing.
+const diagram = document.getElementById("diagram");
+const FULL = { x: 0, y: 0, w: 1240, h: 820 };
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 20;
+let view = { ...FULL };
+
+const clampWidth = (w) => Math.min(FULL.w / MIN_ZOOM, Math.max(FULL.w / MAX_ZOOM, w));
+
+function setView(x, y, w) {
+  w = clampWidth(w);
+  const h = (w * FULL.h) / FULL.w;
+  x = Math.min(FULL.w - w / 2, Math.max(-w / 2, x));
+  y = Math.min(FULL.h - h / 2, Math.max(-h / 2, y));
+  view = { x, y, w, h };
+  diagram.setAttribute("viewBox", `${x} ${y} ${w} ${h}`);
+}
+
+// Diagram units per screen pixel at the current zoom.
+const unitsPerPixel = () => view.w / diagram.getBoundingClientRect().width;
+
+function zoomAt(clientX, clientY, factor) {
+  const box = diagram.getBoundingClientRect();
+  const px = view.x + (clientX - box.left) * unitsPerPixel();
+  const py = view.y + (clientY - box.top) * unitsPerPixel();
+  const w = clampWidth(view.w / factor);
+  const k = w / view.w;
+  setView(px - (px - view.x) * k, py - (py - view.y) * k, w);
+}
+
+diagram.addEventListener("wheel", (e) => {
+  if (e.metaKey || e.ctrlKey) {
+    // A trackpad pinch arrives as ctrl+wheel with small deltas; a mouse
+    // wheel notch is about 100, so cap each step to about 20%.
+    const step = Math.max(-20, Math.min(20, e.deltaY));
+    zoomAt(e.clientX, e.clientY, Math.exp(-step * 0.01));
+  } else if (view.w !== FULL.w || view.x !== FULL.x || view.y !== FULL.y) {
+    setView(view.x + e.deltaX * unitsPerPixel(), view.y + e.deltaY * unitsPerPixel(), view.w);
+  } else {
+    return;
+  }
+  e.preventDefault();
+}, { passive: false });
+
+// A press that moves more than a few pixels is a drag, else a click.
+let drag = null;
+diagram.addEventListener("pointerdown", (e) => {
+  drag = { clientX: e.clientX, clientY: e.clientY, view, moved: false, net: e.target.dataset.net ?? null };
+  diagram.setPointerCapture(e.pointerId);
+});
+diagram.addEventListener("pointermove", (e) => {
+  if (!drag) return;
+  const dx = e.clientX - drag.clientX;
+  const dy = e.clientY - drag.clientY;
+  if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+  drag.moved = true;
+  diagram.classList.add("dragging");
+  const scale = drag.view.w / diagram.getBoundingClientRect().width;
+  setView(drag.view.x - dx * scale, drag.view.y - dy * scale, drag.view.w);
+});
+diagram.addEventListener("pointerup", () => {
+  if (drag && !drag.moved) selectNet(drag.net);
+  drag = null;
+  diagram.classList.remove("dragging");
+});
+diagram.addEventListener("pointercancel", () => {
+  drag = null;
+  diagram.classList.remove("dragging");
+});
+diagram.addEventListener("dblclick", () => setView(FULL.x, FULL.y, FULL.w));
 
 const drawFromHash = () => drawDiagram(location.hash === "#blueprint" ? "blueprint" : "color");
 window.addEventListener("hashchange", drawFromHash);
