@@ -1,15 +1,15 @@
 // `bun run wiring`: serves docs/wiring.html and the faceplate's files on
 // localhost and opens it. Its Dimensions tab saves each dimension as you
-// type it through POST /measurements: it goes to faceplate/measured.json
+// type it through POST /measurements: it goes to faceplate/data/measured.json
 // at once, then `mise run faceplate` rebuilds the parts. If the model
 // refuses the values (a standoff off the tray, a hole in a pocket...),
 // they stay saved and the page shows why; GET /measurements reads them back.
 
 import { join, resolve, sep } from "node:path";
-import { config, numberAt } from "../faceplate/config";
+import { config, numberAt } from "../faceplate/model/config";
 
 const root = resolve(import.meta.dir, "..");
-const measuredPath = join(root, "faceplate", "measured.json");
+const measuredPath = join(root, "faceplate", "data", "measured.json");
 // Only these folders are served.
 const served = ["docs", "faceplate"].map((dir) => join(root, dir) + sep);
 
@@ -18,7 +18,7 @@ function parseMeasurements(body: unknown): Record<string, number> {
   if (typeof body !== "object" || body === null || Array.isArray(body)) throw new Error("expected an object");
   const values: Record<string, number> = {};
   for (const [key, value] of Object.entries(body)) {
-    if (numberAt(config, key) === undefined) throw new Error(`${key} isn't a dimension in faceplate/config.ts`);
+    if (numberAt(config, key) === undefined) throw new Error(`${key} isn't a dimension in faceplate/model/config.ts`);
     if (typeof value !== "number" || !Number.isFinite(value) || value < 0)
       throw new Error(`${key}: ${value} isn't a dimension`);
     values[key] = value;

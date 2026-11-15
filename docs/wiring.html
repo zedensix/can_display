@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GT86 Dash Wiring</title>
 <!-- The modules' dimensions, for the Dimensions tab: written by `mise run faceplate`. -->
-<script src="../faceplate/dimensions.js"></script>
+<script src="../faceplate/data/dimensions.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: #f4f1ea; color: #1c1917; }
@@ -628,7 +628,7 @@ diagram.addEventListener("pointercancel", () => {
 diagram.addEventListener("dblclick", () => setView(FULL.x, FULL.y, FULL.w));
 
 // --- Dimensions tab: each module as the printed parts are built for it,
-// read from faceplate/config.ts through faceplate/dimensions.js. A value
+// read from faceplate/model/config.ts through faceplate/data/dimensions.js. A value
 // is "checked" when measured on the module or confirmed by a test print,
 // else a "guess" to measure before printing.
 
@@ -1088,7 +1088,7 @@ function printedCard(c, printed) {
   pictures.className = "pictures";
   for (const name of ["assembly", "assembly-front", "assembly-side", "faceplate-front", "faceplate-back", "tray-back"]) {
     const img = document.createElement("img");
-    img.src = `../faceplate/${name}.png?${Date.now()}`; // the latest rebuild, not a cached one
+    img.src = `../faceplate/renders/${name}.png?${Date.now()}`; // the latest rebuild, not a cached one
     img.alt = name;
     pictures.append(img);
   }

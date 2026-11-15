@@ -1,7 +1,8 @@
-// Renders each printable part of faceplate/ (the faceplate, the tray) to
-// faceplate/<part>.stl, pictures of them to faceplate/*.png, the assembly
-// with every module in place to faceplate/assembly.scad, and the
-// dimensions they're built from to faceplate/dimensions.js, which the
+// Renders each printable part of the faceplate's model (the faceplate, the
+// tray) to faceplate/stl/<part>.stl, pictures of them to
+// faceplate/renders/*.png, the assembly with every module in place to
+// faceplate/renders/assembly.scad, and the dimensions they're built from
+// to faceplate/data/dimensions.js, which the
 // wiring page's Dimensions tab shows (a script, so it loads from file://).
 //
 // The STLs come from OpenSCAD compiled to WebAssembly (openscad-wasm),
@@ -14,10 +15,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createOpenSCAD } from "openscad-wasm";
 import type { ScadObject } from "scad-js";
-import { assembly, faceplate, parts, tray, vars } from "../faceplate";
-import { checked, config } from "../faceplate/config";
+import { assembly, faceplate, parts, tray, vars } from "../faceplate/model";
+import { checked, config } from "../faceplate/model/config";
 
-const outputDir = "faceplate";
+const rendersDir = join("faceplate", "renders");
 
 /**
  * Each picture: what it shows, the camera's rotation [x, y, z] in degrees
@@ -83,19 +84,19 @@ const dimensions = {
   },
 };
 await Bun.write(
-  join(outputDir, "dimensions.js"),
+  join("faceplate", "data", "dimensions.js"),
   `// Written by tools/render_faceplate.ts (mise run faceplate): don't edit.\nwindow.FACEPLATE = ${JSON.stringify(dimensions, null, 2)};\n`,
 );
 
 // The assembly as OpenSCAD source, to turn around in its window (`mise run assembly`).
 await Bun.write(
-  join(outputDir, "assembly.scad"),
+  join(rendersDir, "assembly.scad"),
   `// Written by tools/render_faceplate.ts (mise run faceplate): don't edit. Preview (F5) keeps the colors.\n${assembly.serialize(vars)}`,
 );
 
 for (const [name, part] of Object.entries(parts)) {
   console.log(`faceplate: rendering ${name}.stl...`);
-  await renderStl(part.serialize(vars), join(outputDir, `${name}.stl`));
+  await renderStl(part.serialize(vars), join("faceplate", "stl", `${name}.stl`));
 }
 
 const tempDir = await mkdtemp(join(tmpdir(), "faceplate-"));
@@ -104,7 +105,7 @@ try {
     console.log(`faceplate: rendering ${name}.png...`);
     const scadPath = join(tempDir, `${name}.scad`);
     await writeFile(scadPath, picture.object.serialize(vars));
-    await renderPicture(scadPath, picture.rotation, picture.colors ?? false, join(outputDir, `${name}.png`));
+    await renderPicture(scadPath, picture.rotation, picture.colors ?? false, join(rendersDir, `${name}.png`));
   }
 } finally {
   await rm(tempDir, { recursive: true, force: true });

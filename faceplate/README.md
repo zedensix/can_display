@@ -1,10 +1,10 @@
 # Faceplate and tray
 
-![Assembly, back](assembly.png) ![Assembly, front](assembly-front.png)
+![Assembly, back](renders/assembly.png) ![Assembly, front](renders/assembly-front.png)
 
-![Assembly, side](assembly-side.png) ![Front](faceplate-front.png)
+![Assembly, side](renders/assembly-side.png) ![Front](renders/faceplate-front.png)
 
-![Faceplate, back](faceplate-back.png) ![Tray, back](tray-back.png)
+![Faceplate, back](renders/faceplate-back.png) ![Tray, back](renders/tray-back.png)
 
 The assembly pictures show every module modeled in place (boards,
 headers, pins, the converter and its screws), from config.ts's
@@ -36,7 +36,7 @@ Two printed parts:
 The wiring page's Dimensions tab (`bun run wiring`) draws every module
 with the dimensions the parts are built for, marks which were measured,
 and is where you enter them; hovering a row highlights what it measures.
-Each value saves itself as you type it, to `measured.json` (it overrides
+Each value saves itself as you type it, to `data/measured.json` (it overrides
 `config.ts`'s defaults), then the parts rebuild. A value the model
 refuses stays saved: the page says which keys to look at.
 
@@ -44,8 +44,8 @@ refuses stays saved: the page says which keys to look at.
 
 The default dimensions come from sellers' listings, which disagree with
 each other. Before printing, measure your modules with calipers and
-enter them in the Dimensions tab (or `measured.json`; every key is
-described in [`config.ts`](config.ts)). These matter most:
+enter them in the Dimensions tab (or `data/measured.json`; every key is
+described in [`config.ts`](model/config.ts)). These matter most:
 
 1. The display board's width and length, and its mounting holes' distance
    from the edges.
@@ -102,7 +102,7 @@ on where it goes.
 
 ## Printing
 
-Each part front face down on the bed: the pockets open upward, the posts
+Print `stl/faceplate.stl` and `stl/tray.stl`, each front face down on the bed: the pockets open upward, the posts
 and standoffs stand up, the window bevel is a 45 degree overhang, so no
 supports. PETG or ASA rather than PLA, which softens in a car parked in
 the sun.

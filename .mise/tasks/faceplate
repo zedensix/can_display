@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Render the faceplate and the tray to faceplate/*.stl, their pictures and faceplate/assembly.scad"
+#MISE description="Render the faceplate and the tray to STLs, their pictures and the assembly for OpenSCAD"
 set -euo pipefail
 
 bun install --frozen-lockfile >/dev/null

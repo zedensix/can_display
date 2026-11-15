@@ -7,7 +7,7 @@
 // Positions are seen from the back of the dash, where you screw things on:
 // x across (0 in the middle, + to the right), y up (0 at the display
 // board's top edge).
-import measured from "./measured.json";
+import measured from "../data/measured.json";
 
 const defaults = {
   display: {

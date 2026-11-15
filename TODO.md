@@ -18,7 +18,7 @@
 - [x] Plateau vissé derrière la façade : Pico, convertisseur 12V/5V et MCP2515 sur entretoises, fente pour les fils
 - [x] MCP2515 : registres CNF pour le quartz 8 MHz de la carte bleue (500 kbps, échantillonnage à 75 %)
 - [x] Onglet Dimensions sur la page de câblage (`bun run wiring`) : chaque module dessiné avec ses cotes, mesurées ou devinées
-- [x] Saisie des cotes dans l'onglet Dimensions : enregistrement automatique dans `faceplate/measured.json` (et le navigateur tant que le serveur ne l'a pas), relance `mise run faceplate`, une cote refusée reste enregistrée ; survol d'une ligne = la cote surlignée sur les dessins (vues de dessus et de côté), dessins fixés à l'écran pendant le défilement
+- [x] Saisie des cotes dans l'onglet Dimensions : enregistrement automatique dans `faceplate/data/measured.json` (et le navigateur tant que le serveur ne l'a pas), relance `mise run faceplate`, une cote refusée reste enregistrée ; survol d'une ligne = la cote surlignée sur les dessins (vues de dessus et de côté), dessins fixés à l'écran pendant le défilement
 - [x] Cotes : on saisit le trou de la carte (il choisit M2 ou M3), plus le trou pilote ; encodeur sans filetage ni écrou (tenu par ses 2 vis)
 - [x] Plan de câblage : connecteurs dans leur vrai ordre, chaque carte retournable (vue de dos par défaut, Pico par-dessous), bouton BLE / filaire, convertisseur en micro-USB dans le Pico
 - [ ] WIP Façade : 1er essai PLA corrigé (écran 37,5 x 58 + dégagement des soudures, encodeur tourné sur 4 colonnes, colonnes du Pico coupées pour l'USB, convertisseur hors plateau) ; reste à mesurer la vitre de l'écran (épaisseur, longueur, position) et la hauteur du corps de l'encodeur, puis réimprimer
