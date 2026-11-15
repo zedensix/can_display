@@ -1,8 +1,9 @@
 // The tray: a flat plate with the faceplate's outline, screwed onto its 4
-// posts, carrying the Pico and the MCP2515 on standoffs on its back, with
-// a slot for the wires. The Pico sits components out: its 2 rows of
-// header pins go through 2 slots, the Dupont plugs on them in the gap
-// toward the faceplate, where the converter lies too.
+// posts, carrying on its back the Pico and the MCP2515 on standoffs and,
+// between them, the converter, its ears cut off. The Pico sits components
+// out: its 2 rows of header pins go through 2 slots, the Dupont plugs on
+// them in the gap toward the faceplate, with the display's and the
+// encoder's. The MCP2515's wires go around the tray's bottom edge.
 //
 // Its front face (toward the faceplate) is at z = 0, the standoffs stand
 // up from its back; same X and Y as the faceplate. It prints front face
@@ -22,12 +23,18 @@ export const PICO_ROWS_APART = 17.78;
 export const HEADER_PLASTIC = 2.5;
 export const HEADER_PINS = 6;
 export const DUPONT_LENGTH = 14;
+/** The converter's stops, at its ends, and the zip tie around it and through the tray. */
+const CONVERTER_STOP = { thickness: 2, height: 5 };
+const ZIP_TIE = { width: 4.5, thickness: 1.5 };
 
 export class Tray {
   /** Each board's standoffs: center, outer radius, height, in the faceplate's X and Y. */
   readonly standoffs: { x: number; y: number; radius: number; height: number; pilotDiameter: number }[];
   /** The Pico's 2 pin rows' slots (x0, x1, y0, y1), wide enough for the Dupont plugs to come through. */
   readonly picoSlots: [number, number, number, number][];
+  /** The converter's middle on the tray's back, and the zip tie's 2 holes beside it (x0, x1, y0, y1). */
+  readonly converterY: number;
+  readonly zipTieHoles: [number, number, number, number][];
 
   constructor(
     readonly c: Config,
@@ -67,19 +74,29 @@ export class Tray {
           throw new Error("boards.pico.holesApartY: a pin row's slot cuts into a screw hole");
         }
       }
-      // The converter lies in the gap too: not under the Pico's plugs.
-      const { converter } = c;
-      if (
-        y0 < -converter.fromTop + converter.width / 2 + clearance &&
-        y1 > -converter.fromTop - converter.width / 2 - clearance &&
-        x0 < converter.length / 2 &&
-        x1 > -converter.length / 2
-      ) {
-        throw new Error("converter.fromTop: the converter lies under the Pico's plugs, make it larger");
-      }
     }
 
-    const slot = tray.wireSlot;
+    const { converter } = c;
+    this.converterY = -converter.fromTop;
+    const converterHalfY = converter.width / 2 + clearance;
+    this.zipTieHoles = [-1, 1].map((side) => {
+      const y = this.converterY + side * (converterHalfY + ZIP_TIE.thickness / 2 + 0.5);
+      return [-ZIP_TIE.width / 2, ZIP_TIE.width / 2, y - ZIP_TIE.thickness / 2, y + ZIP_TIE.thickness / 2];
+    });
+    if (converter.length / 2 + clearance + CONVERTER_STOP.thickness > faceplate.halfWidth - 0.5) {
+      throw new Error("converter.length: too long for the tray, even with its ears cut off");
+    }
+    // Its footprint, the zip tie's holes included, clear of the boards and the tray's screws.
+    const reach = converterHalfY + ZIP_TIE.thickness + 0.5;
+    for (const [name, board] of Object.entries(boards)) {
+      const [, centerY = 0] = board.center;
+      if (Math.abs(centerY - this.converterY) < board.length / 2 + reach) {
+        throw new Error(`converter.fromTop: the converter runs into boards.${name}`);
+      }
+    }
+    if (faceplate.posts.some(([, y]) => Math.abs(y - this.converterY) < reach + tray.postDiameter / 2)) {
+      throw new Error("converter.fromTop: the converter runs into a tray screw");
+    }
     for (const [name, board] of Object.entries(boards)) {
       const [centerX = 0, centerY = 0] = board.center;
       if (
@@ -100,12 +117,6 @@ export class Tray {
         }
         if (faceplate.posts.some(([px, py]) => Math.hypot(px - x, py - y) < radius + tray.postDiameter / 2)) {
           throw new Error(`boards.${name}: a standoff sits on one of the tray's screws, move its center`);
-        }
-        if (
-          Math.abs(x - slot.center[0]) < slot.width / 2 + radius &&
-          Math.abs(y - slot.center[1]) < slot.length / 2 + radius
-        ) {
-          throw new Error(`boards.${name}: a standoff runs into tray.wireSlot`);
         }
       }
     }
@@ -129,11 +140,10 @@ export class Tray {
 
   get object(): ScadObject {
     const { tray } = this.c;
-    const slot = tray.wireSlot;
-    const [slotX, slotY] = slot.center;
     return difference(
       union(
         this.faceplate.outline(tray.thickness),
+        this.converterStops,
         ...this.standoffs.map(({ x, y, radius, height }) =>
           cylinder(height + 0.01, radius, { center: false }).translate([x, y, tray.thickness - 0.01]),
         ),
@@ -141,13 +151,27 @@ export class Tray {
       ...this.faceplate.posts.map(([x, y]) =>
         cylinder(tray.thickness + 2, tray.screwClearance / 2, { center: false }).translate([x, y, -1]),
       ),
-      box(slotX - slot.width / 2, slotX + slot.width / 2, slotY - slot.length / 2, slotY + slot.length / 2, -1, 99),
+      ...this.zipTieHoles.map(([x0, x1, y0, y1]) => box(x0, x1, y0, y1, -1, 99)),
       // The Pico's pin rows and their plugs, through the tray and the standoffs' edges.
       ...this.picoSlots.map(([x0, x1, y0, y1]) => box(x0, x1, y0, y1, -1, 99)),
       // Blind pilots, so the front face stays closed under each board.
       ...this.standoffs.map(({ x, y, height, pilotDiameter }) =>
         cylinder(tray.thickness + height, pilotDiameter / 2, { center: false }).translate([x, y, 0.8]),
       ),
+    );
+  }
+
+  /** A low stop past each end of the converter, so it can't slide across. */
+  private get converterStops(): ScadObject {
+    const { converter, clearance, tray } = this.c;
+    const half = converter.length / 2 + clearance;
+    const y0 = this.converterY - converter.width / 2;
+    const y1 = this.converterY + converter.width / 2;
+    return union(
+      ...[-1, 1].map((side) => {
+        const [x0, x1] = [side * half, side * (half + CONVERTER_STOP.thickness)].sort((a, b) => a - b);
+        return box(x0, x1, y0, y1, tray.thickness - 0.01, tray.thickness + CONVERTER_STOP.height);
+      }),
     );
   }
 }

@@ -52,15 +52,7 @@ window.FACEPLATE = {
       "postDiameter": 6.5,
       "screwPilot": 2.5,
       "screwClearance": 3.4,
-      "standoffWall": 1.8,
-      "wireSlot": {
-        "width": 40,
-        "length": 7,
-        "center": [
-          0,
-          -51.25
-        ]
-      }
+      "standoffWall": 1.8
     },
     "boards": {
       "pico": {
@@ -91,7 +83,7 @@ window.FACEPLATE = {
       }
     },
     "converter": {
-      "fromTop": 38,
+      "fromTop": 39.5,
       "length": 46,
       "width": 27.5,
       "height": 14,

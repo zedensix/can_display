@@ -1,6 +1,6 @@
 // The modules as they sit once assembled, for the assembly pictures only
-// (never printed): the display, the encoder and the converter in the
-// faceplate's frame, the boards in the tray's. Outlines, faces and
+// (never printed): the display and the encoder in the faceplate's frame,
+// the boards and the converter in the tray's. Outlines, faces and
 // connectors come from config.ts; the small parts (chips, the MCP2515's
 // crystal and terminal) are only placed roughly, to show which face is
 // which.
@@ -8,7 +8,7 @@
 import type { ScadObject } from "scad-js";
 import { cylinder, union } from "scad-js";
 import type { Config } from "./config";
-import { box, CONVERTER_LEDGE, ENCODER_PINS, type Faceplate, PITCH } from "./faceplate";
+import { box, ENCODER_PINS, type Faceplate, PITCH } from "./faceplate";
 import { DUPONT_LENGTH, HEADER_PINS, HEADER_PLASTIC, PICO_PINS, PICO_ROWS_APART } from "./tray";
 
 /** A row of square header pins along X (or Y), centered on (x, y), from z0 to z1. */
@@ -176,22 +176,21 @@ function mcp2515(c: Config): ScadObject {
   );
 }
 
-/** The converter, its ears cut off, across the faceplate's back on its ledges, a zip tie over it. */
-function converter(c: Config, faceplate: Faceplate): ScadObject {
+/** The converter, its ears cut off, on the tray's back between its stops, a zip tie around it. */
+function converter(c: Config): ScadObject {
   const k = c.converter;
   const y = -k.fromTop;
-  const z = faceplate.thickness + CONVERTER_LEDGE;
-  const half = k.length / 2 + c.clearance + 2;
+  const z = c.tray.thickness;
   return union(
     box(-k.length / 2, k.length / 2, y - k.width / 2, y + k.width / 2, z, z + k.height).color("dimgray"),
-    box(-half, half, y - 2, y + 2, z + k.height, z + k.height + 1).color("white"),
+    box(-2, 2, y - k.width / 2 - 1.5, y + k.width / 2 + 1.5, z + k.height, z + k.height + 1).color("white"),
   );
 }
 
 /** Every module in place: the faceplate's in its frame, the tray's in the tray's (move them with it). */
 export function mockups(c: Config, faceplate: Faceplate): { faceplate: ScadObject; tray: ScadObject } {
   return {
-    faceplate: union(display(c, faceplate), encoder(c, faceplate), converter(c, faceplate)),
-    tray: union(pico(c), mcp2515(c)),
+    faceplate: union(display(c, faceplate), encoder(c, faceplate)),
+    tray: union(pico(c), mcp2515(c), converter(c)),
   };
 }

@@ -142,12 +142,15 @@ function saveView() {
 // Modules, in the layout with the Pico seen from above. pins: the header
 // in its real order, top to bottom along the edge facing the Pico, with
 // the module seen from its front; seen from the back, it's reversed.
+// pinTop sits half a pitch off the Pico's rows: no module pin shares a
+// Pico pin's height, so a wire's stretch along to its module never runs
+// over another's stretch leaving the Pico.
 // Each wired pin names the Pico's physical pin it goes to (board.h,
 // docs/wiring.md). edgePins sit on the far edge, labeled instead of wired.
 const MODULES = [
   {
     id: "display", kind: "display", name: "ST7789 2.0\" 240x320", sub: "SPI0 display",
-    x: 900, y: 392, w: 210, h: 228, side: "right", pinTop: 432,
+    x: 900, y: 392, w: 210, h: 228, side: "right", pinTop: 443,
     // Front: screen up, header at the top, GND VDD SCL SDA RES DC CS BL from the left.
     pins: [
       { label: "BL", pico: 29, net: "bl", wire: "GP22" },
@@ -162,7 +165,7 @@ const MODULES = [
   },
   {
     id: "encoder", kind: "encoder", name: "KY-040 encoder", sub: "turn, click, hold",
-    x: 110, y: 176, w: 190, h: 150, side: "left", pinTop: 212,
+    x: 110, y: 176, w: 190, h: 150, side: "left", pinTop: 223,
     // Front: knob up, header at the top, CLK DT SW + GND from the left.
     pins: [
       { label: "CLK", pico: 4, net: "clk", wire: "GP2" },
@@ -174,7 +177,7 @@ const MODULES = [
   },
   {
     id: "mcp", kind: "mcp", name: "MCP2515 + TJA1050", sub: "wired CAN", wired: true,
-    x: 160, y: 420, w: 140, h: 200, side: "left", pinTop: 454,
+    x: 160, y: 420, w: 140, h: 200, side: "left", pinTop: 465,
     // Front: chips up, header at the bottom, INT SCK SI SO CS GND VCC from the left.
     pins: [
       { label: "VCC", pico: 40, net: "v5", wire: "VBUS 5V" },
@@ -426,13 +429,18 @@ function drawWire(svg, theme, w) {
   // A wider invisible copy, easier to hover and click than the wire itself.
   const hit = svgElement("path", { d, fill: "none", stroke: "transparent", "stroke-width": 14, "data-net": w.net }, svg);
   svgElement("title", {}, hit, w.wire ? `${NET_NAMES[w.net]}: ${w.wire}` : NET_NAMES[w.net]);
-  if (w.wire) {
-    // On the stretch leaving the Pico, or the one reaching the module when that one's too short.
-    const first = [w.points[0], w.points[1]];
-    const last = w.points.slice(-2);
-    const [[x0, y0], [x1]] = Math.abs(first[1][0] - first[0][0]) >= 60 ? first : last;
-    svgText(svg, theme, (x0 + x1) / 2, y0 - 6, w.wire, { size: 10, weight: 600, anchor: "middle", color: theme.net ? stroke : theme.text });
-  }
+}
+
+// A wire's name, on the stretch leaving the Pico, or the one reaching the
+// module when that one's too short. Drawn over every wire, ringed with
+// the paper's color so a wire passing under it doesn't cross it out.
+function drawWireLabel(svg, theme, w) {
+  if (!w.wire) return;
+  const first = [w.points[0], w.points[1]];
+  const last = w.points.slice(-2);
+  const [[x0, y0], [x1]] = Math.abs(first[1][0] - first[0][0]) >= 60 ? first : last;
+  const label = svgText(svg, theme, (x0 + x1) / 2, y0 - 6, w.wire, { size: 10, weight: 600, anchor: "middle", color: theme.net ? wireColor(theme, w.net) : theme.text });
+  for (const [k, v] of Object.entries({ stroke: theme.background, "stroke-width": 4, "stroke-linejoin": "round", "paint-order": "stroke" })) label.setAttribute(k, v);
 }
 
 // The 12V to 5V converter: 2 wires to the car's 12V, its micro-USB plug
@@ -455,7 +463,7 @@ function drawConverter(svg, theme) {
   svgText(svg, theme, c.x + c.w / 2, c.y + 38, "12V → 5V", { size: 13, weight: 700, anchor: "middle", color: theme.board ? "#fff" : theme.text });
   svgText(svg, theme, c.x + c.w / 2, c.y + 56, "3A, potted", { size: 10, anchor: "middle", color: theme.board ? "#d6d3d1" : theme.dim });
   svgText(svg, theme, c.x + c.w / 2, c.y + c.h + 18, "DC/DC converter", { size: 13, weight: 700, anchor: "middle" });
-  svgText(svg, theme, c.x + c.w / 2, c.y + c.h + 34, "behind the display", { size: 11, anchor: "middle", color: theme.dim });
+  svgText(svg, theme, c.x + c.w / 2, c.y + c.h + 34, "on the tray, ears cut off", { size: 11, anchor: "middle", color: theme.dim });
 }
 
 function drawCar(svg, theme) {
@@ -517,7 +525,10 @@ function drawDiagram(style) {
   const layer = fromBelow ? svgElement("g", { transform: "matrix(-1 0 0 1 1240 0)" }, svg) : svg;
   mirrored = fromBelow;
   const pinFaces = Object.fromEntries(Object.entries(wiringView.faces).map(([id, face]) => [id, fromBelow ? OTHER_FACE[face] : face]));
-  for (const w of routeWires(pinFaces)) drawWire(layer, theme, w);
+  const wires = routeWires(pinFaces);
+  for (const w of wires) drawWire(layer, theme, w);
+  const labels = svgElement("g", {}, layer);
+  for (const w of wires) drawWireLabel(labels, theme, w);
   drawConverter(layer, theme);
   drawPico(layer, theme);
   for (const m of MODULES) {
@@ -1056,11 +1067,11 @@ function converterCard(k) {
     g.rect(-L / 2, 0, L, k.height, { fill: "#18181b", key: "converter.height converter.length" });
     g.along(0, k.height, -total / 2 - 4, k.height, { key: "converter.height", hover: true });
   });
-  return dimensionCard("12V → 5V converter", "Its ears cut off, across the faceplate's back behind the display, on 2 ledges between 2 stops, a zip tie over it", [top, side], [
+  return dimensionCard("12V → 5V converter", "Its ears cut off, across the tray's back between the Pico and the MCP2515, between 2 stops, zip-tied through the tray", [top, side], [
     ["Box length", L, "converter.length"],
     ["Box width", W, "converter.width"],
     ["Box height", k.height, "converter.height"],
-    ["Its middle, below the display board's top edge", k.fromTop, "converter.fromTop"],
+    ["Its middle on the tray, below the display board's top edge", k.fromTop, "converter.fromTop"],
     ["Length with its ears", total, null, "total"],
     ["Ear length", k.earLength, "converter.earLength"],
     ["Ear width at the box", k.earWidthAtBox, "converter.earWidthAtBox"],

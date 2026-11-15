@@ -16,11 +16,6 @@ export const ENCODER_PINS = 5;
 /** Every pin header's pitch. */
 export const PITCH = 2.54;
 
-/** The converter's 2 ledges lift it off the display board's back; the 2 stops at its ends, and the zip tie's slot through them. */
-export const CONVERTER_LEDGE = 2;
-const CONVERTER_STOP = 2;
-const ZIP_TIE = { width: 4.5, thickness: 2 };
-
 /** A box from x0..x1, y0..y1, z0..z1. */
 export function box(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): ScadObject {
   return cube([x1 - x0, y1 - y0, z1 - z0], { center: false }).translate([x0, y0, z0]);
@@ -161,64 +156,6 @@ export class Faceplate {
     if (postX - tray.postDiameter / 2 < this.encoderRecessHalf + 0.5) {
       throw new Error("tray.postDiameter runs the bottom posts into the encoder's recess");
     }
-    const { converter } = c;
-    const converterHalf = converter.length / 2 + clearance;
-    if (converterHalf - 1 < display.pcbWidth / 2 + clearance) {
-      throw new Error("converter.length: shorter than the display board, its ends have nothing to rest on");
-    }
-    if (converterHalf + CONVERTER_STOP > this.halfWidth - 0.5) {
-      throw new Error("converter.length: too long for the plate, even with its ears cut off");
-    }
-    if (
-      this.posts.some(
-        ([, y]) => Math.abs(y + converter.fromTop) < converter.width / 2 + tray.postDiameter / 2 + clearance,
-      )
-    ) {
-      throw new Error("converter.fromTop: the converter's stops run into a tray post");
-    }
-    // The display's header and the Dupont plugs on it stand out of the board's back at its bottom end.
-    if (-converter.fromTop - converter.width / 2 - clearance < -display.pcbLength + 2 + PITCH) {
-      throw new Error("converter.fromTop: the converter lies on the display's plugs, make it smaller");
-    }
-    if (CONVERTER_LEDGE + converter.height > tray.gap - 0.5) {
-      throw new Error("tray.gap: too small for the converter, raise it");
-    }
-  }
-
-  /**
-   * The converter, across the display board's back: a ledge under each of
-   * its ends, beyond the display board, and a stop past each end, with a
-   * slot for a zip tie over it.
-   */
-  private get converterHolder(): ScadObject {
-    const { converter, clearance } = this.c;
-    const half = converter.length / 2 + clearance;
-    const y0 = -converter.fromTop - converter.width / 2;
-    const y1 = -converter.fromTop + converter.width / 2;
-    const z = this.thickness - 0.01;
-    // The stops stand up to 3 mm below the converter's top, the tie's slot just under that.
-    const stopTop = this.thickness + CONVERTER_LEDGE + converter.height - 3;
-    const ledgeFrom = Math.max(half - 4, this.c.display.pcbWidth / 2 + clearance + 0.01);
-    return union(
-      ...[-1, 1].map((side) => {
-        const [lx0, lx1] = [side * ledgeFrom, side * half].sort((a, b) => a - b);
-        const [sx0, sx1] = [side * half, side * (half + CONVERTER_STOP)].sort((a, b) => a - b);
-        return union(
-          box(lx0, lx1, y0, y1, z, this.thickness + CONVERTER_LEDGE),
-          difference(
-            box(sx0, sx1, y0, y1, z, stopTop),
-            box(
-              sx0 - 1,
-              sx1 + 1,
-              -converter.fromTop - ZIP_TIE.width / 2,
-              -converter.fromTop + ZIP_TIE.width / 2,
-              stopTop - 1 - ZIP_TIE.thickness,
-              stopTop - 1,
-            ),
-          ),
-        );
-      }),
-    );
   }
 
   /** The outline, rounded at the corners, extruded through `thickness`. */
@@ -378,7 +315,7 @@ export class Faceplate {
   get object(): ScadObject {
     return union(
       difference(
-        union(this.outline(this.thickness), this.encoderStandoffs, this.converterHolder),
+        union(this.outline(this.thickness), this.encoderStandoffs),
         this.displayWindow,
         this.displayPockets,
         this.displayScrewHoles,

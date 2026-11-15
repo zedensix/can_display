@@ -13,10 +13,10 @@
  *   threaded.
  * - Tray: it screws onto 4 posts at the faceplate's corners, leaving room
  *   between the two for the display's and the encoder's connectors. The
- *   boards screw onto standoffs on its back; the wires go through a slot.
+ *   boards screw onto standoffs on its back.
  *   The Pico sits components out, its pins and their plugs through 2
  *   slots. The 12V-to-5V converter, its ears cut off, lies across the
- *   faceplate's back between the two.
+ *   tray's back between the Pico and the MCP2515, zip-tied.
  *
  * Every dimension is in config.ts; each part is a class in its own file.
  */

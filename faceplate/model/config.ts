@@ -66,17 +66,16 @@ const defaults = {
     chamfer: 0.8, // 45 degree bevel on the window's front edge, at most plate.frontSkin
   },
   // The tray screws onto 4 posts at the faceplate's corners, behind the
-  // display, and carries the boards on standoffs on its back. Between the
-  // two: the display's and the encoder's plugs, the Pico's plugs through
-  // the tray, and the converter.
+  // display, and carries the boards on standoffs and the converter on its
+  // back. Between the two: the display's and the encoder's plugs, and the
+  // Pico's through the tray.
   tray: {
     thickness: 2.5,
-    gap: 20, // from the faceplate's back to the tray: the Dupont plugs and the converter
+    gap: 20, // from the faceplate's back to the tray: the Dupont plugs
     postDiameter: 6.5, // the faceplate's posts
     screwPilot: 2.5, // hole an M3 self-tapping screw bites into, in each post
     screwClearance: 3.4, // the M3 screw's hole through the tray
     standoffWall: 1.8, // around each standoff's pilot hole
-    wireSlot: { width: 40, length: 7, center: [0, -51.25] }, // where the wires go through the tray, in the boards' frame below
   },
   // Each board on the tray's back, seen from the back of the dash, where
   // you screw it on. width runs along x, length along y; its 4 holes on a
@@ -107,12 +106,11 @@ const defaults = {
     },
   },
   // The potted 12V-to-5V converter (its 5V comes out on a micro-USB plug
-  // for the Pico). Its ears cut off, it lies across the back of the
-  // faceplate, behind the display, between the Pico's plugs and the
-  // display's: its ends on 2 ledges between 2 stops, a zip tie through
-  // the stops over it. The ears are here as bought, for the drawing.
+  // for the Pico). Its ears cut off, it lies across the tray's back,
+  // between the Pico and the MCP2515, between 2 stops, a zip tie around
+  // it through the tray. The ears are here as bought, for the drawing.
   converter: {
-    fromTop: 38, // from the display board's top edge down to the converter's middle
+    fromTop: 39.5, // from the display board's top edge down to the converter's middle, on the tray
     length: 46,
     width: 27.5,
     height: 14,

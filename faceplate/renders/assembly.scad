@@ -39,45 +39,6 @@ union()
               cylinder(h = 0.6099999999999997, r = 2.5, center = false);
             }
           }
-          union()
-          {
-            union()
-            {
-              translate(v = [-23.3, -51.75, 5.390000000000001])
-              {
-                cube(size = [4, 27.5, 2.01], center = false);
-              }
-              difference()
-              {
-                translate(v = [-25.3, -51.75, 5.390000000000001])
-                {
-                  cube(size = [2, 27.5, 13.009999999999998], center = false);
-                }
-                translate(v = [-26.3, -40.25, 15.399999999999999])
-                {
-                  cube(size = [4, 4.5, 2], center = false);
-                }
-              }
-            }
-            union()
-            {
-              translate(v = [19.3, -51.75, 5.390000000000001])
-              {
-                cube(size = [4, 27.5, 2.01], center = false);
-              }
-              difference()
-              {
-                translate(v = [23.3, -51.75, 5.390000000000001])
-                {
-                  cube(size = [2, 27.5, 13.009999999999998], center = false);
-                }
-                translate(v = [22.3, -40.25, 15.399999999999999])
-                {
-                  cube(size = [4, 4.5, 2], center = false);
-                }
-              }
-            }
-          }
         }
         union()
         {
@@ -445,23 +406,6 @@ union()
         }
       }
     }
-    union()
-    {
-      color(c = "dimgray", alpha = 1)
-      {
-        translate(v = [-23, -51.75, 7.4])
-        {
-          cube(size = [46, 27.5, 13.999999999999998], center = false);
-        }
-      }
-      color(c = "white", alpha = 1)
-      {
-        translate(v = [-25.3, -40, 21.4])
-        {
-          cube(size = [50.6, 4, 1], center = false);
-        }
-      }
-    }
   }
   translate(v = [0, 0, 25.4])
   {
@@ -481,6 +425,17 @@ union()
                 {
                   square(size = [48.1, 90.85], center = true);
                 }
+              }
+            }
+            union()
+            {
+              translate(v = [-25.3, -53.25, 2.49])
+              {
+                cube(size = [2, 27.5, 5.01], center = false);
+              }
+              translate(v = [23.3, -53.25, 2.49])
+              {
+                cube(size = [2, 27.5, 5.01], center = false);
               }
             }
             translate(v = [-23.5, -18.1, 2.49])
@@ -532,9 +487,13 @@ union()
           {
             cylinder(h = 4.5, r = 1.7, center = false);
           }
-          translate(v = [-20, -54.75, -1])
+          translate(v = [-2.25, -55.55, -1])
           {
-            cube(size = [40, 7, 100], center = false);
+            cube(size = [4.5, 1.5, 100], center = false);
+          }
+          translate(v = [-2.25, -24.95, -1])
+          {
+            cube(size = [4.5, 1.5, 100], center = false);
           }
           translate(v = [-25.7, -22.96, -1])
           {
@@ -1045,6 +1004,23 @@ union()
               {
                 cube(size = [0.6400000000000006, 0.6399999999999864, 11.600000000000001], center = false);
               }
+            }
+          }
+        }
+        union()
+        {
+          color(c = "dimgray", alpha = 1)
+          {
+            translate(v = [-23, -53.25, 2.5])
+            {
+              cube(size = [46, 27.5, 14], center = false);
+            }
+          }
+          color(c = "white", alpha = 1)
+          {
+            translate(v = [-2, -54.75, 16.5])
+            {
+              cube(size = [4, 30.5, 1], center = false);
             }
           }
         }
