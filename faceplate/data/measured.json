@@ -37,9 +37,7 @@
   "encoder.holesFromShaft": 7.9,
   "encoder.standoffDiameter": 5,
   "encoder.belowDisplay": 16,
-  "tray.standoffHeight": 5,
   "boards.pico.usbSocketDepth": 6,
-  "boards.pico.componentsHeight": 4.5,
   "clearance": 0.3,
   "tray.gap": 20,
   "boards.pico.holeDiameter": 2.2,
@@ -50,5 +48,6 @@
   "encoder.boardWidth": 18.5,
   "encoder.boardLength": 30,
   "encoder.pinsFromShaft": 13,
-  "encoder.panelThickness": 1
+  "encoder.panelThickness": 1,
+  "boards.mcp2515.standoffHeight": 5
 }

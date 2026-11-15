@@ -22,6 +22,7 @@
 - [x] Cotes : on saisit le trou de la carte (il choisit M2 ou M3), plus le trou pilote ; encodeur sans filetage ni écrou (tenu par ses 2 vis)
 - [x] Plan de câblage : connecteurs dans leur vrai ordre, chaque carte retournable (vue de dos par défaut, Pico par-dessous), bouton BLE / filaire, convertisseur en micro-USB dans le Pico
 - [ ] WIP Façade : 1er essai PLA corrigé (écran 37,5 x 58 + dégagement des soudures, encodeur tourné sur 4 colonnes, colonnes du Pico coupées pour l'USB, convertisseur hors plateau) ; reste à mesurer la vitre de l'écran (épaisseur, longueur, position) et la hauteur du corps de l'encodeur, puis réimprimer
-- [ ] WIP Façade v2 : creux pour les soudures aux deux bouts de l'écran, connecteur de l'encodeur ressoudé au dos de la carte (gorge sous la carte seulement s'il reste côté potard), convertisseur vissé sur une extension du plateau, rendu de l'assemblage avec chaque composant modélisé
+- [ ] WIP Façade v2 : creux pour les soudures aux deux bouts de l'écran, connecteur de l'encodeur ressoudé au dos de la carte (gorge sous la carte seulement s'il reste côté potard), convertisseur oreilles coupées en travers derrière l'écran (cales, butées, rilsan), Pico retourné avec ses picots et fiches à travers le plateau : l'ensemble passe de 77 x 127 à 54 x 97 mm, rendu de l'assemblage avec chaque composant modélisé
+- [ ] Transfo : couper ses oreilles au ras du boîtier
 - [ ] Encodeur : dessouder le connecteur coudé et le ressouder au dos de la carte (côté opposé au potard)
 - [ ] Façade : fixation dans la voiture (où elle va, comment elle tient)

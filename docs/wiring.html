@@ -455,7 +455,7 @@ function drawConverter(svg, theme) {
   svgText(svg, theme, c.x + c.w / 2, c.y + 38, "12V → 5V", { size: 13, weight: 700, anchor: "middle", color: theme.board ? "#fff" : theme.text });
   svgText(svg, theme, c.x + c.w / 2, c.y + 56, "3A, potted", { size: 10, anchor: "middle", color: theme.board ? "#d6d3d1" : theme.dim });
   svgText(svg, theme, c.x + c.w / 2, c.y + c.h + 18, "DC/DC converter", { size: 13, weight: 700, anchor: "middle" });
-  svgText(svg, theme, c.x + c.w / 2, c.y + c.h + 34, "on the tray's extension", { size: 11, anchor: "middle", color: theme.dim });
+  svgText(svg, theme, c.x + c.w / 2, c.y + c.h + 34, "behind the display", { size: 11, anchor: "middle", color: theme.dim });
 }
 
 function drawCar(svg, theme) {
@@ -966,7 +966,7 @@ function boardCard(name, title, sub, board, tray, pilot, fill) {
       g.circle(x, y, pilot / 2, { fill: "#ea580c", key: "pilot", hover: true });
     }
     if (pico) {
-      // Its 2 rows of 20 pins (2.54 pitch, 17.78 apart), on the face you see.
+      // Its 2 rows of 20 pins (2.54 pitch, 17.78 apart), through the tray under it.
       for (const y of [L / 2 - 8.89, L / 2 + 8.89]) {
         g.rect(W / 2 - 25.4, y - 1.27, 50.8, 2.54, { fill: "#0a0a0a" });
         for (let i = 0; i < 20; i++) g.rect(W / 2 - 25.4 + 1.27 + i * 2.54 - 0.32, y - 0.32, 0.64, 0.64, { fill: "#d4d4d8" });
@@ -987,26 +987,25 @@ function boardCard(name, title, sub, board, tray, pilot, fill) {
     g.across(hx0 - pilot / 2, hx0 + pilot / 2, hy1 + 2, pilot, { key: "pilot", hover: true });
     g.across(hx0 - standoff / 2, hx0 + standoff / 2, hy0 - standoff / 2 - 1.5, standoff, { key: "standoff", hover: true });
   });
-  // Side: the tray at the bottom, the board on its standoffs; the Pico's
-  // chips face the tray, its pins point away.
-  const sh = tray.standoffHeight;
-  const above = pico ? 9 : 4;
-  const side = partDrawing("Side, tray at the bottom", [-8, -tray.thickness - 3, W + 8, sh + 1.6 + above + 2], (g) => {
+  // Side: the tray at the bottom, the board on its standoffs. The Pico's
+  // components face out, its header under it, the pins and their plugs
+  // through the tray.
+  const sh = board.standoffHeight;
+  const below = pico ? 2.5 + 14 - sh : tray.thickness;
+  const side = partDrawing("Side, tray at the bottom", [-8, -below - 3, W + 8, sh + 1.6 + 6], (g) => {
     g.rect(-4, -tray.thickness, W + 8, tray.thickness, { fill: "#e7e5e4", stroke: "#a8a29e", "stroke-width": 0.2 });
-    for (const x of [hx0, hx1]) g.rect(x - standoff / 2, 0, standoff, sh, { fill: "#e7e5e4", stroke: "#57534e", "stroke-width": 0.2, key: "tray.standoffHeight standoff" });
+    for (const x of [hx0, hx1]) g.rect(x - standoff / 2, 0, standoff, sh, { fill: "#e7e5e4", stroke: "#57534e", "stroke-width": 0.2, key: `${k}.standoffHeight standoff` });
     g.rect(0, sh, W, 1.6, { ...PCB, fill, key: `${k}.width` });
     if (pico) {
-      g.rect(1, sh + 1.6, W - 2, 2.5, { fill: "#0a0a0a", opacity: 0.6 });
-      for (let i = 0; i < 20; i++) g.line(1.27 + i * 2.54, sh + 4.1, 1.27 + i * 2.54, sh + 1.6 + above, { stroke: "#a1a1aa", "stroke-width": 0.4 });
-      g.rect(W * 0.35, sh - board.componentsHeight, 4.4, board.componentsHeight, { fill: "#f5f5f4", stroke: "#57534e", "stroke-width": 0.2, key: `${k}.componentsHeight` });
-      g.rect(W - board.usbSocketDepth, sh - 2.6, board.usbSocketDepth + 1, 2.6, { fill: "#d6d3d1", stroke: "#57534e", "stroke-width": 0.2, key: `${k}.usbSocketDepth` });
-      g.text(W * 0.35 + 2.2, sh - board.componentsHeight - 1.2, "DEBUG", { "font-size": 2, class: "hover-only", key: `${k}.componentsHeight` });
-      g.along(sh - board.componentsHeight, sh, W * 0.35 - 1.5, board.componentsHeight, { key: `${k}.componentsHeight`, hover: true });
+      g.rect(1, sh - 2.5, W - 2, 2.5, { fill: "#0a0a0a", opacity: 0.6 });
+      g.rect(1, sh - 2.5 - 14, W - 2, 14, { fill: "#52525b", opacity: 0.5 });
+      g.text(W / 2, sh - 2.5 - 7.6, "Dupont plugs, through the tray", { "font-size": 2.2, fill: "#fff" });
+      g.rect(W - board.usbSocketDepth, sh + 1.6, board.usbSocketDepth + 1, 2.6, { fill: "#d6d3d1", stroke: "#57534e", "stroke-width": 0.2, key: `${k}.usbSocketDepth` });
     } else {
       g.rect(W * 0.3, sh + 1.6, 12, 2.5, { fill: "#0a0a0a", opacity: 0.6 });
     }
-    g.along(0, sh, -3, sh, { key: "tray.standoffHeight", hover: true });
-    g.text(W / 2, -tray.thickness - 2.6, "tray", { "font-size": 2.2 });
+    g.along(0, sh, -3, sh, { key: `${k}.standoffHeight`, hover: true });
+    g.text(W + 4, -tray.thickness / 2 - 0.8, "tray", { "font-size": 2.2 });
   });
   const rows = [
     ["Width", W, `${k}.width`],
@@ -1016,13 +1015,11 @@ function boardCard(name, title, sub, board, tray, pilot, fill) {
     ["The board's mounting holes (3 mm or more: M3 screws, else M2)", board.holeDiameter, `${k}.holeDiameter`],
     [`Pilot hole in the standoffs, for its ${pilot >= 2.5 ? "M3" : "M2"} screws`, pilot, null, "pilot"],
     ["Standoff diameter", standoff, null, "standoff"],
-    ["Standoff height", tray.standoffHeight, "tray.standoffHeight"],
+    ["Standoff height", board.standoffHeight, `${k}.standoffHeight`],
   ];
   if (board.usbSocketWidth) {
     rows.push(["USB socket width", board.usbSocketWidth, `${k}.usbSocketWidth`]);
     rows.push(["USB socket depth, from the board's edge", board.usbSocketDepth, `${k}.usbSocketDepth`]);
-    rows.push(["Tallest part toward the tray (DEBUG connector)", board.componentsHeight, `${k}.componentsHeight`]);
-    rows.push(["Room between its 2 standoffs, before the cut", board.holesApartY - standoff, null, "standoff"]);
   }
   return dimensionCard(title, sub, [top, side], rows);
 }
@@ -1059,10 +1056,11 @@ function converterCard(k) {
     g.rect(-L / 2, 0, L, k.height, { fill: "#18181b", key: "converter.height converter.length" });
     g.along(0, k.height, -total / 2 - 4, k.height, { key: "converter.height", hover: true });
   });
-  return dimensionCard("12V → 5V converter", "Across the tray's extension below the faceplate, an M3 screw in each ear's slot", [top, side], [
+  return dimensionCard("12V → 5V converter", "Its ears cut off, across the faceplate's back behind the display, on 2 ledges between 2 stops, a zip tie over it", [top, side], [
     ["Box length", L, "converter.length"],
     ["Box width", W, "converter.width"],
     ["Box height", k.height, "converter.height"],
+    ["Its middle, below the display board's top edge", k.fromTop, "converter.fromTop"],
     ["Length with its ears", total, null, "total"],
     ["Ear length", k.earLength, "converter.earLength"],
     ["Ear width at the box", k.earWidthAtBox, "converter.earWidthAtBox"],
@@ -1076,9 +1074,6 @@ function printedCard(c, printed) {
   const card = dimensionCard("Printed parts", "What these dimensions make (mise run faceplate rebuilds it all)", [], [
     ["Outline, across", printed.outlineWidth, null],
     ["Outline, top to bottom", printed.outlineHeight, null],
-    ["Tray, widest (its extension for the converter)", printed.trayWidth, null],
-    ["Tray, top to bottom", printed.trayHeight, null],
-    ["Pad under the converter", c.tray.converterPad, "tray.converterPad"],
     ["Faceplate thickness", printed.plateThickness, null],
     ["Gap between faceplate and tray", c.tray.gap, "tray.gap"],
     ["Depth, faceplate front to tray back", printed.depth, null],
@@ -1129,7 +1124,7 @@ async function renderDimensions() {
   cards.append(
     displayCard(c.display),
     encoderCard(c.encoder, c.screw, printed.plateThickness, printed.encoderBoard),
-    boardCard("pico", "Raspberry Pi Pico W", "Seen from the back of the tray, its components facing the tray", c.boards.pico, c.tray, printed.pilots.pico, "#1f7a3c"),
+    boardCard("pico", "Raspberry Pi Pico W", "Seen from the back of the tray, components out, its pins through the tray", c.boards.pico, c.tray, printed.pilots.pico, "#1f7a3c"),
     boardCard("mcp2515", "MCP2515 + TJA1050", "Seen from the back of the tray", c.boards.mcp2515, c.tray, printed.pilots.mcp2515, "#1e40af"),
     converterCard(c.converter),
     printedCard(c, printed),

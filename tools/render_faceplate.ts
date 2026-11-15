@@ -73,9 +73,6 @@ const dimensions = {
     plateThickness: faceplate.thickness,
     outlineWidth: 2 * faceplate.halfWidth,
     outlineHeight: faceplate.top - faceplate.bottom,
-    // The tray, widened below the faceplate for the converter.
-    trayWidth: 2 * Math.max(faceplate.halfWidth, tray.extensionHalfWidth),
-    trayHeight: faceplate.top - tray.bottom,
     // The encoder board's ends from the shaft, its pins near the right one.
     encoderBoard: [faceplate.encoderBoardLeft, faceplate.encoderBoardRight],
     depth: faceplate.thickness + config.tray.gap + config.tray.thickness,

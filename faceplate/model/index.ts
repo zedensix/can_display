@@ -14,8 +14,9 @@
  * - Tray: it screws onto 4 posts at the faceplate's corners, leaving room
  *   between the two for the display's and the encoder's connectors. The
  *   boards screw onto standoffs on its back; the wires go through a slot.
- *   Below the faceplate it widens for the 12V-to-5V converter, screwed
- *   across it by its ears.
+ *   The Pico sits components out, its pins and their plugs through 2
+ *   slots. The 12V-to-5V converter, its ears cut off, lies across the
+ *   faceplate's back between the two.
  *
  * Every dimension is in config.ts; each part is a class in its own file.
  */
@@ -38,7 +39,7 @@ export const parts: Record<string, ScadObject> = {
   tray: tray.object,
 };
 
-const modules = mockups(config, faceplate, tray);
+const modules = mockups(config, faceplate);
 
 /** Everything in place with every module modeled, the front at z = 0: for the pictures, never printed. */
 export const assembly: ScadObject = union(

@@ -66,17 +66,17 @@ const defaults = {
     chamfer: 0.8, // 45 degree bevel on the window's front edge, at most plate.frontSkin
   },
   // The tray screws onto 4 posts at the faceplate's corners, behind the
-  // display, and carries the boards on standoffs on its back.
+  // display, and carries the boards on standoffs on its back. Between the
+  // two: the display's and the encoder's plugs, the Pico's plugs through
+  // the tray, and the converter.
   tray: {
     thickness: 2.5,
-    gap: 20, // from the faceplate's back to the tray: room for the display's and the encoder's connectors (8 with soldered wires)
+    gap: 20, // from the faceplate's back to the tray: the Dupont plugs and the converter
     postDiameter: 6.5, // the faceplate's posts
     screwPilot: 2.5, // hole an M3 self-tapping screw bites into, in each post
     screwClearance: 3.4, // the M3 screw's hole through the tray
-    standoffHeight: 5, // under each board: clears the solder joints, and the Pico's parts facing the tray (boards.pico.componentsHeight)
     standoffWall: 1.8, // around each standoff's pilot hole
     wireSlot: { width: 40, length: 7, center: [0, -51.25] }, // where the wires go through the tray, in the boards' frame below
-    converterPad: 3, // under the converter, on the tray's extension below the faceplate: depth for its 2 screws to bite
   },
   // Each board on the tray's back, seen from the back of the dash, where
   // you screw it on. width runs along x, length along y; its 4 holes on a
@@ -90,12 +90,11 @@ const defaults = {
       holesApartY: 11.4,
       holeDiameter: 2.1, // the board's mounting holes: under 3 mm takes M2 screws (screw.pilotDiameter)
       center: [0, -12.5], // across the top, its USB socket out over the right edge
-      // The micro-USB socket faces the tray, centered at the right end:
-      // wider than the room between the 2 standoffs beside it, which are
-      // cut flat to let it through.
-      usbSocketWidth: 8,
+      // Components out, its header toward the tray: its 2 rows of pins go
+      // through 2 slots in the tray, the Dupont plugs on them in the gap.
+      standoffHeight: 3, // the header's plastic (2.5 under the board) just clears the tray
+      usbSocketWidth: 8, // the micro-USB socket, centered at the right end, on the outer face
       usbSocketDepth: 6, // from the board's right edge inward
-      componentsHeight: 4.3, // the tallest part on the face toward the tray: the WH's 3-pin DEBUG connector
     },
     mcp2515: {
       width: 40, // blue MCP2515 + TJA1050 board
@@ -104,13 +103,16 @@ const defaults = {
       holesApartY: 23,
       holeDiameter: 3, // the board's mounting holes: 3 mm or more takes M3 screws (screw.m3PilotDiameter)
       center: [0, -70],
+      standoffHeight: 5, // clears the solder joints under the board
     },
   },
   // The potted 12V-to-5V converter (its 5V comes out on a micro-USB plug
-  // for the Pico). With its ears it's wider than the faceplate: it lies
-  // across an extension of the tray below it, 2 M3 screws through the
-  // slots in its ears.
+  // for the Pico). Its ears cut off, it lies across the back of the
+  // faceplate, behind the display, between the Pico's plugs and the
+  // display's: its ends on 2 ledges between 2 stops, a zip tie through
+  // the stops over it. The ears are here as bought, for the drawing.
   converter: {
+    fromTop: 38, // from the display board's top edge down to the converter's middle
     length: 46,
     width: 27.5,
     height: 14,

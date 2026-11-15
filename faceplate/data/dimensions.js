@@ -52,7 +52,6 @@ window.FACEPLATE = {
       "postDiameter": 6.5,
       "screwPilot": 2.5,
       "screwClearance": 3.4,
-      "standoffHeight": 5,
       "standoffWall": 1.8,
       "wireSlot": {
         "width": 40,
@@ -61,8 +60,7 @@ window.FACEPLATE = {
           0,
           -51.25
         ]
-      },
-      "converterPad": 3
+      }
     },
     "boards": {
       "pico": {
@@ -75,9 +73,9 @@ window.FACEPLATE = {
           0,
           -12.5
         ],
+        "standoffHeight": 3,
         "usbSocketWidth": 8,
-        "usbSocketDepth": 6,
-        "componentsHeight": 4.5
+        "usbSocketDepth": 6
       },
       "mcp2515": {
         "width": 40,
@@ -88,10 +86,12 @@ window.FACEPLATE = {
         "center": [
           0,
           -70
-        ]
+        ],
+        "standoffHeight": 5
       }
     },
     "converter": {
+      "fromTop": 38,
       "length": 46,
       "width": 27.5,
       "height": 14,
@@ -142,9 +142,7 @@ window.FACEPLATE = {
     "encoder.holesFromShaft": 7.9,
     "encoder.standoffDiameter": 5,
     "encoder.belowDisplay": 16,
-    "tray.standoffHeight": 5,
     "boards.pico.usbSocketDepth": 6,
-    "boards.pico.componentsHeight": 4.5,
     "clearance": 0.3,
     "tray.gap": 20,
     "boards.pico.holeDiameter": 2.2,
@@ -155,14 +153,13 @@ window.FACEPLATE = {
     "encoder.boardWidth": 18.5,
     "encoder.boardLength": 30,
     "encoder.pinsFromShaft": 13,
-    "encoder.panelThickness": 1
+    "encoder.panelThickness": 1,
+    "boards.mcp2515.standoffHeight": 5
   },
   "printed": {
     "plateThickness": 5.4,
     "outlineWidth": 54.1,
     "outlineHeight": 96.85,
-    "trayWidth": 77,
-    "trayHeight": 126.85,
     "encoderBoard": [
       -15,
       15
