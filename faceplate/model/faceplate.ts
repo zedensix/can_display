@@ -60,7 +60,7 @@ export class Faceplate {
     this.encoderBoardFace = this.encoderBodyFace + encoder.bodyHeight;
     this.encoderBoardStandoffs = [-1, 1].flatMap((sx) =>
       [-1, 1].map((sy): [number, number] => [
-        (sx * encoder.holeSpacing) / 2,
+        (sx * encoder.holeSpacing) / 2 + encoder.holesTowardPins,
         this.shaftY + sy * encoder.holesFromShaft,
       ]),
     );
@@ -138,11 +138,13 @@ export class Faceplate {
       throw new Error("encoder.belowDisplay is too small: the encoder's recess runs into the display's pocket");
     }
     if (
-      Math.max(encoder.holeSpacing / 2, encoder.holesFromShaft) - this.encoderRecessHalf <
-      c.screw.pilotDiameter / 2 + 0.3
+      this.encoderBoardStandoffs.some(
+        ([x, y]) =>
+          Math.max(Math.abs(x), Math.abs(y - this.shaftY)) - this.encoderRecessHalf < c.screw.pilotDiameter / 2 + 0.3,
+      )
     ) {
       throw new Error(
-        "encoder.holeSpacing and holesFromShaft put a screw hole in the encoder's recess (check encoder.bodySize)",
+        "encoder.holeSpacing, holesFromShaft and holesTowardPins put a screw hole in the encoder's recess (check encoder.bodySize)",
       );
     }
     if (display.solderHeight >= display.glassThickness) {
@@ -166,6 +168,20 @@ export class Faceplate {
       .radius_offset(r)
       .linear_extrude(thickness)
       .translate([0, (this.top + this.bottom) / 2, 0]);
+  }
+
+  /** A lip along the outline's edge, rim.width wide, from z = 0 to height. */
+  rim(height: number): ScadObject {
+    const r = this.c.plate.cornerRadius;
+    const w = this.c.rim.width;
+    const inner = Math.max(r - w, 0.01);
+    return difference(
+      this.outline(height),
+      square([2 * (this.halfWidth - w) - 2 * inner, this.top - this.bottom - 2 * w - 2 * inner])
+        .radius_offset(inner)
+        .linear_extrude(height + 2)
+        .translate([0, (this.top + this.bottom) / 2, -1]),
+    );
   }
 
   /** The window onto the lit area, beveled toward the front. */
@@ -326,6 +342,7 @@ export class Faceplate {
         this.encoderScrewHoles,
       ),
       this.trayPosts,
+      this.rim(this.c.rim.height + 0.01).translate([0, 0, this.thickness - 0.01]),
     );
   }
 }

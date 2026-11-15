@@ -22,19 +22,19 @@ union()
           }
           union()
           {
-            translate(v = [-6.875, -81.9, 5.390000000000001])
+            translate(v = [-4.875, -81.9, 5.390000000000001])
             {
               cylinder(h = 0.6099999999999997, r = 2.5, center = false);
             }
-            translate(v = [-6.875, -66.1, 5.390000000000001])
+            translate(v = [-4.875, -66.1, 5.390000000000001])
             {
               cylinder(h = 0.6099999999999997, r = 2.5, center = false);
             }
-            translate(v = [6.875, -81.9, 5.390000000000001])
+            translate(v = [8.875, -81.9, 5.390000000000001])
             {
               cylinder(h = 0.6099999999999997, r = 2.5, center = false);
             }
-            translate(v = [6.875, -66.1, 5.390000000000001])
+            translate(v = [8.875, -66.1, 5.390000000000001])
             {
               cylinder(h = 0.6099999999999997, r = 2.5, center = false);
             }
@@ -109,19 +109,19 @@ union()
         }
         union()
         {
-          translate(v = [-6.875, -81.9, 1.2])
+          translate(v = [-4.875, -81.9, 1.2])
           {
             cylinder(h = 6, r = 0.85, center = false);
           }
-          translate(v = [-6.875, -66.1, 1.2])
+          translate(v = [-4.875, -66.1, 1.2])
           {
             cylinder(h = 6, r = 0.85, center = false);
           }
-          translate(v = [6.875, -81.9, 1.2])
+          translate(v = [8.875, -81.9, 1.2])
           {
             cylinder(h = 6, r = 0.85, center = false);
           }
-          translate(v = [6.875, -66.1, 1.2])
+          translate(v = [8.875, -66.1, 1.2])
           {
             cylinder(h = 6, r = 0.85, center = false);
           }
@@ -163,6 +163,32 @@ union()
         translate(v = [23.3, -84.8, 6.4])
         {
           cylinder(h = 20, r = 1.25, center = false);
+        }
+      }
+      translate(v = [0, 0, 5.390000000000001])
+      {
+        difference()
+        {
+          translate(v = [0, -40.125, 0])
+          {
+            linear_extrude(height = 2.01, center = false, convexity = undef, twist = undef, slices = undef, scale = 1, $fn = 20)
+            {
+              offset(r = 3, delta = undef, chamfer = undef)
+              {
+                square(size = [48.1, 90.85], center = true);
+              }
+            }
+          }
+          translate(v = [0, -40.125, -1])
+          {
+            linear_extrude(height = 4.01, center = false, convexity = undef, twist = undef, slices = undef, scale = 1, $fn = 20)
+            {
+              offset(r = 1, delta = undef, chamfer = undef)
+              {
+                square(size = [48.1, 90.85], center = true);
+              }
+            }
+          }
         }
       }
     }
@@ -427,6 +453,58 @@ union()
                 }
               }
             }
+            translate(v = [0, 0, -2])
+            {
+              difference()
+              {
+                translate(v = [0, -40.125, 0])
+                {
+                  linear_extrude(height = 2.01, center = false, convexity = undef, twist = undef, slices = undef, scale = 1, $fn = 20)
+                  {
+                    offset(r = 3, delta = undef, chamfer = undef)
+                    {
+                      square(size = [48.1, 90.85], center = true);
+                    }
+                  }
+                }
+                translate(v = [0, -40.125, -1])
+                {
+                  linear_extrude(height = 4.01, center = false, convexity = undef, twist = undef, slices = undef, scale = 1, $fn = 20)
+                  {
+                    offset(r = 1, delta = undef, chamfer = undef)
+                    {
+                      square(size = [48.1, 90.85], center = true);
+                    }
+                  }
+                }
+              }
+            }
+            translate(v = [0, 0, 2.49])
+            {
+              difference()
+              {
+                translate(v = [0, -40.125, 0])
+                {
+                  linear_extrude(height = 2.01, center = false, convexity = undef, twist = undef, slices = undef, scale = 1, $fn = 20)
+                  {
+                    offset(r = 3, delta = undef, chamfer = undef)
+                    {
+                      square(size = [48.1, 90.85], center = true);
+                    }
+                  }
+                }
+                translate(v = [0, -40.125, -1])
+                {
+                  linear_extrude(height = 4.01, center = false, convexity = undef, twist = undef, slices = undef, scale = 1, $fn = 20)
+                  {
+                    offset(r = 1, delta = undef, chamfer = undef)
+                    {
+                      square(size = [48.1, 90.85], center = true);
+                    }
+                  }
+                }
+              }
+            }
             union()
             {
               translate(v = [-25.3, -53.25, 2.49])
@@ -437,6 +515,22 @@ union()
               {
                 cube(size = [2, 27.5, 5.01], center = false);
               }
+            }
+            translate(v = [-27.05, -23.96, 2.49])
+            {
+              cube(size = [1.25, 5.140000000000001, 6.01], center = false);
+            }
+            translate(v = [25.8, -23.96, 2.49])
+            {
+              cube(size = [1.25, 5.140000000000001, 6.01], center = false);
+            }
+            translate(v = [-27.05, -6.18, 2.49])
+            {
+              cube(size = [1.25, 5.140000000000001, 6.01], center = false);
+            }
+            translate(v = [25.8, -6.18, 2.49])
+            {
+              cube(size = [1.25, 5.140000000000001, 6.01], center = false);
             }
             translate(v = [-23.5, -18.1, 2.49])
             {
@@ -487,21 +581,57 @@ union()
           {
             cylinder(h = 4.5, r = 1.7, center = false);
           }
-          translate(v = [-2.25, -55.55, -1])
+          translate(v = [-23.3, 4.550000000000001, -3])
           {
-            cube(size = [4.5, 1.5, 100], center = false);
+            cylinder(h = 3, r = 3.55, center = false);
           }
-          translate(v = [-2.25, -24.95, -1])
+          translate(v = [-23.3, 4.550000000000001, 2.5])
           {
-            cube(size = [4.5, 1.5, 100], center = false);
+            cylinder(h = 3, r = 3.55, center = false);
           }
-          translate(v = [-25.7, -22.96, -1])
+          translate(v = [23.3, 4.550000000000001, -3])
           {
-            cube(size = [51.4, 3.1400000000000006, 100], center = false);
+            cylinder(h = 3, r = 3.55, center = false);
           }
-          translate(v = [-25.7, -5.18, -1])
+          translate(v = [23.3, 4.550000000000001, 2.5])
           {
-            cube(size = [51.4, 3.1400000000000006, 100], center = false);
+            cylinder(h = 3, r = 3.55, center = false);
+          }
+          translate(v = [-23.3, -84.8, -3])
+          {
+            cylinder(h = 3, r = 3.55, center = false);
+          }
+          translate(v = [-23.3, -84.8, 2.5])
+          {
+            cylinder(h = 3, r = 3.55, center = false);
+          }
+          translate(v = [23.3, -84.8, -3])
+          {
+            cylinder(h = 3, r = 3.55, center = false);
+          }
+          translate(v = [23.3, -84.8, 2.5])
+          {
+            cylinder(h = 3, r = 3.55, center = false);
+          }
+          translate(v = [24.05, -18, 2.5])
+          {
+            cube(size = [4, 11, 3], center = false);
+          }
+          translate(v = [-2.25, -55.55, -99])
+          {
+            cube(size = [4.5, 1.5, 198], center = false);
+          }
+          translate(v = [-2.25, -24.95, -99])
+          {
+            cube(size = [4.5, 1.5, 198], center = false);
+          }
+          translate(v = [-25.7, -22.96, -99])
+          {
+            cube(size = [51.4, 3.1400000000000006, 198], center = false);
+          }
+          translate(v = [-25.7, -5.18, -99])
+          {
+            cube(size = [51.4, 3.1400000000000006, 198], center = false);
           }
           translate(v = [-23.5, -18.1, 0.8])
           {

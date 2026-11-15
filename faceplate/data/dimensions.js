@@ -31,6 +31,7 @@ window.FACEPLATE = {
       "belowDisplay": 16,
       "holeSpacing": 13.75,
       "holesFromShaft": 7.9,
+      "holesTowardPins": 2,
       "standoffDiameter": 5,
       "pinsDepth": 0,
       "pinsFromShaft": 13,
@@ -41,6 +42,10 @@ window.FACEPLATE = {
       "frontSkin": 1.2,
       "margin": 8,
       "cornerRadius": 3
+    },
+    "rim": {
+      "height": 2,
+      "width": 2
     },
     "window": {
       "margin": 0.5,

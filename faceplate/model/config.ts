@@ -45,6 +45,7 @@ const defaults = {
     // only hold the board level.
     holeSpacing: 13.75, // between the centers of the board's 2 mounting holes
     holesFromShaft: 7.9, // from the shaft's center to the line through the 2 holes
+    holesTowardPins: 2, // from the shaft's center to the holes' midpoint, along the board toward the pins: a KY-040's holes aren't centered on the shaft (2 read off a photo, measure it)
     standoffDiameter: 4.5, // the board's standoffs, cut flat where they meet the body
     // Its 5 header pins, in a row across the board, bent outward along it
     // past its end, the wires' plugs on them. Soldered on the back of the
@@ -60,6 +61,11 @@ const defaults = {
     frontSkin: 1.2, // material in front of the display glass
     margin: 8, // plate around the display board and the encoder body: wide enough for tray.postDiameter beside the board
     cornerRadius: 3, // rounding of the plate's corners, seen from the front
+  },
+  // A lip along the edge: on the faceplate's back, and on both faces of the tray.
+  rim: {
+    height: 2,
+    width: 2,
   },
   window: {
     margin: 0.5, // window larger than the lit area on each side, so no pixel is hidden

@@ -881,14 +881,15 @@ function displayCard(d) {
 }
 
 function encoderCard(e, screw, plateThickness, [boardLeft, boardRight]) {
-  const [x0, x1, y0, y1] = [-e.holeSpacing / 2, e.holeSpacing / 2, -e.holesFromShaft, e.holesFromShaft];
+  const [x0, x1] = [-1, 1].map((s) => (s * e.holeSpacing) / 2 + e.holesTowardPins);
+  const [y0, y1] = [-e.holesFromShaft, e.holesFromShaft];
   const standoffs = [[x0, y0], [x1, y0], [x0, y1], [x1, y1]];
   const r = e.standoffDiameter / 2;
-  const STANDOFF_KEYS = "encoder.holeSpacing encoder.holesFromShaft encoder.standoffDiameter";
+  const STANDOFF_KEYS = "encoder.holeSpacing encoder.holesFromShaft encoder.holesTowardPins encoder.standoffDiameter";
   const BOARD_KEYS = "encoder.boardLength encoder.boardWidth";
   const PIN_KEYS = "encoder.pinsFromShaft encoder.pinsDepth";
   const pinYs = [-2, -1, 0, 1, 2].map((i) => i * 2.54);
-  const top = Math.max(y1 + r + 6, e.belowDisplay + 4, e.boardWidth / 2 + 4);
+  const top = Math.max(y1 + r + 8, e.belowDisplay + 4, e.boardWidth / 2 + 4);
   const left = Math.min(x0 - r - 7, boardLeft - 5);
   const back = partDrawing("Back, shaft in the middle, the board outlined", [left, Math.min(y0 - r - 6, -e.boardWidth / 2 - 6), boardRight + 6, top], (g) => {
     g.rect(boardLeft, -e.boardWidth / 2, boardRight - boardLeft, e.boardWidth, { fill: "none", stroke: "#1e3a8a", "stroke-width": 0.4, "stroke-dasharray": "1.2 0.8", key: BOARD_KEYS });
@@ -901,6 +902,7 @@ function encoderCard(e, screw, plateThickness, [boardLeft, boardRight]) {
     }
     g.across(x0, x1, y1 + r + 2, x1 - x0, { key: "encoder.holeSpacing" });
     g.along(0, y1, x0 - r - 2, y1, { key: "encoder.holesFromShaft" });
+    g.across(0, e.holesTowardPins, y1 + r + 5, e.holesTowardPins, { key: "encoder.holesTowardPins", hover: true });
     g.across(-e.bodySize / 2, e.bodySize / 2, -e.bodySize / 2 - 2, e.bodySize, { key: "encoder.bodySize", hover: true });
     g.across(-e.bushingDiameter / 2, e.bushingDiameter / 2, 0.5, e.bushingDiameter, { key: "encoder.bushingDiameter", hover: true });
     g.across(x1 - r, x1 + r, y0 - r - 2, e.standoffDiameter, { key: "encoder.standoffDiameter", hover: true });
@@ -951,6 +953,7 @@ function encoderCard(e, screw, plateThickness, [boardLeft, boardRight]) {
     ["Body height, board to face", e.bodyHeight, "encoder.bodyHeight"],
     ["Board's 2 holes apart, center to center", e.holeSpacing, "encoder.holeSpacing"],
     ["Holes from the shaft's center", e.holesFromShaft, "encoder.holesFromShaft"],
+    ["Holes' midpoint from the shaft, toward the pins", e.holesTowardPins, "encoder.holesTowardPins"],
     ["Standoff diameter", e.standoffDiameter, "encoder.standoffDiameter"],
     ["Plate at the encoder", e.panelThickness, "encoder.panelThickness"],
     ["Shaft below the display board", e.belowDisplay, "encoder.belowDisplay"],

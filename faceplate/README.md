@@ -33,7 +33,9 @@ Two printed parts:
   2 holes in the tray, its micro-USB plug next to the Pico's socket.
   The Pico's 2 rows of pins go through 2 slots, so their Dupont plugs
   sit in the 20 mm gap with the display's and the encoder's instead of
-  sticking out behind. The MCP2515's wires go around the tray's bottom
+  sticking out behind. The slots leave only a thin bridge at each end,
+  where the tray snapped (off the bed, fitting the converter): a 6 mm
+  rib on the back stiffens each one, clear of the Pico's micro-USB plug. The MCP2515's wires go around the tray's bottom
   edge.
 
 So the whole thing is no bigger than the faceplate.
@@ -73,7 +75,7 @@ Then `mise run faceplate` and look at the pictures. The build refuses a
 layout that can't work and names the key to fix: a standoff off the tray,
 on a tray screw, a plate too thick for the encoder's
 nut or too thin for a channel under the encoder's pins, the Pico's pin
-slots cutting into a screw hole, the converter on a board or a tray
+slots cutting into a screw hole or a rib into its micro-USB plug, the converter on a board or a tray
 screw. The first print is a test fit: `clearance` sets the
 play in every pocket and hole.
 
@@ -111,6 +113,7 @@ on where it goes.
 ## Printing
 
 Print `stl/faceplate.stl` and `stl/tray.stl`, each front face down on the bed: the pockets open upward, the posts
-and standoffs stand up, the window bevel is a 45 degree overhang, so no
-supports. PETG or ASA rather than PLA, which softens in a car parked in
+and standoffs stand up, the window bevel is a 45 degree overhang, so the
+faceplate needs no supports. The tray stands on the 2 mm rim of its front
+face: supports under the plate, inside the rim. PETG or ASA rather than PLA, which softens in a car parked in
 the sun.

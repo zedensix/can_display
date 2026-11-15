@@ -24,6 +24,9 @@
 - [ ] WIP Façade : 1er essai PLA corrigé (écran 37,5 x 58 + dégagement des soudures, encodeur tourné sur 4 colonnes, colonnes du Pico coupées pour l'USB, convertisseur hors plateau) ; reste à mesurer la vitre de l'écran (épaisseur, longueur, position) et la hauteur du corps de l'encodeur, puis réimprimer
 - [ ] WIP Façade v2 : creux pour les soudures aux deux bouts de l'écran, connecteur de l'encodeur ressoudé au dos de la carte (gorge sous la carte seulement s'il reste côté potard), convertisseur oreilles coupées au dos du plateau entre le Pico et le MCP2515 (butées, rilsan), Pico retourné avec ses picots et fiches à travers le plateau : l'ensemble passe de 77 x 127 à 54 x 97 mm, rendu de l'assemblage avec chaque composant modélisé
 - [x] Trous de l'écran à 2,2 mm des bords, jamais moins de 1 mm de paroi contre la poche de la vitre (le 1er essai a éclaté)
+- [ ] Encodeur : mesurer au pied à coulisse le décalage des trous vers le connecteur (encoder.holesTowardPins, 2 mm lu sur photo), puis réimprimer la façade
+- [x] Plateau : nervure de 6 mm au dos de chaque pont au bout des fentes du Pico (il cassait là au démoulage et à la pose du transfo), loin de la prise micro-USB
+- [x] Rebord de 2 x 2 mm le long du bord : au dos de la façade, sur les 2 faces du plateau (entaillé autour des colonnes et pour la fiche micro-USB du Pico)
 - [x] Schéma de câblage : fils de couleurs différentes jamais superposés (broches des modules décalées d'un demi-pas), étiquettes lisibles par-dessus les fils
 - [ ] Transfo : couper ses oreilles au ras du boîtier
 - [ ] Encodeur : dessouder le connecteur coudé et le ressouder au dos de la carte (côté opposé au potard)
