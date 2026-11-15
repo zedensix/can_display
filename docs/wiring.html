@@ -4,45 +4,100 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GT86 Dash Wiring</title>
+<!-- The modules' dimensions, for the Dimensions tab: written by `mise run faceplate`. -->
+<script src="../faceplate/dimensions.js"></script>
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: #f4f1ea; color: #1c1917; }
   body.blueprint { background: #123d73; color: #e6f0ff; }
-  nav { position: sticky; top: 0; z-index: 1; display: flex; gap: 8px; padding: 12px 16px; background: inherit;
+  nav { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px; background: inherit;
         border-bottom: 1px solid rgb(127 127 127 / 0.3); }
-  nav a { padding: 8px 16px; border-radius: 999px; text-decoration: none; font-weight: 600; color: inherit;
+  nav a, nav button { padding: 8px 16px; border-radius: 999px; text-decoration: none; font-weight: 600; color: inherit;
           border: 1px solid rgb(127 127 127 / 0.5); }
-  nav a.active { background: #ff5a1e; border-color: #ff5a1e; color: #fff; }
-  body.blueprint nav a.active { background: #e6f0ff; border-color: #e6f0ff; color: #123d73; }
+  nav button { background: none; font: inherit; font-weight: 600; cursor: pointer; }
+  nav a.active, nav button.active { background: #ff5a1e; border-color: #ff5a1e; color: #fff; }
+  body.blueprint nav a.active, body.blueprint nav button.active { background: #e6f0ff; border-color: #e6f0ff; color: #123d73; }
   nav h1 { margin: 0 auto 0 0; font-size: 18px; align-self: center; letter-spacing: 1px; }
   main { padding: 16px; }
-  svg { display: block; width: 100%; height: auto; cursor: grab; touch-action: none; user-select: none; }
-  svg.dragging { cursor: grabbing; }
+  svg { display: block; width: 100%; height: auto; }
+  #diagram { cursor: grab; touch-action: none; user-select: none; }
+  #diagram.dragging { cursor: grabbing; }
+  #diagram .module { cursor: pointer; }
   nav .hint { align-self: center; font-size: 13px; opacity: 0.7; }
   .notes { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); margin-top: 16px; }
   .note { border: 1px solid rgb(127 127 127 / 0.35); border-radius: 10px; padding: 12px 14px; }
   .note b { display: block; margin-bottom: 4px; }
   body.blueprint .note { font-family: ui-monospace, Menlo, monospace; font-size: 13px; border-color: #7fa6dc; }
+  /* Dimensions tab */
+  .legend { position: sticky; top: var(--nav-height, 65px); z-index: 1; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center;
+            margin: -16px -16px 16px; padding: 12px 16px; background: #f4f1ea; border-bottom: 1px solid rgb(127 127 127 / 0.3); }
+  .cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(min(720px, 100%), 1fr)); }
+  /* Drawings beside the table when there's room, else above it; either way
+     they stay on screen while the table scrolls. */
+  .card .body { display: grid; gap: 8px 20px; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); align-items: start; }
+  .card .body > .views { position: sticky; top: var(--sticky-top, 120px); z-index: 1; background: #fffdf8; padding-bottom: 6px; }
+  /* Above the table (narrow screens), they share the screen with it. */
+  @media (max-width: 760px) { .card .part { width: auto !important; max-height: 24vh; } }
+  .card { border: 1px solid rgb(127 127 127 / 0.35); border-radius: 12px; padding: 14px; background: #fffdf8; }
+  .card h2 { margin: 0; font-size: 17px; }
+  .card .sub { margin: 2px 0 10px; font-size: 13px; color: #78716c; }
+  .card .views { display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: center; align-items: flex-end; }
+  .card figure { margin: 0; max-width: 100%; }
+  .card figcaption { font-size: 12px; color: #78716c; text-align: center; }
+  .card .part { display: block; margin: 0 auto; max-width: 100%; }
+  .part .hover-only { display: none; }
+  .part .hover-only.hl { display: inline; }
+  .part > * { transition: opacity 0.12s; }
+  .part.focus > :not(.hl) { opacity: 0.18; }
+  .part .hl:is(rect, circle, polygon) { stroke: #ea580c; stroke-width: 0.7; }
+  .part g.hl .dim { stroke-width: 0.45; }
+  .part g.hl .dim-value { font-size: 3.2px; }
+  .card tr:hover td { background: #fff7ed; }
+  .part text { font-family: system-ui, sans-serif; font-size: 2.6px; fill: #1c1917; }
+  .part .dim { stroke: #c2410c; stroke-width: 0.25; fill: none; }
+  .part text.dim-value { fill: #c2410c; font-weight: 700; }
+  .card table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .card td { padding: 4px 4px; border-top: 1px solid rgb(127 127 127 / 0.2); vertical-align: top; }
+  .card td.value { text-align: right; font-weight: 700; white-space: nowrap; }
+  .card td .key { display: block; font: 11.5px ui-monospace, Menlo, monospace; color: #78716c; word-break: break-all; }
+  .card td:last-child { width: 1%; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .chip.checked { background: #dcfce7; color: #166534; }
+  .chip.guess { background: #fef3c7; color: #92400e; }
+  .card input { width: 62px; padding: 3px 6px; font: inherit; font-weight: 700; text-align: right;
+                border: 1px solid rgb(127 127 127 / 0.45); border-radius: 6px; background: #fff; }
+  .card input.invalid { border-color: #dc2626; background: #fef2f2; }
+  .card input:disabled { border-color: transparent; background: transparent; color: inherit; }
+  .card tr.edited td { background: #fff7ed; }
+  button.chip { border: 0; cursor: pointer; font-family: inherit; }
+  .legend .save { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+  #save-status.error { color: #b91c1c; font-weight: 600; }
+  .pictures { display: grid; gap: 8px; grid-template-columns: repeat(2, 1fr); margin-top: 10px; }
+  .pictures img { width: 100%; border-radius: 8px; background: #fff; }
 </style>
 </head>
 <body>
 <nav>
   <h1>GT86 DASH WIRING</h1>
-  <span class="hint">Drag to move · cmd+scroll or pinch to zoom · double-click to fit · click a wire to follow it</span>
+  <span class="hint">Drag to move · cmd+scroll or pinch to zoom · double-click to fit · click a wire to follow it, a board to turn it over</span>
+  <button type="button" id="data-source" title="How the car data comes in: DATA_SOURCE in board.h">Data: BLE dongle</button>
+  <button type="button" id="flip-pico" aria-pressed="false">Pico from below</button>
   <a href="#color" id="nav-color">Color</a>
   <a href="#blueprint" id="nav-blueprint">Blueprint</a>
+  <a href="#dimensions" id="nav-dimensions">Dimensions</a>
 </nav>
-<main>
+<main id="wiring">
   <svg id="diagram" viewBox="0 0 1240 820" role="img" aria-label="Wiring diagram"></svg>
   <div class="notes">
-    <div class="note"><b>Never 12V on the Pico</b>Only through the 12V to 5V buck, into VSYS. Take a switched 12V (ACC/ignition fuse tap), not OBD pin 16: it stays live with the car off.</div>
+    <div class="note"><b>Never 12V on the Pico</b>Only through the 12V to 5V converter, its micro-USB plug in the Pico's socket. Take a switched 12V (ACC/ignition fuse tap), not OBD pin 16: it stays live with the car off.</div>
     <div class="note"><b>3.3V logic only</b>The encoder's + goes to 3V3(OUT), not 5V: its pull-ups would put 5V on the RP2040, which isn't 5V tolerant.</div>
     <div class="note"><b>Keep GP15 free</b>The pico-sdk borrows it at boot (RP2040-E5). GPIO23, 24, 25 and 29 belong to the wireless chip.</div>
     <div class="note"><b>OBD dongle: no wire</b>The Vgate iCar Pro 2S plugs into the OBD port; the Pico W talks to it over BLE. One client at a time: a phone connected to it hides it.</div>
-    <div class="note"><b>MCP2515 (optional, wired CAN)</b>Its SO swings to 5V: level shift it before GP12. Remove jumper J1 (120Ω termination). 8MHz crystal, 500kbps.</div>
-    <div class="note"><b>USB and VSYS together</b>To flash or read logs with the buck feeding VSYS, put a Schottky diode between buck OUT+ and VSYS, or unplug one supply.</div>
+    <div class="note"><b>MCP2515 (wired CAN)</b>VCC on VBUS (5V). Its SO swings to 5V: level shift it before GP12. Remove jumper J1 (120Ω termination). 8MHz crystal, 500kbps.</div>
+    <div class="note"><b>Flashing in the car</b>The Pico has one USB socket: unplug the converter's micro-USB, plug the Mac's cable instead.</div>
   </div>
 </main>
+<main id="dimensions-page" hidden></main>
 
 <script>
 // One description of the board, its modules and wires (pins as in
@@ -69,80 +124,137 @@ function picoPin(n) {
   };
 }
 
-// Modules: a box and its pins (side, label, y). kind picks the drawing.
+// What the drawing shows, kept per browser: each board's face (back is
+// the side you wire from: the Pico from below, the modules from their
+// pins' side), and how the car data comes in (DATA_SOURCE in board.h).
+const VIEW_KEY = "wiringView";
+let wiringView = { faces: { pico: "back", display: "back", encoder: "back", mcp: "back" }, source: "ble" };
+try {
+  const saved = JSON.parse(localStorage.getItem(VIEW_KEY) ?? "null");
+  if (saved?.faces && saved?.source) wiringView = saved;
+} catch {}
+function saveView() {
+  try {
+    localStorage.setItem(VIEW_KEY, JSON.stringify(wiringView));
+  } catch {}
+}
+
+// Modules, in the layout with the Pico seen from above. pins: the header
+// in its real order, top to bottom along the edge facing the Pico, with
+// the module seen from its front; seen from the back, it's reversed.
+// Each wired pin names the Pico's physical pin it goes to (board.h,
+// docs/wiring.md). edgePins sit on the far edge, labeled instead of wired.
 const MODULES = [
   {
     id: "display", kind: "display", name: "ST7789 2.0\" 240x320", sub: "SPI0 display",
-    x: 900, y: 382, w: 210, h: 228,
-    pins: [["VDD", 410], ["BL", 432], ["RES", 476], ["DC", 498], ["SDA", 520], ["SCL", 542], ["GND", 564], ["CS", 586]]
-      .map(([label, y]) => ({ side: "left", label, y })),
-  },
-  {
-    id: "buck", kind: "buck", name: "12V → 5V buck", sub: "1A or more",
-    x: 900, y: 168, w: 180, h: 100,
+    x: 900, y: 392, w: 210, h: 228, side: "right", pinTop: 432,
+    // Front: screen up, header at the top, GND VDD SCL SDA RES DC CS BL from the left.
     pins: [
-      { side: "left", label: "OUT+", y: 212 }, { side: "left", label: "OUT−", y: 234 },
-      { side: "right", label: "IN+", y: 212 }, { side: "right", label: "IN−", y: 234 },
+      { label: "BL", pico: 29, net: "bl", wire: "GP22" },
+      { label: "CS", pico: 22, net: "cs", wire: "GP17" },
+      { label: "DC", pico: 26, net: "dc", wire: "GP20" },
+      { label: "RES", pico: 27, net: "res", wire: "GP21" },
+      { label: "SDA", pico: 25, net: "sda", wire: "GP19 MOSI" },
+      { label: "SCL", pico: 24, net: "scl", wire: "GP18 SCK" },
+      { label: "VDD", pico: 36, net: "v33", wire: "3V3" },
+      { label: "GND", pico: 23, net: "gnd" },
     ],
   },
   {
     id: "encoder", kind: "encoder", name: "KY-040 encoder", sub: "turn, click, hold",
-    x: 110, y: 176, w: 190, h: 150,
-    pins: [["+", 212], ["GND", 234], ["CLK", 256], ["DT", 278], ["SW", 300]]
-      .map(([label, y]) => ({ side: "right", label, y })),
+    x: 110, y: 176, w: 190, h: 150, side: "left", pinTop: 212,
+    // Front: knob up, header at the top, CLK DT SW + GND from the left.
+    pins: [
+      { label: "CLK", pico: 4, net: "clk", wire: "GP2" },
+      { label: "DT", pico: 5, net: "dt", wire: "GP3" },
+      { label: "SW", pico: 6, net: "sw", wire: "GP4" },
+      { label: "+", pico: 36, net: "v33", wire: "3V3" },
+      { label: "GND", pico: 3, net: "gnd" },
+    ],
   },
   {
-    id: "mcp", kind: "mcp", name: "MCP2515 + TJA1050", sub: "optional: wired CAN", optional: true,
-    x: 160, y: 446, w: 140, h: 150,
+    id: "mcp", kind: "mcp", name: "MCP2515 + TJA1050", sub: "wired CAN", wired: true,
+    x: 160, y: 420, w: 140, h: 200, side: "left", pinTop: 454,
+    // Front: chips up, header at the bottom, INT SCK SI SO CS GND VCC from the left.
     pins: [
-      ...[["SCK", 476], ["SI", 498], ["SO", 520], ["CS", 542], ["GND", 564]].map(([label, y]) => ({ side: "right", label, y })),
-      { side: "left", label: "VCC", y: 488, net: "5V: buck OUT+" },
-      { side: "left", label: "CAN-H", y: 520, net: "OBD pin 6" },
-      { side: "left", label: "CAN-L", y: 552, net: "OBD pin 14" },
+      { label: "VCC", pico: 40, net: "v5", wire: "VBUS 5V" },
+      { label: "GND", pico: 18, net: "gnd" },
+      { label: "CS", pico: 17, net: "spi1", wire: "GP13" },
+      { label: "SO", pico: 16, net: "spi1", wire: "GP12 ⚠ 3.3V" },
+      { label: "SI", pico: 15, net: "spi1", wire: "GP11" },
+      { label: "SCK", pico: 14, net: "spi1", wire: "GP10" },
+      { label: "INT", note: "unused" },
+    ],
+    // The screw terminal, on the far edge: CAN-L above CAN-H seen from the front.
+    edgePins: [
+      { label: "CAN-L", note: "OBD pin 14", net: "spi1" },
+      { label: "CAN-H", note: "OBD pin 6", net: "spi1" },
     ],
   },
 ];
+const CONVERTER = { x: 900, y: 104, w: 180, h: 84 };
 
-// Wires: a path of points, its net (picks the color), optional.
-const straightAcross = (pin, x) => [[picoPin(pin).x, picoPin(pin).y], [x, picoPin(pin).y]];
-const WIRES = [
-  // Display: straight across, in the order of the Pico's pins.
-  { net: "bl", label: "GP22", points: straightAcross(29, 900) },
-  { net: "res", label: "GP21", points: straightAcross(27, 900) },
-  { net: "dc", label: "GP20", points: straightAcross(26, 900) },
-  { net: "sda", label: "GP19 MOSI", points: straightAcross(25, 900) },
-  { net: "scl", label: "GP18 SCK", points: straightAcross(24, 900) },
-  { net: "gnd", points: straightAcross(23, 900) },
-  { net: "cs", label: "GP17", points: straightAcross(22, 900) },
-  // 3V3: the display's VDD and the encoder's +.
-  { net: "v33", points: [[680, 278], [760, 278], [760, 410], [900, 410]] },
-  { net: "v33", points: [[760, 278], [760, 92], [420, 92], [420, 212], [300, 212]] },
-  // Power: the buck's output on VSYS and GND, its input on the car.
-  { net: "v5", label: "VSYS", points: straightAcross(39, 900) },
-  { net: "gnd", points: straightAcross(38, 900) },
-  { net: "v12", points: [[1080, 212], [1150, 212]] },
-  { net: "gnd", points: [[1080, 234], [1150, 234]] },
-  // Encoder: straight across.
-  { net: "gnd", points: [[300, 234], [520, 234]] },
-  { net: "clk", label: "GP2", points: [[300, 256], [520, 256]] },
-  { net: "dt", label: "GP3", points: [[300, 278], [520, 278]] },
-  { net: "sw", label: "GP4", points: [[300, 300], [520, 300]] },
-  // MCP2515, optional: SPI1 straight across.
-  { net: "spi1", label: "GP10", optional: true, points: [[300, 476], [520, 476]] },
-  { net: "spi1", label: "GP11", optional: true, points: [[300, 498], [520, 498]] },
-  { net: "spi1", label: "GP12 ⚠ 3.3V", optional: true, points: [[300, 520], [520, 520]] },
-  { net: "spi1", label: "GP13", optional: true, points: [[300, 542], [520, 542]] },
-  { net: "gnd", optional: true, points: [[300, 564], [520, 564]] },
-];
-const JUNCTIONS = [[760, 278]];
+// The y of a module's pin: its place in the header, reversed for the back.
+function modulePinY(m, index, face) {
+  const order = face === "front" ? index : m.pins.length - 1 - index;
+  return m.pinTop + order * PIN_PITCH;
+}
+
+// Wires from the Pico to the modules, routed in the channel between the
+// two: along from the Pico's pin to a lane, up or down the lane, along
+// to the module's pin. A module on the Pico's other side goes over the
+// top. Each wire gets a lane of its own, so none overlaps another.
+function routeWires(faces) {
+  const modules = MODULES.filter((m) => !m.wired || wiringView.source === "wired");
+  const wires = modules.flatMap((m) =>
+    m.pins.flatMap((pin, index) => {
+      if (!pin.pico) return [];
+      const from = picoPin(pin.pico);
+      const toX = m.side === "left" ? m.x + m.w : m.x;
+      return [{ ...pin, from, to: [toX, modulePinY(m, index, faces[m.id])], moduleSide: m.side, wired: m.wired }];
+    }),
+  );
+  const channels = { left: [PICO.x - 24, 300 + 24], right: [PICO.x + PICO.w + 24, 900 - 24] };
+  const lanes = { left: [], right: [] };
+  // Each wire asks for a lane on the Pico's side, and one on the module's when it crosses over.
+  for (const w of wires) {
+    const pinSide = w.from.left ? "left" : "right";
+    w.pinSide = pinSide;
+    if (w.from.y !== w.to[1] || pinSide !== w.moduleSide) lanes[pinSide].push(w);
+    if (pinSide !== w.moduleSide) lanes[w.moduleSide].push({ crossing: w });
+  }
+  for (const side of ["left", "right"]) {
+    const [near, far] = channels[side];
+    const list = lanes[side].sort((a, b) => (a.crossing ? -1 : 0) - (b.crossing ? -1 : 0) || a.from?.y - b.from?.y);
+    list.forEach((entry, i) => {
+      const x = near + ((far - near) * (i + 0.5)) / list.length;
+      if (entry.crossing) entry.crossing.farLane = x;
+      else entry.lane = x;
+    });
+  }
+  let over = 0;
+  for (const w of wires) {
+    const [x0, y0] = [w.from.x, w.from.y];
+    const [x1, y1] = w.to;
+    if (w.pinSide !== w.moduleSide) {
+      const top = 84 - 12 * over++;
+      w.points = [[x0, y0], [w.lane, y0], [w.lane, top], [w.farLane, top], [w.farLane, y1], [x1, y1]];
+    } else if (y0 === y1) {
+      w.points = [[x0, y0], [x1, y1]];
+    } else {
+      w.points = [[x0, y0], [w.lane, y0], [w.lane, y1], [x1, y1]];
+    }
+  }
+  return wires;
+}
+
 // What each net carries, shown when hovering a wire.
 const NET_NAMES = {
-  v12: "12V from the car", v5: "5V: buck OUT+ to VSYS", v33: "3.3V from 3V3(OUT)", gnd: "GND",
+  v12: "12V from the car", v5: "5V: the converter, through the Pico's USB socket", v33: "3.3V from 3V3(OUT)", gnd: "GND",
   bl: "display backlight", res: "display reset", dc: "display data/command", sda: "display SPI data (MOSI)",
   scl: "display SPI clock", cs: "display chip select", clk: "encoder CLK", dt: "encoder DT", sw: "encoder button",
-  spi1: "MCP2515 on SPI1 (optional)",
+  spi1: "MCP2515 on SPI1",
 };
-const USED_PINS = new Set([3, 4, 5, 6, 14, 15, 16, 17, 18, 22, 23, 24, 25, 26, 27, 29, 36, 38, 39]);
 
 const THEMES = {
   color: {
@@ -155,7 +267,7 @@ const THEMES = {
       sda: "#8b5cf6", scl: "#3b82f6", cs: "#10b981", clk: "#06b6d4", dt: "#0d9488", sw: "#a855f7", spi1: "#64748b",
     },
     wireWidth: 4,
-    board: { pico: "#1f7a3c", display: "#1e3a8a", buck: "#1d4ed8", encoder: "#0f172a", mcp: "#1e40af", dongle: "#18181b" },
+    board: { pico: "#1f7a3c", display: "#1e3a8a", encoder: "#0f172a", mcp: "#1e40af", dongle: "#18181b" },
     pin: "#d4a017",
     grid: false,
   },
@@ -207,16 +319,25 @@ function drawGrid(svg, theme) {
   svgText(svg, theme, tb.x + 170, tb.y + 82, "PINS: GPn", { size: 11 });
 }
 
+// While the board is drawn from below, the layout is mirrored: each text
+// is mirrored back around its own x (so it reads), its anchor swapped (so
+// it still runs away from what it labels).
+let mirrored = false;
+const MIRRORED_ANCHOR = { start: "end", end: "start", middle: "middle" };
+
 function svgText(svg, theme, x, y, value, { size = 12, weight = 400, anchor = "start", color = theme.text } = {}) {
-  return svgElement("text", { x, y, "font-size": size, "font-weight": weight, "text-anchor": anchor, fill: color,
-                      "font-family": theme.font }, svg, value);
+  const attrs = { x, y, "font-size": size, "font-weight": weight, "text-anchor": anchor, fill: color, "font-family": theme.font };
+  if (mirrored) Object.assign(attrs, { "text-anchor": MIRRORED_ANCHOR[anchor], transform: `matrix(-1 0 0 1 ${2 * x} 0)` });
+  return svgElement("text", attrs, svg, value);
 }
 
 function wireColor(theme, net) {
   return theme.net ? theme.net[net] : theme.line;
 }
 
-function drawPico(svg, theme) {
+function drawPico(layer, theme) {
+  // A group, so a click anywhere on the board turns it over.
+  const svg = svgElement("g", { "data-module": "pico", class: "module" }, layer);
   const fill = theme.board ? theme.board.pico : "none";
   const stroke = theme.board ? "#0f3d1f" : theme.line;
   svgElement("rect", { x: PICO.x, y: PICO.y, width: PICO.w, height: PICO.h, rx: 10, fill, stroke, "stroke-width": 2 }, svg);
@@ -226,12 +347,21 @@ function drawPico(svg, theme) {
   const onBoard = theme.board ? "#fff" : theme.text;
   svgText(svg, theme, PICO.x + 80, PICO.y + 36, "Raspberry Pi", { size: 12, anchor: "middle", color: onBoard });
   svgText(svg, theme, PICO.x + 80, PICO.y + 54, "Pico W(H)", { size: 14, weight: 700, anchor: "middle", color: onBoard });
+  if (wiringView.faces.pico === "back") {
+    // The side without the chips: the header's plastic, the test pads.
+    svgText(svg, theme, PICO.x + 80, PICO.y + 70, "seen from below", { size: 11, weight: 700, anchor: "middle", color: onBoard });
+    return drawPicoPins(svg, theme);
+  }
   svgElement("rect", { x: PICO.x + 44, y: 548, width: 72, height: 52, rx: 4, fill: theme.board ? "#d6d3d1" : "none",
                stroke: theme.board ? "#57534e" : theme.line, "stroke-width": 1.5, "stroke-dasharray": theme.board ? "" : "4 3" }, svg);
   svgText(svg, theme, PICO.x + 80, 578, "CYW43", { size: 11, anchor: "middle", color: theme.board ? "#1c1917" : theme.text });
+  drawPicoPins(svg, theme);
+}
+
+function drawPicoPins(svg, theme) {
   for (let n = 1; n <= 40; n++) {
     const p = picoPin(n);
-    const used = USED_PINS.has(n);
+    const used = usedPicoPins().has(n);
     svgElement("circle", { cx: p.x, cy: p.y, r: used ? 5 : 3.5, fill: used ? theme.pin : "none", stroke: theme.pin, "stroke-width": 1.5 }, svg);
     const name = PIN_NAMES[n - 1];
     const color = theme.board ? (used ? "#fff" : "rgb(255 255 255 / 0.55)") : used ? theme.text : theme.dim;
@@ -240,39 +370,51 @@ function drawPico(svg, theme) {
   }
 }
 
-function drawModule(svg, theme, m) {
+function drawModule(svg, theme, m, face, pinFace) {
+  // A group, so a click anywhere on the module turns it over.
+  const group = svgElement("g", { "data-module": m.id, class: "module" }, svg);
   const fill = theme.board ? theme.board[m.kind] : "none";
   const stroke = theme.board ? "#0b1220" : theme.line;
-  svgElement("rect", { x: m.x, y: m.y, width: m.w, height: m.h, rx: 8, fill, stroke, "stroke-width": 2,
-               "stroke-dasharray": m.optional ? "8 5" : "", opacity: m.optional && theme.board ? 0.85 : 1 }, svg);
+  svgElement("rect", { x: m.x, y: m.y, width: m.w, height: m.h, rx: 8, fill, stroke, "stroke-width": 2 }, group);
   const light = theme.board ? "#fff" : theme.text;
-  // A sketch of the module's own face.
-  if (m.kind === "display") {
-    svgElement("rect", { x: m.x + 70, y: m.y + 18, width: 122, height: 160, rx: 3, fill: theme.board ? "#020617" : "none",
-                 stroke: theme.board ? "#334155" : theme.line, "stroke-width": 1.5 }, svg);
-    svgText(svg, theme, m.x + 131, m.y + 104, "240×320", { size: 11, anchor: "middle", color: theme.board ? "#ff5a1e" : theme.text });
+  // A sketch of the face you're looking at: the front's screen, knob or
+  // chip, or the back's bare board.
+  const cx = m.side === "left" ? m.x + m.w * 0.42 : m.x + m.w * 0.6;
+  const cy = m.y + m.h / 2;
+  if (face === "back") {
+    svgText(group, theme, cx, cy + 4, "back", { size: 12, weight: 700, anchor: "middle", color: theme.board ? "rgb(255 255 255 / 0.6)" : theme.dim });
+  } else if (m.kind === "display") {
+    svgElement("rect", { x: cx - 61, y: cy - 80, width: 122, height: 160, rx: 3, fill: theme.board ? "#020617" : "none",
+                 stroke: theme.board ? "#334155" : theme.line, "stroke-width": 1.5 }, group);
+    svgText(group, theme, cx, cy + 4, "240×320", { size: 11, anchor: "middle", color: theme.board ? "#ff5a1e" : theme.text });
   } else if (m.kind === "encoder") {
-    svgElement("circle", { cx: m.x + 62, cy: m.y + 82, r: 38, fill: theme.board ? "#374151" : "none", stroke: light, "stroke-width": 1.5 }, svg);
-    svgElement("circle", { cx: m.x + 62, cy: m.y + 82, r: 14, fill: theme.board ? "#9ca3af" : "none", stroke: light, "stroke-width": 1.5 }, svg);
-  } else if (m.kind === "buck") {
-    svgElement("circle", { cx: m.x + 90, cy: m.y + 62, r: 18, fill: theme.board ? "#111827" : "none", stroke: light, "stroke-width": 1.5 }, svg);
+    svgElement("circle", { cx, cy, r: 38, fill: theme.board ? "#374151" : "none", stroke: light, "stroke-width": 1.5 }, group);
+    svgElement("circle", { cx, cy, r: 14, fill: theme.board ? "#9ca3af" : "none", stroke: light, "stroke-width": 1.5 }, group);
   } else if (m.kind === "mcp") {
-    svgElement("rect", { x: m.x + 56, y: m.y + 62, width: 44, height: 36, rx: 3, fill: theme.board ? "#0f172a" : "none", stroke: light, "stroke-width": 1.2 }, svg);
+    svgElement("rect", { x: cx - 22, y: cy - 18, width: 44, height: 36, rx: 3, fill: theme.board ? "#0f172a" : "none", stroke: light, "stroke-width": 1.2 }, group);
   }
-  svgText(svg, theme, m.x + m.w / 2, m.y + m.h + 18, m.name, { size: 13, weight: 700, anchor: "middle" });
-  svgText(svg, theme, m.x + m.w / 2, m.y + m.h + 34, m.sub, { size: 11, anchor: "middle", color: theme.dim });
-  for (const pin of m.pins) {
-    const x = pin.side === "left" ? m.x : m.x + m.w;
-    svgElement("circle", { cx: x, cy: pin.y, r: 4.5, fill: theme.pin, stroke: theme.board ? "#78350f" : theme.line }, svg);
-    const inside = pin.side === "left" ? x + 10 : x - 10;
-    svgText(svg, theme, inside, pin.y + 4, pin.label, { size: 10.5, weight: 700, anchor: pin.side === "left" ? "start" : "end", color: light });
-    if (pin.net) {
-      // A net label instead of a long wire across the drawing.
-      svgElement("line", { x1: x, y1: pin.y, x2: x - 22, y2: pin.y, stroke: wireColor(theme, pin.label === "VCC" ? "v5" : "spi1"),
-                   "stroke-width": theme.wireWidth, "stroke-dasharray": "6 4" }, svg);
-      svgText(svg, theme, x - 26, pin.y + 4, pin.net, { size: 10.5, anchor: "end", color: theme.dim });
-    }
-  }
+  svgText(group, theme, m.x + m.w / 2, m.y + m.h + 18, m.name, { size: 13, weight: 700, anchor: "middle" });
+  svgText(group, theme, m.x + m.w / 2, m.y + m.h + 34, `${m.sub} · seen from the ${face}`, { size: 11, anchor: "middle", color: theme.dim });
+  const headerX = m.side === "left" ? m.x + m.w : m.x;
+  const inward = m.side === "left" ? -10 : 10;
+  const inwardAnchor = m.side === "left" ? "end" : "start";
+  m.pins.forEach((pin, index) => {
+    const y = modulePinY(m, index, pinFace);
+    svgElement("circle", { cx: headerX, cy: y, r: 4.5, fill: pin.pico ? theme.pin : "none", stroke: theme.board ? "#78350f" : theme.line }, group);
+    svgText(group, theme, headerX + inward, y + 4, pin.label, { size: 10.5, weight: 700, anchor: inwardAnchor, color: light });
+    if (pin.note) svgText(group, theme, headerX - inward, y + 4, pin.note, { size: 10, anchor: MIRRORED_ANCHOR[inwardAnchor], color: theme.dim });
+  });
+  // The far edge's pins, labeled with where they go rather than wired across the drawing.
+  const farX = m.side === "left" ? m.x : m.x + m.w;
+  (m.edgePins ?? []).forEach((pin, index) => {
+    const order = pinFace === "front" ? index : m.edgePins.length - 1 - index;
+    const y = m.y + m.h / 2 - 18 + order * 36;
+    svgElement("circle", { cx: farX, cy: y, r: 4.5, fill: theme.pin, stroke: theme.board ? "#78350f" : theme.line }, group);
+    svgText(group, theme, farX - inward, y + 4, pin.label, { size: 10.5, weight: 700, anchor: MIRRORED_ANCHOR[inwardAnchor], color: light });
+    const out = m.side === "left" ? -22 : 22;
+    svgElement("line", { x1: farX, y1: y, x2: farX + out, y2: y, stroke: wireColor(theme, pin.net), "stroke-width": theme.wireWidth, "stroke-dasharray": "6 4" }, group);
+    svgText(group, theme, farX + out * 1.2, y + 4, pin.note, { size: 10.5, anchor: inwardAnchor, color: theme.dim });
+  });
 }
 
 function drawWire(svg, theme, w) {
@@ -280,45 +422,84 @@ function drawWire(svg, theme, w) {
   const stroke = wireColor(theme, w.net);
   const width = theme.wireWidth + (["v5", "v12", "gnd", "v33"].includes(w.net) && !theme.net ? 1 : 0);
   svgElement("path", { d, fill: "none", stroke, "stroke-width": width, "stroke-linejoin": "round", "stroke-linecap": "round",
-               "stroke-dasharray": w.optional ? "8 5" : "", class: "wire", "data-net": w.net }, svg);
+               class: "wire", "data-net": w.net }, svg);
   // A wider invisible copy, easier to hover and click than the wire itself.
   const hit = svgElement("path", { d, fill: "none", stroke: "transparent", "stroke-width": 14, "data-net": w.net }, svg);
-  svgElement("title", {}, hit, w.label ? `${NET_NAMES[w.net]}: ${w.label}` : NET_NAMES[w.net]);
-  if (w.label) {
-    const [[x0, y0], [x1]] = w.points;
-    svgText(svg, theme, (x0 + x1) / 2, y0 - 6, w.label, { size: 10, weight: 600, anchor: "middle", color: theme.net ? stroke : theme.text });
+  svgElement("title", {}, hit, w.wire ? `${NET_NAMES[w.net]}: ${w.wire}` : NET_NAMES[w.net]);
+  if (w.wire) {
+    // On the stretch leaving the Pico, or the one reaching the module when that one's too short.
+    const first = [w.points[0], w.points[1]];
+    const last = w.points.slice(-2);
+    const [[x0, y0], [x1]] = Math.abs(first[1][0] - first[0][0]) >= 60 ? first : last;
+    svgText(svg, theme, (x0 + x1) / 2, y0 - 6, w.wire, { size: 10, weight: 600, anchor: "middle", color: theme.net ? stroke : theme.text });
   }
+}
+
+// The 12V to 5V converter: 2 wires to the car's 12V, its micro-USB plug
+// into the Pico's socket.
+function drawConverter(svg, theme) {
+  const c = CONVERTER;
+  const stroke = theme.board ? "#000" : theme.line;
+  const usbTop = PICO.y - 14;
+  const cable = `M ${c.x} ${c.y + 30} C ${c.x - 160} ${c.y + 30}, ${PICO.x + 80} ${usbTop - 70}, ${PICO.x + 80} ${usbTop - 12}`;
+  svgElement("path", { d: cable, fill: "none", stroke: wireColor(theme, "v5"), "stroke-width": theme.wireWidth + 2, "stroke-linecap": "round", class: "wire", "data-net": "v5" }, svg);
+  const hit = svgElement("path", { d: cable, fill: "none", stroke: "transparent", "stroke-width": 14, "data-net": "v5" }, svg);
+  svgElement("title", {}, hit, `${NET_NAMES.v5}: micro-USB plug`);
+  svgElement("rect", { x: PICO.x + 70, y: usbTop - 14, width: 20, height: 14, rx: 2, fill: theme.board ? "#1c1917" : "none", stroke, "stroke-width": 1.5 }, svg);
+  svgText(svg, theme, c.x - 10, c.y + 50, "micro-USB plug to the Pico", { size: 10, weight: 600, anchor: "end", color: theme.net ? wireColor(theme, "v5") : theme.text });
+  for (const [net, y, label] of [["v12", c.y + 30, "IN+ (red)"], ["gnd", c.y + 54, "IN− (black)"]]) {
+    svgElement("path", { d: `M ${c.x + c.w} ${y} L 1150 ${y}`, fill: "none", stroke: wireColor(theme, net), "stroke-width": theme.wireWidth, class: "wire", "data-net": net }, svg);
+    svgText(svg, theme, c.x + c.w + 8, y - 6, label, { size: 10, weight: 600, color: theme.net ? wireColor(theme, net) : theme.text });
+  }
+  svgElement("rect", { x: c.x, y: c.y, width: c.w, height: c.h, rx: 8, fill: theme.board ? "#18181b" : "none", stroke, "stroke-width": 2 }, svg);
+  svgText(svg, theme, c.x + c.w / 2, c.y + 38, "12V → 5V", { size: 13, weight: 700, anchor: "middle", color: theme.board ? "#fff" : theme.text });
+  svgText(svg, theme, c.x + c.w / 2, c.y + 56, "3A, potted", { size: 10, anchor: "middle", color: theme.board ? "#d6d3d1" : theme.dim });
+  svgText(svg, theme, c.x + c.w / 2, c.y + c.h + 18, "DC/DC converter", { size: 13, weight: 700, anchor: "middle" });
+  svgText(svg, theme, c.x + c.w / 2, c.y + c.h + 34, "zip-tied behind the dash", { size: 11, anchor: "middle", color: theme.dim });
 }
 
 function drawCar(svg, theme) {
   const stroke = theme.board ? "#1c1917" : theme.line;
-  svgElement("rect", { x: 1150, y: 196, width: 70, height: 54, rx: 6, fill: theme.board ? "#e7e5e4" : "none", stroke, "stroke-width": 1.5 }, svg);
-  svgText(svg, theme, 1185, 216, "12V ACC", { size: 10, weight: 700, anchor: "middle" });
-  svgText(svg, theme, 1185, 230, "fuse tap", { size: 9, anchor: "middle", color: theme.dim });
-  svgText(svg, theme, 1185, 244, "+ chassis", { size: 9, anchor: "middle", color: theme.dim });
-  // The OBD port, the dongle in it, and the BLE link to the Pico W.
-  svgElement("rect", { x: 540, y: 694, width: 120, height: 56, rx: 8, fill: theme.board ? theme.board.dongle : "none", stroke, "stroke-width": 2 }, svg);
-  svgText(svg, theme, 600, 720, "Vgate iCar", { size: 12, weight: 700, anchor: "middle", color: theme.board ? "#fff" : theme.text });
-  svgText(svg, theme, 600, 736, "Pro 2S", { size: 11, anchor: "middle", color: theme.board ? "#d6d3d1" : theme.text });
-  svgElement("rect", { x: 560, y: 750, width: 80, height: 16, rx: 3, fill: theme.board ? "#57534e" : "none", stroke, "stroke-width": 1.5 }, svg);
-  svgText(svg, theme, 600, 786, "OBD-II port (BLE, nothing to wire)", { size: 11, anchor: "middle", color: theme.dim });
-  const link = theme.board ? "#2563eb" : theme.line;
-  for (const r of [16, 30, 44]) {
-    svgElement("path", { d: `M ${600 - r} ${670 - r / 3} Q 600 ${670 + r / 2} ${600 + r} ${670 - r / 3}`, fill: "none", stroke: link,
-                 "stroke-width": 2, "stroke-dasharray": "5 4" }, svg);
+  const c = CONVERTER;
+  svgElement("rect", { x: 1150, y: c.y + 14, width: 70, height: 56, rx: 6, fill: theme.board ? "#e7e5e4" : "none", stroke, "stroke-width": 1.5 }, svg);
+  svgText(svg, theme, 1185, c.y + 34, "12V ACC", { size: 10, weight: 700, anchor: "middle" });
+  svgText(svg, theme, 1185, c.y + 48, "fuse tap", { size: 9, anchor: "middle", color: theme.dim });
+  svgText(svg, theme, 1185, c.y + 62, "+ chassis", { size: 9, anchor: "middle", color: theme.dim });
+  // The OBD port: the BLE dongle in it, or the MCP2515's CAN wires (labeled on the module).
+  if (wiringView.source === "ble") {
+    svgElement("rect", { x: 540, y: 694, width: 120, height: 56, rx: 8, fill: theme.board ? theme.board.dongle : "none", stroke, "stroke-width": 2 }, svg);
+    svgText(svg, theme, 600, 720, "Vgate iCar", { size: 12, weight: 700, anchor: "middle", color: theme.board ? "#fff" : theme.text });
+    svgText(svg, theme, 600, 736, "Pro 2S", { size: 11, anchor: "middle", color: theme.board ? "#d6d3d1" : theme.text });
+    const link = theme.board ? "#2563eb" : theme.line;
+    for (const r of [16, 30, 44]) {
+      svgElement("path", { d: `M ${600 - r} ${670 - r / 3} Q 600 ${670 + r / 2} ${600 + r} ${670 - r / 3}`, fill: "none", stroke: link,
+                   "stroke-width": 2, "stroke-dasharray": "5 4" }, svg);
+    }
+    svgText(svg, theme, 660, 664, "BLE", { size: 12, weight: 700, color: link });
   }
-  svgText(svg, theme, 660, 664, "BLE", { size: 12, weight: 700, color: link });
+  svgElement("rect", { x: 560, y: 750, width: 80, height: 16, rx: 3, fill: theme.board ? "#57534e" : "none", stroke, "stroke-width": 1.5 }, svg);
+  const port = wiringView.source === "ble" ? "OBD-II port (BLE, nothing to wire)" : "OBD-II port: CAN-H pin 6, CAN-L pin 14";
+  svgText(svg, theme, 600, 786, port, { size: 11, anchor: "middle", color: theme.dim });
 }
 
 function drawLegend(svg, theme) {
   if (!theme.net) return;
-  const items = [["v12", "12V car"], ["v5", "5V"], ["v33", "3.3V"], ["gnd", "GND"], ["scl", "display SPI"], ["clk", "encoder"], ["spi1", "MCP2515 (optional)"]];
+  const items = [["v12", "12V car"], ["v5", "5V"], ["v33", "3.3V"], ["gnd", "GND"], ["scl", "display SPI"], ["clk", "encoder"]];
+  if (wiringView.source === "wired") items.push(["spi1", "MCP2515"]);
   items.forEach(([net, label], i) => {
-    const x = 40 + i * 160;
-    svgElement("line", { x1: x, y1: 60, x2: x + 34, y2: 60, stroke: theme.net[net], "stroke-width": 5, "stroke-linecap": "round",
-                 "stroke-dasharray": net === "spi1" ? "8 5" : "" }, svg);
-    svgText(svg, theme, x + 42, 64, label, { size: 12 });
+    const x = 40 + (i % 4) * 120;
+    const y = 730 + Math.floor(i / 4) * 26;
+    svgElement("line", { x1: x, y1: y, x2: x + 30, y2: y, stroke: theme.net[net], "stroke-width": 5, "stroke-linecap": "round" }, svg);
+    svgText(svg, theme, x + 38, y + 4, label, { size: 12 });
   });
+}
+
+const OTHER_FACE = { front: "back", back: "front" };
+
+// The Pico's pins something is wired to, in the current mode.
+function usedPicoPins() {
+  const pins = MODULES.filter((m) => !m.wired || wiringView.source === "wired").flatMap((m) => m.pins.map((pin) => pin.pico));
+  return new Set(pins.filter(Boolean));
 }
 
 function drawDiagram(style) {
@@ -328,14 +509,30 @@ function drawDiagram(style) {
   if (theme.grid) drawGrid(svg, theme);
   else svgElement("rect", { ...PAPER, fill: theme.background }, svg);
   drawLegend(svg, theme);
-  for (const w of WIRES) drawWire(svg, theme, w);
-  for (const [x, y] of JUNCTIONS) svgElement("circle", { cx: x, cy: y, r: 6, fill: wireColor(theme, "v33") }, svg);
-  drawPico(svg, theme);
-  for (const m of MODULES) drawModule(svg, theme, m);
-  drawCar(svg, theme);
+  // The Pico seen from below has its pin columns swapped: rather than
+  // wires crossing it, the whole layout is mirrored, everything but the
+  // legend and the title block. Mirroring also turns every module over,
+  // so each is drawn from its other face to show the one asked for.
+  const fromBelow = wiringView.faces.pico === "back";
+  const layer = fromBelow ? svgElement("g", { transform: "matrix(-1 0 0 1 1240 0)" }, svg) : svg;
+  mirrored = fromBelow;
+  const pinFaces = Object.fromEntries(Object.entries(wiringView.faces).map(([id, face]) => [id, fromBelow ? OTHER_FACE[face] : face]));
+  for (const w of routeWires(pinFaces)) drawWire(layer, theme, w);
+  drawConverter(layer, theme);
+  drawPico(layer, theme);
+  for (const m of MODULES) {
+    if (!m.wired || wiringView.source === "wired") drawModule(layer, theme, m, wiringView.faces[m.id], pinFaces[m.id]);
+  }
+  drawCar(layer, theme);
+  mirrored = false;
   document.body.className = style;
-  for (const s of Object.keys(THEMES)) document.getElementById(`nav-${s}`).classList.toggle("active", s === style);
   showSelectedNet();
+}
+
+function turnOver(id) {
+  wiringView.faces[id] = OTHER_FACE[wiringView.faces[id]];
+  saveView();
+  showFromHash();
 }
 
 // Clicking a wire dims every other net; clicking it again, or anywhere
@@ -402,7 +599,8 @@ diagram.addEventListener("wheel", (e) => {
 // A press that moves more than a few pixels is a drag, else a click.
 let drag = null;
 diagram.addEventListener("pointerdown", (e) => {
-  drag = { clientX: e.clientX, clientY: e.clientY, view, moved: false, net: e.target.dataset.net ?? null };
+  drag = { clientX: e.clientX, clientY: e.clientY, view, moved: false, net: e.target.dataset.net ?? null,
+           module: e.target.closest("[data-module]")?.dataset.module ?? null };
   diagram.setPointerCapture(e.pointerId);
 });
 diagram.addEventListener("pointermove", (e) => {
@@ -416,7 +614,10 @@ diagram.addEventListener("pointermove", (e) => {
   setView(drag.view.x - dx * scale, drag.view.y - dy * scale, drag.view.w);
 });
 diagram.addEventListener("pointerup", () => {
-  if (drag && !drag.moved) selectNet(drag.net);
+  if (drag && !drag.moved) {
+    if (drag.module) turnOver(drag.module);
+    else selectNet(drag.net);
+  }
   drag = null;
   diagram.classList.remove("dragging");
 });
@@ -426,9 +627,570 @@ diagram.addEventListener("pointercancel", () => {
 });
 diagram.addEventListener("dblclick", () => setView(FULL.x, FULL.y, FULL.w));
 
-const drawFromHash = () => drawDiagram(location.hash === "#blueprint" ? "blueprint" : "color");
-window.addEventListener("hashchange", drawFromHash);
-drawFromHash();
+// --- Dimensions tab: each module as the printed parts are built for it,
+// read from faceplate/config.ts through faceplate/dimensions.js. A value
+// is "checked" when measured on the module or confirmed by a test print,
+// else a "guess" to measure before printing.
+
+const mm = (value) => `${+value.toFixed(2)} mm`;
+
+// An SVG in millimeters, y up, framing bounds [x0, y0, x1, y1]. Every
+// shape and dimension can carry the config keys it shows (key, space
+// separated): hovering that key's row highlights them. A hover-only one
+// stays hidden until then.
+function partDrawing(caption, bounds, draw) {
+  const [x0, y0, x1, y1] = bounds;
+  const figure = document.createElement("figure");
+  figure.className = "view";
+  figure.innerHTML = `<figcaption>${caption}</figcaption>`;
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", `${x0} ${-y1} ${x1 - x0} ${y1 - y0}`);
+  svg.setAttribute("class", "part");
+  svg.style.width = `${(x1 - x0) * 5}px`; // every drawing at the same scale, 5 px per mm
+  figure.append(svg);
+  const keyed = ({ key, hover, ...attrs } = {}) => {
+    if (key) attrs["data-key"] = key;
+    if (hover) attrs.class = `${attrs.class ?? ""} hover-only`.trim();
+    return attrs;
+  };
+  const dimension = (opts, build) => {
+    const group = svgElement("g", keyed({ ...opts, class: "dimension" }), svg);
+    const bar = (xa, ya, xb, yb) => svgElement("line", { x1: xa, y1: -ya, x2: xb, y2: -yb, class: "dim" }, group);
+    build(group, bar);
+  };
+  draw({
+    rect: (x, y, w, h, attrs) => svgElement("rect", { x, y: -(y + h), width: w, height: h, ...keyed(attrs) }, svg),
+    circle: (x, y, r, attrs) => svgElement("circle", { cx: x, cy: -y, r, ...keyed(attrs) }, svg),
+    polygon: (points, attrs) => svgElement("polygon", { points: points.map(([x, y]) => `${x},${-y}`).join(" "), ...keyed(attrs) }, svg),
+    line: (xa, ya, xb, yb, attrs) => svgElement("line", { x1: xa, y1: -ya, x2: xb, y2: -yb, ...keyed(attrs) }, svg),
+    text: (x, y, value, attrs = {}) => svgElement("text", { x, y: -y, "text-anchor": "middle", ...keyed(attrs) }, svg, value),
+    // A horizontal dimension from xa to xb at height y, its value above.
+    across: (xa, xb, y, value, opts) =>
+      dimension(opts, (group, bar) => {
+        bar(xa, y, xb, y);
+        bar(xa, y - 1, xa, y + 1);
+        bar(xb, y - 1, xb, y + 1);
+        svgElement("text", { x: (xa + xb) / 2, y: -y - 0.8, "text-anchor": "middle", class: "dim-value" }, group, mm(value));
+      }),
+    // A vertical dimension from ya to yb at x, its value turned beside it.
+    along: (ya, yb, x, value, opts) =>
+      dimension(opts, (group, bar) => {
+        bar(x, ya, x, yb);
+        bar(x - 1, ya, x + 1, ya);
+        bar(x - 1, yb, x + 1, yb);
+        const ty = -(ya + yb) / 2;
+        svgElement("text", { x: x - 0.8, y: ty, "text-anchor": "middle", class: "dim-value",
+                     transform: `rotate(-90 ${x - 0.8} ${ty})` }, group, mm(value));
+      }),
+  });
+  return figure;
+}
+
+// Highlights what a row's key draws in its card, dimming the rest; null clears.
+function highlightKey(card, key) {
+  for (const svg of card.querySelectorAll("svg.part")) {
+    svg.classList.toggle("focus", Boolean(key));
+    for (const element of svg.querySelectorAll("[data-key]")) {
+      element.classList.toggle("hl", Boolean(key) && element.dataset.key.split(" ").includes(key));
+    }
+  }
+}
+
+// What's been typed or confirmed and not saved yet: key to value. It's
+// also kept in this browser until the server has it, so a reload or a
+// stopped server loses nothing; the page sends it back when it opens.
+const DRAFTS_KEY = "dimensionDrafts";
+let edits = {};
+try {
+  edits = JSON.parse(localStorage.getItem(DRAFTS_KEY) ?? "{}") ?? {};
+} catch {}
+// Editing needs `bun run wiring`'s server; opened as a file, the tab is read-only.
+const editable = location.protocol.startsWith("http");
+
+function markChecked(chip) {
+  chip.className = "chip checked";
+  chip.textContent = "checked";
+}
+
+function showSaveStatus(text, error = false) {
+  const status = document.getElementById("save-status");
+  if (!status) return;
+  status.className = error ? "error" : "";
+  status.innerHTML = text;
+}
+
+// Each edit saves itself, 0.8s after the last keystroke.
+let saveTimer = null;
+function editDimension(key, value) {
+  edits[key] = value;
+  try {
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify(edits));
+  } catch {}
+  showSaveStatus("Not saved yet…");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveDimensions, 800);
+}
+
+function dimensionCard(title, sub, drawings, rows) {
+  const { checked } = window.FACEPLATE;
+  const card = document.createElement("section");
+  card.className = "card";
+  card.innerHTML = `<h2>${title}</h2><p class="sub">${sub}</p>`;
+  const views = document.createElement("div");
+  views.className = "views";
+  views.append(...drawings);
+  const body = document.createElement("div");
+  body.className = "body";
+  if (drawings.length) body.append(views);
+  card.append(body);
+  const table = document.createElement("table");
+  // A row's 4th item: what to highlight when it has no key of its own (a derived value).
+  for (const [label, value, key, shows = key] of rows) {
+    const row = table.insertRow();
+    if (shows) {
+      row.addEventListener("mouseenter", () => highlightKey(card, shows));
+      row.addEventListener("mouseleave", () => highlightKey(card, null));
+      row.addEventListener("focusin", () => highlightKey(card, shows));
+      row.addEventListener("focusout", () => highlightKey(card, null));
+    }
+    const labelCell = row.insertCell();
+    labelCell.textContent = label;
+    const keyLine = document.createElement("span");
+    keyLine.className = "key";
+    keyLine.textContent = key ?? "derived from the others";
+    labelCell.append(keyLine);
+    const valueCell = row.insertCell();
+    valueCell.className = "value";
+    const status = row.insertCell();
+    if (!key) {
+      valueCell.textContent = mm(value);
+      continue;
+    }
+    // The latest value: a draft not saved yet, else the saved one (newer than
+    // the drawings when the model refused it), else the config's.
+    const current = edits[key] ?? checked[key] ?? value;
+    const known = key in checked || key in edits;
+    if (key in edits) row.classList.add("edited");
+    const input = document.createElement("input");
+    Object.assign(input, { type: "number", step: "any", min: 0, value: current, disabled: !editable });
+    input.setAttribute("aria-label", `${label} (mm)`);
+    valueCell.append(input, " mm");
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = known ? "chip checked" : "chip guess";
+    chip.textContent = known ? "checked" : "guess";
+    chip.title = "Click a guess to confirm its value as right";
+    status.append(chip);
+    input.addEventListener("input", () => {
+      const number = Number(input.value);
+      const valid = input.value !== "" && Number.isFinite(number) && number >= 0;
+      input.classList.toggle("invalid", !valid);
+      if (!valid) return;
+      row.classList.add("edited");
+      markChecked(chip);
+      editDimension(key, number);
+    });
+    chip.addEventListener("click", () => {
+      if (!editable || key in checked || key in edits) return;
+      row.classList.add("edited");
+      markChecked(chip);
+      editDimension(key, Number(input.value));
+    });
+  }
+  body.append(table);
+  return card;
+}
+
+const PCB = { fill: "#1e3a8a", stroke: "#0b1220", "stroke-width": 0.3 };
+const HOLE = { fill: "#fffdf8", stroke: "#0b1220", "stroke-width": 0.2 };
+
+function displayCard(d) {
+  const W = d.pcbWidth, L = d.pcbLength;
+  const holeX = W / 2 - d.holeInset;
+  const glassTop = -d.glassFromPcbTop;
+  const glassBottom = glassTop - d.glassLength;
+  const litTop = glassTop - d.activeFromGlassTop;
+  const front = partDrawing("Front, soldered header at the bottom, ribbon at the top", [-W / 2 - 8, -L - 8, W / 2 + 8, 6], (g) => {
+    g.rect(-W / 2, -L, W, L, { ...PCB, key: "display.pcbWidth display.pcbLength" });
+    g.rect(-d.glassWidth / 2, glassBottom, d.glassWidth, d.glassLength,
+           { fill: "#020617", key: "display.glassWidth display.glassLength display.glassFromPcbTop" });
+    g.rect(-d.glassWidth / 2, glassTop, d.glassWidth, d.ribbonAllowance,
+           { fill: "#f59e0b", opacity: 0.6, key: "display.ribbonAllowance", hover: true });
+    g.rect(-d.activeWidth / 2, litTop - d.activeLength, d.activeWidth, d.activeLength,
+           { fill: "#ff5a1e", opacity: 0.35, key: "display.activeWidth display.activeLength display.activeFromGlassTop" });
+    for (const x of [-holeX, holeX]) for (const y of [-d.holeInset, -(L - d.holeInset)]) g.circle(x, y, 1.1, { ...HOLE, key: "display.holeInset" });
+    g.rect(-d.solderRowWidth / 2, -L + 0.4, d.solderRowWidth, 1.6, { fill: "#d4a017", key: "display.solderRowWidth display.solderHeight" });
+    g.text(0, litTop - d.activeLength / 2, "lit area", { fill: "#fff" });
+    g.across(-W / 2, W / 2, 3, W, { key: "display.pcbWidth" });
+    g.along(-L, 0, -W / 2 - 4, L, { key: "display.pcbLength" });
+    g.along(glassBottom, glassTop, W / 2 + 5, d.glassLength, { key: "display.glassLength" });
+    g.across(-d.solderRowWidth / 2, d.solderRowWidth / 2, -L - 4, d.solderRowWidth, { key: "display.solderRowWidth" });
+    g.across(-W / 2, -holeX, 1.2, d.holeInset, { key: "display.holeInset", hover: true });
+    g.along(-d.holeInset, 0, -W / 2 - 1.5, d.holeInset, { key: "display.holeInset", hover: true });
+    g.across(-d.glassWidth / 2, d.glassWidth / 2, glassTop - 2.5, d.glassWidth, { key: "display.glassWidth", hover: true });
+    g.along(glassTop, 0, W / 2 + 2, d.glassFromPcbTop, { key: "display.glassFromPcbTop", hover: true });
+    g.along(glassTop, glassTop + d.ribbonAllowance, -W / 2 - 1.5, d.ribbonAllowance, { key: "display.ribbonAllowance", hover: true });
+    g.across(-d.activeWidth / 2, d.activeWidth / 2, litTop - 4, d.activeWidth, { key: "display.activeWidth", hover: true });
+    g.along(litTop - d.activeLength, litTop, -d.activeWidth / 2 + 2.5, d.activeLength, { key: "display.activeLength", hover: true });
+    g.along(litTop, glassTop, d.activeWidth / 2 - 1.5, d.activeFromGlassTop, { key: "display.activeFromGlassTop", hover: true });
+  });
+  // Side: its top edge on the left, the screen up, the header's pins down at the back.
+  const t = d.pcbThickness;
+  const side = partDrawing("Side, screen up", [-9, -10, L + 7, t + d.glassThickness + 5], (g) => {
+    g.rect(0, -2.5, 2.54, 2.5, { fill: "#0a0a0a", opacity: 0.5 });
+    g.line(L - 2.5, -2.5, L - 2.5, -8.5, { stroke: "#a1a1aa", "stroke-width": 0.6 });
+    g.rect(L - 3.8, -2.5, 2.54, 2.5, { fill: "#0a0a0a" });
+    g.rect(0, 0, L, t, { ...PCB, key: "display.pcbThickness display.pcbLength" });
+    g.rect(d.glassFromPcbTop, t, d.glassLength, d.glassThickness,
+           { fill: "#020617", key: "display.glassThickness display.glassLength display.glassFromPcbTop" });
+    g.rect(L - 3.6, t, 2.4, d.solderHeight, { fill: "#d4a017", key: "display.solderHeight display.solderRowWidth" });
+    g.text(d.glassFromPcbTop + d.glassLength / 2, t + d.glassThickness + 1.5, "screen", { "font-size": 2.2 });
+    g.text(L - 2.5, -9.8, "pins", { "font-size": 2.2 });
+    g.along(0, t, -2, t, { key: "display.pcbThickness", hover: true });
+    g.along(t, t + d.glassThickness, d.glassFromPcbTop - 2, d.glassThickness, { key: "display.glassThickness", hover: true });
+    g.along(t, t + d.solderHeight, L + 2.5, d.solderHeight, { key: "display.solderHeight", hover: true });
+    g.across(0, d.glassFromPcbTop, -3.5, d.glassFromPcbTop, { key: "display.glassFromPcbTop", hover: true });
+  });
+  return dimensionCard("ST7789 2\" display", "Gold: the pin header's solder joints on the board's face", [front, side], [
+    ["Board width", W, "display.pcbWidth"],
+    ["Board length", L, "display.pcbLength"],
+    ["Board thickness", d.pcbThickness, "display.pcbThickness"],
+    ["Holes from the board's edges", d.holeInset, "display.holeInset"],
+    ["Panel width", d.glassWidth, "display.glassWidth"],
+    ["Panel length", d.glassLength, "display.glassLength"],
+    ["Panel thickness (glass and backlight)", d.glassThickness, "display.glassThickness"],
+    ["Panel's top edge from the board's", d.glassFromPcbTop, "display.glassFromPcbTop"],
+    ["Room for the ribbon above the panel", d.ribbonAllowance, "display.ribbonAllowance"],
+    ["Lit area width", d.activeWidth, "display.activeWidth"],
+    ["Lit area length", d.activeLength, "display.activeLength"],
+    ["Lit area's top edge from the panel's", d.activeFromGlassTop, "display.activeFromGlassTop"],
+    ["Solder joints, across", d.solderRowWidth, "display.solderRowWidth"],
+    ["Solder joints, height off the board", d.solderHeight, "display.solderHeight"],
+  ]);
+}
+
+function encoderCard(e, screw, plateThickness) {
+  const [x0, x1, y0, y1] = [-e.holeSpacing / 2, e.holeSpacing / 2, -e.holesFromShaft, e.holesFromShaft];
+  const standoffs = [[x0, y0], [x1, y0], [x0, y1], [x1, y1]];
+  const r = e.standoffDiameter / 2;
+  const STANDOFF_KEYS = "encoder.holeSpacing encoder.holesFromShaft encoder.standoffDiameter";
+  const top = Math.max(y1 + r + 6, e.belowDisplay + 4);
+  const back = partDrawing("Back, shaft in the middle", [x0 - r - 7, y0 - r - 6, x1 + r + 6, top], (g) => {
+    g.rect(-e.bodySize / 2, -e.bodySize / 2, e.bodySize, e.bodySize, { fill: "#9ca3af", stroke: "#374151", "stroke-width": 0.3, key: "encoder.bodySize" });
+    g.circle(0, 0, e.bushingDiameter / 2, { fill: "none", stroke: "#374151", "stroke-width": 0.3, "stroke-dasharray": "0.8 0.6", key: "encoder.bushingDiameter" });
+    for (const [x, y] of standoffs) {
+      g.circle(x, y, r, { fill: "#e7e5e4", stroke: "#57534e", "stroke-width": 0.25, key: STANDOFF_KEYS });
+      g.circle(x, y, screw.pilotDiameter / 2, HOLE);
+    }
+    g.across(x0, x1, y1 + r + 2, x1 - x0, { key: "encoder.holeSpacing" });
+    g.along(0, y1, x0 - r - 2, y1, { key: "encoder.holesFromShaft" });
+    g.across(-e.bodySize / 2, e.bodySize / 2, -e.bodySize / 2 - 2, e.bodySize, { key: "encoder.bodySize", hover: true });
+    g.across(-e.bushingDiameter / 2, e.bushingDiameter / 2, 0.5, e.bushingDiameter, { key: "encoder.bushingDiameter", hover: true });
+    g.across(x1 - r, x1 + r, y0 - r - 2, e.standoffDiameter, { key: "encoder.standoffDiameter", hover: true });
+    g.line(x0 - r, e.belowDisplay, x1 + r, e.belowDisplay, { class: "dim hover-only", "stroke-dasharray": "1 0.7", key: "encoder.belowDisplay" });
+    g.text(0, e.belowDisplay + 0.8, "display board's bottom edge", { "font-size": 2.2, class: "hover-only", key: "encoder.belowDisplay" });
+    g.along(0, e.belowDisplay, x1 + r + 3, e.belowDisplay, { key: "encoder.belowDisplay", hover: true });
+  });
+  // Side, cut through the shaft: the front (the driver's side) down.
+  const panel = e.panelThickness;
+  const recess = e.bodySize / 2 + 0.3;
+  const boardZ = panel + e.bodyHeight;
+  const shaftEnd = panel - e.bushingLength - 12;
+  const wide = x1 + r + 6;
+  const side = partDrawing("Side, through the shaft (front down)", [-wide - 4, shaftEnd - 3, wide + 2, boardZ + 6], (g) => {
+    g.rect(-wide, 0, wide - recess, plateThickness, { fill: "#e7e5e4", stroke: "#a8a29e", "stroke-width": 0.2 });
+    g.rect(recess, 0, wide - recess, plateThickness, { fill: "#e7e5e4", stroke: "#a8a29e", "stroke-width": 0.2 });
+    g.rect(-recess, 0, 2 * recess, panel, { fill: "#d6d3d1", stroke: "#a8a29e", "stroke-width": 0.2, key: "encoder.panelThickness" });
+    for (const x of [x0, x1]) g.rect(x - r, plateThickness, 2 * r, boardZ - plateThickness, { fill: "#e7e5e4", stroke: "#57534e", "stroke-width": 0.2, key: STANDOFF_KEYS });
+    g.rect(-e.bodySize / 2, panel, e.bodySize, e.bodyHeight, { fill: "#9ca3af", stroke: "#374151", "stroke-width": 0.3, key: "encoder.bodySize encoder.bodyHeight" });
+    g.rect(-wide + 2, boardZ, 2 * wide - 4, 1.6, { fill: "#0f172a" });
+    g.rect(-e.bushingDiameter / 2, panel - e.bushingLength, e.bushingDiameter, e.bushingLength,
+           { fill: "#a1a1aa", stroke: "#52525b", "stroke-width": 0.2, key: "encoder.bushingLength encoder.bushingDiameter" });
+    g.rect(-3, shaftEnd, 6, panel - e.bushingLength - shaftEnd, { fill: "#d4d4d8", stroke: "#71717a", "stroke-width": 0.2 });
+    g.rect(-e.bushingDiameter / 2 - 2.5, -e.nutThickness, e.bushingDiameter + 5, e.nutThickness, { fill: "#71717a", key: "encoder.nutThickness" });
+    g.text(wide - 3, boardZ + 2.3, "board", { "font-size": 2.2 });
+    g.text(-wide + 4, -2.6, "front", { "font-size": 2.2 });
+    g.along(panel, boardZ, e.bodySize / 2 + 1.5, e.bodyHeight, { key: "encoder.bodyHeight", hover: true });
+    g.along(panel - e.bushingLength, panel, -e.bushingDiameter / 2 - 4, e.bushingLength, { key: "encoder.bushingLength", hover: true });
+    g.along(-e.nutThickness, 0, e.bushingDiameter / 2 + 4, e.nutThickness, { key: "encoder.nutThickness", hover: true });
+    g.along(0, panel, recess + 2, panel, { key: "encoder.panelThickness", hover: true });
+  });
+  return dimensionCard("KY-040 encoder", `The body in its recess, the board on 4 standoffs (2 under its holes, 2 opposite)${e.nutThickness ? ", a nut on the collar from the front" : ": its screws alone hold it, no nut"}`, [back, side], [
+    ["Collar around the shaft, diameter (threaded or not)", e.bushingDiameter, "encoder.bushingDiameter"],
+    ["Collar length, from the encoder's face", e.bushingLength, "encoder.bushingLength"],
+    ["Nut and washer (0: no thread, no nut)", e.nutThickness, "encoder.nutThickness"],
+    ["Body, square side", e.bodySize, "encoder.bodySize"],
+    ["Body height, board to face", e.bodyHeight, "encoder.bodyHeight"],
+    ["Board's 2 holes apart, center to center", e.holeSpacing, "encoder.holeSpacing"],
+    ["Holes from the shaft's center", e.holesFromShaft, "encoder.holesFromShaft"],
+    ["Standoff diameter", e.standoffDiameter, "encoder.standoffDiameter"],
+    ["Plate at the encoder", e.panelThickness, "encoder.panelThickness"],
+    ["Shaft below the display board", e.belowDisplay, "encoder.belowDisplay"],
+  ]);
+}
+
+function boardCard(name, title, sub, board, tray, pilot, fill) {
+  const W = board.width, L = board.length;
+  const k = `boards.${name}`;
+  const [hx0, hx1] = [(W - board.holesApartX) / 2, (W + board.holesApartX) / 2];
+  const [hy0, hy1] = [(L - board.holesApartY) / 2, (L + board.holesApartY) / 2];
+  const holes = [[hx0, hy0], [hx1, hy0], [hx0, hy1], [hx1, hy1]];
+  const standoff = pilot + 2 * tray.standoffWall;
+  const pico = name === "pico";
+  const top = partDrawing("From the back of the tray", [-8, -8, W + 10, L + 6], (g) => {
+    g.rect(0, 0, W, L, { ...PCB, fill, key: `${k}.width ${k}.length` });
+    for (const [x, y] of holes) {
+      g.circle(x, y, standoff / 2, { fill: "none", stroke: "#ea580c", "stroke-width": 0.3, "stroke-dasharray": "0.8 0.5", key: "standoff", hover: true });
+      g.circle(x, y, board.holeDiameter / 2, { ...HOLE, key: `${k}.holesApartX ${k}.holesApartY ${k}.holeDiameter` });
+      g.circle(x, y, pilot / 2, { fill: "#ea580c", key: "pilot", hover: true });
+    }
+    if (pico) {
+      // Its 2 rows of 20 pins (2.54 pitch, 17.78 apart), on the face you see.
+      for (const y of [L / 2 - 8.89, L / 2 + 8.89]) {
+        g.rect(W / 2 - 25.4, y - 1.27, 50.8, 2.54, { fill: "#0a0a0a" });
+        for (let i = 0; i < 20; i++) g.rect(W / 2 - 25.4 + 1.27 + i * 2.54 - 0.32, y - 0.32, 0.64, 0.64, { fill: "#d4d4d8" });
+      }
+    }
+    if (board.usbSocketWidth) {
+      const [kx0, ky0, kx1, ky1] = [W - board.usbSocketDepth, (L - board.usbSocketWidth) / 2, W + 1, (L + board.usbSocketWidth) / 2];
+      g.rect(kx0, ky0, kx1 - kx0, ky1 - ky0, { fill: "#d6d3d1", stroke: "#57534e", "stroke-width": 0.25, key: `${k}.usbSocketWidth ${k}.usbSocketDepth` });
+      g.text((kx0 + kx1) / 2, (ky0 + ky1) / 2 - 0.9, "USB", { "font-size": 2.2 });
+      g.along(ky0, ky1, W + 6, ky1 - ky0, { key: `${k}.usbSocketWidth` });
+      g.across(W - board.usbSocketDepth, W, ky1 + 1.5, board.usbSocketDepth, { key: `${k}.usbSocketDepth`, hover: true });
+    }
+    g.across(0, W, L + 3, W, { key: `${k}.width` });
+    g.along(0, L, -4, L, { key: `${k}.length` });
+    g.across(hx0, hx1, -4, hx1 - hx0, { key: `${k}.holesApartX` });
+    g.along(hy0, hy1, hx0 + 3, hy1 - hy0, { key: `${k}.holesApartY`, hover: true });
+    g.across(hx0 - board.holeDiameter / 2, hx0 + board.holeDiameter / 2, hy1 + 2, board.holeDiameter, { key: `${k}.holeDiameter`, hover: true });
+    g.across(hx0 - pilot / 2, hx0 + pilot / 2, hy1 + 2, pilot, { key: "pilot", hover: true });
+    g.across(hx0 - standoff / 2, hx0 + standoff / 2, hy0 - standoff / 2 - 1.5, standoff, { key: "standoff", hover: true });
+  });
+  // Side: the tray at the bottom, the board on its standoffs; the Pico's
+  // chips face the tray, its pins point away.
+  const sh = tray.standoffHeight;
+  const above = pico ? 9 : 4;
+  const side = partDrawing("Side, tray at the bottom", [-8, -tray.thickness - 3, W + 8, sh + 1.6 + above + 2], (g) => {
+    g.rect(-4, -tray.thickness, W + 8, tray.thickness, { fill: "#e7e5e4", stroke: "#a8a29e", "stroke-width": 0.2 });
+    for (const x of [hx0, hx1]) g.rect(x - standoff / 2, 0, standoff, sh, { fill: "#e7e5e4", stroke: "#57534e", "stroke-width": 0.2, key: "tray.standoffHeight standoff" });
+    g.rect(0, sh, W, 1.6, { ...PCB, fill, key: `${k}.width` });
+    if (pico) {
+      g.rect(1, sh + 1.6, W - 2, 2.5, { fill: "#0a0a0a", opacity: 0.6 });
+      for (let i = 0; i < 20; i++) g.line(1.27 + i * 2.54, sh + 4.1, 1.27 + i * 2.54, sh + 1.6 + above, { stroke: "#a1a1aa", "stroke-width": 0.4 });
+      g.rect(W * 0.35, sh - board.componentsHeight, 4.4, board.componentsHeight, { fill: "#f5f5f4", stroke: "#57534e", "stroke-width": 0.2, key: `${k}.componentsHeight` });
+      g.rect(W - board.usbSocketDepth, sh - 2.6, board.usbSocketDepth + 1, 2.6, { fill: "#d6d3d1", stroke: "#57534e", "stroke-width": 0.2, key: `${k}.usbSocketDepth` });
+      g.text(W * 0.35 + 2.2, sh - board.componentsHeight - 1.2, "DEBUG", { "font-size": 2, class: "hover-only", key: `${k}.componentsHeight` });
+      g.along(sh - board.componentsHeight, sh, W * 0.35 - 1.5, board.componentsHeight, { key: `${k}.componentsHeight`, hover: true });
+    } else {
+      g.rect(W * 0.3, sh + 1.6, 12, 2.5, { fill: "#0a0a0a", opacity: 0.6 });
+    }
+    g.along(0, sh, -3, sh, { key: "tray.standoffHeight", hover: true });
+    g.text(W / 2, -tray.thickness - 2.6, "tray", { "font-size": 2.2 });
+  });
+  const rows = [
+    ["Width", W, `${k}.width`],
+    ["Length", L, `${k}.length`],
+    ["Holes apart, along the width", board.holesApartX, `${k}.holesApartX`],
+    ["Holes apart, along the length", board.holesApartY, `${k}.holesApartY`],
+    ["The board's mounting holes (3 mm or more: M3 screws, else M2)", board.holeDiameter, `${k}.holeDiameter`],
+    [`Pilot hole in the standoffs, for its ${pilot >= 2.5 ? "M3" : "M2"} screws`, pilot, null, "pilot"],
+    ["Standoff diameter", standoff, null, "standoff"],
+    ["Standoff height", tray.standoffHeight, "tray.standoffHeight"],
+  ];
+  if (board.usbSocketWidth) {
+    rows.push(["USB socket width", board.usbSocketWidth, `${k}.usbSocketWidth`]);
+    rows.push(["USB socket depth, from the board's edge", board.usbSocketDepth, `${k}.usbSocketDepth`]);
+    rows.push(["Tallest part toward the tray (DEBUG connector)", board.componentsHeight, `${k}.componentsHeight`]);
+    rows.push(["Room between its 2 standoffs, before the cut", board.holesApartY - standoff, null, "standoff"]);
+  }
+  return dimensionCard(title, sub, [top, side], rows);
+}
+
+function converterCard(k) {
+  const L = k.length, W = k.width, total = L + 2 * k.earLength;
+  const EAR = "converter.earLength converter.earWidthAtBox converter.earWidthAtEnd";
+  const top = partDrawing("From above", [-total / 2 - 8, -W / 2 - 6, total / 2 + 6, W / 2 + 13], (g) => {
+    for (const side of [-1, 1]) {
+      const box = (side * L) / 2;
+      const end = side * (L / 2 + k.earLength);
+      g.polygon([[box, -k.earWidthAtBox / 2], [end, -k.earWidthAtEnd / 2], [end, k.earWidthAtEnd / 2], [box, k.earWidthAtBox / 2]],
+                { fill: "#27272a", key: EAR });
+      const slotStart = side > 0 ? end - k.earSlotDepth : end;
+      g.rect(slotStart, -k.earSlotWidth / 2, k.earSlotDepth, k.earSlotWidth, { fill: "#fffdf8", key: "converter.earSlotWidth converter.earSlotDepth" });
+    }
+    g.rect(-L / 2, -W / 2, L, W, { fill: "#18181b", stroke: "#000", "stroke-width": 0.3, key: "converter.length converter.width" });
+    g.text(0, -0.9, "12V → 5V", { fill: "#fff" });
+    g.across(-L / 2, L / 2, W / 2 + 3, L, { key: "converter.length" });
+    g.across(-total / 2, total / 2, W / 2 + 9, total, { key: "total" });
+    g.along(-W / 2, W / 2, -total / 2 - 4, W, { key: "converter.width" });
+    const edge = L / 2 + k.earLength;
+    g.across(L / 2, edge, -W / 2 - 2.5, k.earLength, { key: "converter.earLength", hover: true });
+    g.along(-k.earWidthAtBox / 2, k.earWidthAtBox / 2, L / 2 + 1.5, k.earWidthAtBox, { key: "converter.earWidthAtBox", hover: true });
+    g.along(-k.earWidthAtEnd / 2, k.earWidthAtEnd / 2, edge + 2.5, k.earWidthAtEnd, { key: "converter.earWidthAtEnd", hover: true });
+    g.along(-k.earSlotWidth / 2, k.earSlotWidth / 2, edge - k.earSlotDepth / 2, k.earSlotWidth, { key: "converter.earSlotWidth", hover: true });
+    g.across(edge - k.earSlotDepth, edge, k.earSlotWidth / 2 + 1.5, k.earSlotDepth, { key: "converter.earSlotDepth", hover: true });
+  });
+  const side = partDrawing("Side", [-total / 2 - 8, -3, total / 2 + 3, k.height + 4], (g) => {
+    g.rect(-total / 2, 0, k.earLength, 2, { fill: "#27272a", key: EAR });
+    g.rect(L / 2, 0, k.earLength, 2, { fill: "#27272a", key: EAR });
+    g.rect(-L / 2, 0, L, k.height, { fill: "#18181b", key: "converter.height converter.length" });
+    g.along(0, k.height, -total / 2 - 4, k.height, { key: "converter.height", hover: true });
+  });
+  return dimensionCard("12V → 5V converter", "Not on the tray: with its ears it's longer than the tray is wide, so it's zip-tied on the harness", [top, side], [
+    ["Box length", L, "converter.length"],
+    ["Box width", W, "converter.width"],
+    ["Box height", k.height, "converter.height"],
+    ["Length with its ears", total, null, "total"],
+    ["Ear length", k.earLength, "converter.earLength"],
+    ["Ear width at the box", k.earWidthAtBox, "converter.earWidthAtBox"],
+    ["Ear width at its end", k.earWidthAtEnd, "converter.earWidthAtEnd"],
+    ["Slot width", k.earSlotWidth, "converter.earSlotWidth"],
+    ["Slot depth", k.earSlotDepth, "converter.earSlotDepth"],
+  ]);
+}
+
+function printedCard(c, printed) {
+  const card = dimensionCard("Printed parts", "What these dimensions make (mise run faceplate rebuilds it all)", [], [
+    ["Outline, across", printed.outlineWidth, null],
+    ["Outline, top to bottom", printed.outlineHeight, null],
+    ["Faceplate thickness", printed.plateThickness, null],
+    ["Gap between faceplate and tray", c.tray.gap, "tray.gap"],
+    ["Depth, faceplate front to tray back", printed.depth, null],
+    ["Play around every pocket and hole", c.clearance, "clearance"],
+  ]);
+  const pictures = document.createElement("div");
+  pictures.className = "pictures";
+  for (const name of ["faceplate-front", "faceplate-back", "tray-back", "assembly"]) {
+    const img = document.createElement("img");
+    img.src = `../faceplate/${name}.png?${Date.now()}`; // the latest rebuild, not a cached one
+    img.alt = name;
+    pictures.append(img);
+  }
+  card.append(pictures);
+  return card;
+}
+
+let dimensionsRendered = false;
+async function renderDimensions() {
+  const page = document.getElementById("dimensions-page");
+  if (dimensionsRendered) return;
+  dimensionsRendered = true;
+  if (!window.FACEPLATE) {
+    page.innerHTML = "<p>No dimensions yet: run <code>mise run faceplate</code>, then reload.</p>";
+    return;
+  }
+  // The saved values, newer than dimensions.js when the last rebuild was refused.
+  let refused = null;
+  if (editable) {
+    try {
+      const saved = await (await fetch("/measurements")).json();
+      window.FACEPLATE.checked = saved.values;
+      refused = saved.error;
+    } catch {}
+  }
+  const { config: c, printed } = window.FACEPLATE;
+  page.innerHTML = `<div class="legend">
+    <span><span class="chip checked">checked</span> measured on the module, or confirmed by a test print</span>
+    <span><span class="chip guess">guess</span> a seller's figure or a guess: measure it, or click it if it's right</span>
+    <span class="save">
+      ${editable ? "" : "<span>Read-only: run <code>bun run wiring</code> to edit.</span>"}
+      <span id="save-status" role="status">${editable ? "Every value saves itself as you type." : ""}</span>
+    </span>
+  </div>`;
+  if (refused) showSaveStatus(`Saved, but the model refuses these values: ${refused}`, true);
+  const cards = document.createElement("div");
+  cards.className = "cards";
+  cards.append(
+    displayCard(c.display),
+    encoderCard(c.encoder, c.screw, printed.plateThickness),
+    boardCard("pico", "Raspberry Pi Pico W", "Seen from the back of the tray, its components facing the tray", c.boards.pico, c.tray, printed.pilots.pico, "#1f7a3c"),
+    boardCard("mcp2515", "MCP2515 + TJA1050", "Seen from the back of the tray", c.boards.mcp2515, c.tray, printed.pilots.mcp2515, "#1e40af"),
+    converterCard(c.converter),
+    printedCard(c, printed),
+  );
+  page.append(cards);
+  // What sticks to the top (the nav, then the save bar) wraps on narrow
+  // screens: the drawings stick just under whatever height it takes.
+  const stickUnder = () => {
+    const nav = document.querySelector("nav").offsetHeight;
+    document.documentElement.style.setProperty("--nav-height", `${nav}px`);
+    document.documentElement.style.setProperty("--sticky-top", `${nav + page.querySelector(".legend").offsetHeight}px`);
+  };
+  stickUnder();
+  window.addEventListener("resize", stickUnder);
+  // Drafts left from a reload or a stopped server: send them now.
+  if (editable && Object.keys(edits).length) saveDimensions();
+}
+
+// Sends every checked value (the saved ones and the edits) to the server,
+// which saves them at once, then rebuilds the parts and says whether the
+// model takes them. The drawings show the new parts after a reload.
+let saving = false;
+async function saveDimensions() {
+  if (saving) {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveDimensions, 800);
+    return;
+  }
+  saving = true;
+  const sent = { ...edits };
+  showSaveStatus("Saving, then rebuilding the parts (about 10 s)…");
+  try {
+    const response = await fetch("/measurements", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...window.FACEPLATE.checked, ...sent }),
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const { error } = await response.json();
+    Object.assign(window.FACEPLATE.checked, sent);
+    for (const [key, value] of Object.entries(sent)) if (edits[key] === value) delete edits[key];
+    try {
+      localStorage.setItem(DRAFTS_KEY, JSON.stringify(edits));
+    } catch {}
+    if (Object.keys(edits).length) showSaveStatus("Not saved yet…");
+    else if (error) showSaveStatus(`Saved, but the model refuses these values: ${error}`, true);
+    else showSaveStatus(`Saved, parts rebuilt. <a href="" onclick="location.reload(); return false">Reload</a> to redraw.`);
+  } catch (error) {
+    showSaveStatus(`Not saved: ${error.message}. Kept in this browser, sent again with your next change or reload.`, true);
+  } finally {
+    saving = false;
+  }
+}
+
+// The tab in the URL's hash: #color (the default), #blueprint, #dimensions.
+function showFromHash() {
+  const tab = ["blueprint", "dimensions"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "color";
+  const dimensions = tab === "dimensions";
+  document.getElementById("wiring").hidden = dimensions;
+  document.getElementById("dimensions-page").hidden = !dimensions;
+  document.querySelector("nav .hint").hidden = dimensions;
+  const flip = document.getElementById("flip-pico");
+  const fromBelow = wiringView.faces.pico === "back";
+  flip.hidden = dimensions;
+  flip.classList.toggle("active", fromBelow);
+  flip.setAttribute("aria-pressed", String(fromBelow));
+  const source = document.getElementById("data-source");
+  source.hidden = dimensions;
+  source.textContent = wiringView.source === "ble" ? "Data: BLE dongle" : "Data: wired CAN";
+  if (dimensions) {
+    document.body.className = "";
+    renderDimensions();
+  } else {
+    drawDiagram(tab);
+  }
+  for (const name of ["color", "blueprint", "dimensions"]) {
+    document.getElementById(`nav-${name}`).classList.toggle("active", name === tab);
+  }
+}
+window.addEventListener("hashchange", showFromHash);
+document.getElementById("flip-pico").addEventListener("click", () => turnOver("pico"));
+document.getElementById("data-source").addEventListener("click", () => {
+  wiringView.source = wiringView.source === "ble" ? "wired" : "ble";
+  saveView();
+  showFromHash();
+});
+showFromHash();
 </script>
 </body>
 </html>

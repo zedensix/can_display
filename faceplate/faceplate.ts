@@ -29,23 +29,31 @@ export class Faceplate {
   private readonly glassTop: number;
   private readonly activeTop: number;
   private readonly glassPocketBottom: number;
+  private readonly glassPocketTop: number;
   private readonly shaftY: number;
   private readonly encoderRecessHalf: number;
   /** Where the encoder's board sits, its body against the thin plate. */
   private readonly encoderBoardFace: number;
-  /** The encoder board's hole centers, in the plate's X and Y. */
-  private readonly encoderBoardHoles: [number, number][];
+  /** The encoder board's standoff centers, in the plate's X and Y. */
+  private readonly encoderBoardStandoffs: [number, number][];
 
   constructor(readonly c: Config) {
     const { display, encoder, plate, window, tray, clearance } = c;
     this.thickness = plate.frontSkin + display.glassThickness + display.pcbThickness;
     this.glassTop = -display.glassFromPcbTop;
     this.activeTop = this.glassTop - display.activeFromGlassTop;
-    this.glassPocketBottom = this.glassTop - display.glassLength - display.ribbonAllowance - clearance;
+    // The ribbon folds around the panel's top edge, away from the soldered header at the bottom.
+    this.glassPocketBottom = this.glassTop - display.glassLength - clearance;
+    this.glassPocketTop = this.glassTop + display.ribbonAllowance + clearance;
     this.shaftY = -display.pcbLength - encoder.belowDisplay;
     this.encoderRecessHalf = encoder.bodySize / 2 + clearance;
     this.encoderBoardFace = encoder.panelThickness + encoder.bodyHeight;
-    this.encoderBoardHoles = encoder.boardHoles.map(([x, y]): [number, number] => [x ?? 0, this.shaftY + (y ?? 0)]);
+    this.encoderBoardStandoffs = [-1, 1].flatMap((sx) =>
+      [-1, 1].map((sy): [number, number] => [
+        (sx * encoder.holeSpacing) / 2,
+        this.shaftY + sy * encoder.holesFromShaft,
+      ]),
+    );
     this.halfWidth = display.pcbWidth / 2 + clearance + plate.margin;
     this.top = clearance + plate.margin;
     this.bottom = this.shaftY - this.encoderRecessHalf - plate.margin;
@@ -70,12 +78,14 @@ export class Faceplate {
     }
     const holeRadius = c.screw.pilotDiameter / 2;
     if (
-      -display.holeInset - holeRadius < this.glassTop + clearance ||
+      -display.holeInset - holeRadius < this.glassPocketTop ||
       -(display.pcbLength - display.holeInset) + holeRadius > this.glassPocketBottom
     ) {
-      throw new Error("display.holeInset puts the screw holes inside the panel's pocket");
+      throw new Error(
+        "the display board's screw holes fall inside the panel's pocket: check display.holeInset, glassFromPcbTop, glassLength and ribbonAllowance",
+      );
     }
-    if (encoder.bushingLength - encoder.panelThickness < encoder.nutThickness) {
+    if (encoder.nutThickness > 0 && encoder.bushingLength - encoder.panelThickness < encoder.nutThickness) {
       throw new Error("encoder.panelThickness leaves too little bushing for the nut");
     }
     if (encoder.panelThickness >= this.thickness) {
@@ -87,11 +97,19 @@ export class Faceplate {
     if (this.encoderBoardFace <= this.thickness) {
       throw new Error("encoder.bodyHeight is too short: the encoder's board would sit inside the plate");
     }
-    for (const [x, y] of encoder.boardHoles) {
-      const outsideRecess = Math.max(Math.abs(x ?? 0), Math.abs(y ?? 0)) - this.encoderRecessHalf;
-      if (outsideRecess < c.screw.pilotDiameter / 2 + 0.3) {
-        throw new Error("encoder.boardHoles: a screw hole runs into the encoder's recess (check encoder.bodySize)");
-      }
+    if (
+      Math.max(encoder.holeSpacing / 2, encoder.holesFromShaft) - this.encoderRecessHalf <
+      c.screw.pilotDiameter / 2 + 0.3
+    ) {
+      throw new Error(
+        "encoder.holeSpacing and holesFromShaft put a screw hole in the encoder's recess (check encoder.bodySize)",
+      );
+    }
+    if (display.solderHeight >= display.glassThickness) {
+      throw new Error("display.solderHeight must be less than display.glassThickness");
+    }
+    if (display.solderRowWidth + 2 * clearance > 2 * (display.pcbWidth / 2 - display.holeInset - holeRadius)) {
+      throw new Error("display.solderRowWidth runs into the display board's screw holes");
     }
     if (postX - tray.postDiameter / 2 < display.pcbWidth / 2 + clearance + 0.5) {
       throw new Error("plate.margin is too narrow for tray.postDiameter beside the display board");
@@ -126,7 +144,11 @@ export class Faceplate {
     );
   }
 
-  /** The panel's pocket (with room for its ribbon), then the board's, both open at the back. */
+  /**
+   * The panel's pocket (with room for its ribbon), then the board's, both
+   * open at the back, and a relief under the pin header's solder joints,
+   * from the board's bottom edge up to the panel's pocket.
+   */
   private get displayPockets(): ScadObject {
     const { display, plate, clearance } = this.c;
     return union(
@@ -134,7 +156,7 @@ export class Faceplate {
         -display.glassWidth / 2 - clearance,
         display.glassWidth / 2 + clearance,
         this.glassPocketBottom,
-        this.glassTop + clearance,
+        this.glassPocketTop,
         plate.frontSkin,
         this.thickness + 1,
       ),
@@ -144,6 +166,14 @@ export class Faceplate {
         -display.pcbLength - clearance,
         clearance,
         plate.frontSkin + display.glassThickness,
+        this.thickness + 1,
+      ),
+      box(
+        -display.solderRowWidth / 2 - clearance,
+        display.solderRowWidth / 2 + clearance,
+        -display.pcbLength - clearance,
+        this.glassPocketBottom + 0.01,
+        plate.frontSkin + display.glassThickness - display.solderHeight,
         this.thickness + 1,
       ),
     );
@@ -180,11 +210,11 @@ export class Faceplate {
     );
   }
 
-  /** The 2 standoffs the encoder's board screws onto, from the plate's back up to the board. */
+  /** The encoder board's 4 standoffs, from the plate's back up to the board. */
   private get encoderStandoffs(): ScadObject {
     const height = this.encoderBoardFace - this.thickness;
     return union(
-      ...this.encoderBoardHoles.map(([x, y]) =>
+      ...this.encoderBoardStandoffs.map(([x, y]) =>
         cylinder(height + 0.01, this.c.encoder.standoffDiameter / 2, { center: false }).translate([
           x,
           y,
@@ -194,11 +224,11 @@ export class Faceplate {
     );
   }
 
-  /** Pilot holes for the encoder board's screws, through the standoffs, blind in the plate. */
+  /** Pilot holes through the encoder board's standoffs (2 take its screws), blind in the plate. */
   private get encoderScrewHoles(): ScadObject {
     const { plate, screw } = this.c;
     return union(
-      ...this.encoderBoardHoles.map(([x, y]) =>
+      ...this.encoderBoardStandoffs.map(([x, y]) =>
         cylinder(this.encoderBoardFace, screw.pilotDiameter / 2, { center: false }).translate([x, y, plate.frontSkin]),
       ),
     );

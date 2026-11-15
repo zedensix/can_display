@@ -17,8 +17,8 @@ mise run logo        # 86.png -> src/app/logo.c (tools/logo.py, then xxd)
 bun run dev          # the web page on localhost:3000, hot reload
 mise run ui          # every screen with fixed readings -> ui/*.png, ui/sheet.png (tools/render_ui.c): rerun after a UI change and look at it
 mise run wiring      # docs/wiring.html (color, blueprint) -> docs/resources/*.png for docs/wiring.md (Playwright Chromium, fetched once)
-bun run wiring       # docs/wiring.html in the browser: drag to move, cmd+scroll or pinch to zoom, double-click to fit, click a wire to follow its net
-mise run faceplate   # the printed parts (scad-js, one class per part, dimensions in faceplate/config.ts): faceplate (display + encoder) and tray (Pico, buck, MCP2515) -> faceplate/*.stl (binary, openscad-wasm) + PNGs (OpenSCAD from mise): rerun after a change and look at them
+bun run wiring       # serves docs/wiring.html on localhost:3001 and opens it: drag to move, cmd+scroll or pinch to zoom, double-click to fit, click a wire to follow its net, click a board to turn it over (headers in their real order; by default the side you wire from: the Pico from below, mirroring the plan), a button switches BLE dongle / wired MCP2515; its Dimensions tab edits every module's dimension (checked or guessed; hovering a row highlights it on the drawings), saving each as it's typed to faceplate/measured.json (and the browser until the server has it), then rerunning mise run faceplate; a value the model refuses stays saved, the page says why
+mise run faceplate   # the printed parts (scad-js, one class per part, dimensions in faceplate/config.ts, overridden by the measured ones in faceplate/measured.json): faceplate (display + encoder) and tray (Pico, MCP2515) -> faceplate/*.stl (binary, openscad-wasm) + PNGs (OpenSCAD from mise) + faceplate/dimensions.js for the wiring page's Dimensions tab: rerun after a change and look at them
 prek install         # once per clone: the git hooks (.pre-commit-config.yaml): clang-format, biome, tsc, host tests
 prek run --all-files # every hook on every tracked file
 ```

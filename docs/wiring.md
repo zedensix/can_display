@@ -3,9 +3,13 @@
 This matches the pin constants in `src/firmware/board.h`.
 Change either the wiring or the constants if yours differs: they just
 need to agree. `wiring.html` draws it in a browser, in color or as a
-blueprint, to zoom into and click a wire to follow it (`bun run wiring`
-opens it); `mise run wiring` captures it into the pictures below (rerun
-it when the wiring changes).
+blueprint. It draws each module with its header in its real order, from
+the side you wire it from: the Pico from below, the modules from their
+back; a click turns any of them over, and a button switches between the
+BLE dongle and the wired MCP2515. A click on a wire follows it. `bun run
+wiring` opens it, along with the modules' dimensions for the printed
+parts; `mise run wiring` captures it into the pictures below, as it
+opens (rerun it when the wiring changes).
 
 ![Wiring, in color](resources/wiring-color.png)
 
@@ -54,27 +58,25 @@ enumeration workaround (erratum RP2040-E5).
 ## Power
 
 On the bench, USB is enough. In the car, the Pico W needs 5V from the
-car's 12V through a **12V to 5V buck converter**. Never wire 12V to the
+car's 12V through a **12V to 5V converter**. Never wire 12V to the
 Pico: the car's electrical system has spikes far beyond what it takes.
-A USB car charger, or an automotive buck module rated 1A or more, does
-the job.
+The one used here is a potted automotive module (12/24V in, 5V 3A out)
+whose output is a micro-USB plug: it goes straight into the Pico's USB
+socket, like a phone charger.
 
 | From | To | Notes |
 |---|---|---|
-| switched 12V (fuse tap on an ACC/ignition fuse) | buck IN+ | see below |
-| chassis ground | buck IN- | |
-| buck OUT+ (5V) | VSYS (physical pin 39) | accepts 1.8V to 5.5V |
-| buck OUT- | GND | |
+| switched 12V (fuse tap on an ACC/ignition fuse) | converter IN+ (red) | see below |
+| chassis ground | converter IN- (black) | |
+| converter micro-USB plug | the Pico's USB socket | 5V on VBUS (physical pin 40) |
 
 - **Take a switched 12V, not OBD pin 16.** Pin 16 is live with the car
   off: the Pico would keep scanning for the dongle and drain the
   battery overnight.
-- With the Pico on VSYS, **VBUS stays dead** unless USB is plugged in.
-  Anything needing 5V (the MCP2515 board, a 5V sensor) takes it from
-  the buck output, not from VBUS.
-- To plug in USB (flashing, `mise run logs`) while the car feeds VSYS,
-  put a Schottky diode in series between buck OUT+ and VSYS, so the two
-  supplies don't fight. Otherwise unplug one of them.
+- Anything needing 5V (the MCP2515 board, a 5V sensor) takes it from
+  VBUS (physical pin 40).
+- The Pico has one USB socket: to flash or run `mise run logs` in the
+  car, unplug the converter and plug the Mac's cable instead.
 
 ## Car data, option A (default): ELM327 Bluetooth LE OBD dongle
 
@@ -127,7 +129,7 @@ faster, and gets oil temperature, but needs the wiring below.
 | SO (MISO) | GP12 | see the 5V warning below |
 | CS   | GP13 | |
 | INT  | *(unused)* | firmware polls instead of using the interrupt pin |
-| VCC  | 5V | the TJA1050 transceiver on most boards needs 5V: VBUS on USB, the buck output in the car (see Power) |
+| VCC  | VBUS (5V, physical pin 40) | the TJA1050 transceiver on most boards needs 5V |
 | GND  | GND | |
 | CAN-H | OBD-II pin 6 | |
 | CAN-L | OBD-II pin 14 | |
@@ -152,7 +154,7 @@ high-speed CAN bus: the CNF1, CNF2 and CNF3 values that
 yet. A 16MHz crystal takes 0x00, 0xF0 and 0x86.
 
 Ground the board only through the Pico's ground, which goes to the car
-chassis via the buck converter. Never to anything else.
+chassis via the converter. Never to anything else.
 
 ## Ethanol content: analog flex-fuel sensor, via the Pico ADC
 

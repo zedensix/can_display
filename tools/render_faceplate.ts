@@ -1,5 +1,7 @@
 // Renders each printable part of faceplate/ (the faceplate, the tray) to
-// faceplate/<part>.stl, and pictures of them to faceplate/*.png.
+// faceplate/<part>.stl, pictures of them to faceplate/*.png, and the
+// dimensions they're built from to faceplate/dimensions.js, which the
+// wiring page's Dimensions tab shows (a script, so it loads from file://).
 //
 // The STLs come from OpenSCAD compiled to WebAssembly (openscad-wasm),
 // in-process. The pictures need the native openscad, which mise installs
@@ -11,7 +13,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createOpenSCAD } from "openscad-wasm";
 import type { ScadObject } from "scad-js";
-import { assembly, parts, vars } from "../faceplate";
+import { assembly, faceplate, parts, tray, vars } from "../faceplate";
+import { checked, config } from "../faceplate/config";
 
 const outputDir = "faceplate";
 
@@ -58,6 +61,23 @@ async function renderPicture(scadPath: string, rotation: number[], colors: boole
   );
   if ((await process.exited) !== 0) throw new Error(`openscad failed on ${path}`);
 }
+
+const dimensions = {
+  config,
+  checked, // the measured keys, from measured.json
+  printed: {
+    plateThickness: faceplate.thickness,
+    outlineWidth: 2 * faceplate.halfWidth,
+    outlineHeight: faceplate.top - faceplate.bottom,
+    depth: faceplate.thickness + config.tray.gap + config.tray.thickness,
+    // Each board's pilot hole, from its holes' size.
+    pilots: Object.fromEntries(Object.entries(config.boards).map(([name, board]) => [name, tray.pilotOf(board)])),
+  },
+};
+await Bun.write(
+  join(outputDir, "dimensions.js"),
+  `// Written by tools/render_faceplate.ts (mise run faceplate): don't edit.\nwindow.FACEPLATE = ${JSON.stringify(dimensions, null, 2)};\n`,
+);
 
 for (const [name, part] of Object.entries(parts)) {
   console.log(`faceplate: rendering ${name}.stl...`);
