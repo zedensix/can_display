@@ -12,7 +12,8 @@
 // click toggles the row under it or, on brightness and the shift light,
 // makes turning change the value until the next click. The action rows
 // (Send log, Scan ECU RAM, Listen CAN, Disconnect) return
-// to the gauges and set action. Back returns to the gauges.
+// to the gauges and set action. Back returns to the gauges. With the CAN
+// source, the rows that need the dongle (screen_row_needs_ble) do nothing.
 
 typedef enum {
     PAGE_GAUGES,
@@ -23,6 +24,7 @@ typedef enum {
 enum {
     ROW_BRIGHTNESS,
     ROW_SHIFT_LIGHT,
+    ROW_SOURCE,
     ROW_AUTO_CONNECT,
     ROW_FLIP,
     ROW_ETHANOL_SENSOR,
@@ -61,3 +63,7 @@ void screen_apply_turn(screen_t *s, int detents, int views, settings_t *cfg);
 
 // screen_apply_click applies a click.
 void screen_apply_click(screen_t *s, settings_t *cfg);
+
+// screen_row_needs_ble tells the settings rows that only work with the
+// BLE dongle as the source (the radio is off with the CAN source).
+bool screen_row_needs_ble(int row);

@@ -50,70 +50,40 @@ static uint32_t now_ms(void) {
     return to_ms_since_boot(get_absolute_time());
 }
 
+// The data source this boot runs, from the settings: changing it reboots.
+static source_t source;
+
+// ble_active is true when the BLE dongle is the source (never in the sim build).
+static bool ble_active(void) {
+    return !SIM && source == SOURCE_BLE;
+}
+
 static void poll_data_source(uint32_t now) {
-#if SIM
-    (void)now;
-#elif DATA_SOURCE == SOURCE_MCP2515
-    mcp2515_poll_bus(now);
-#else
-    ble_poll_radio(now);
-#endif
+    if (SIM) {
+        return;
+    }
+    if (source == SOURCE_CAN) {
+        mcp2515_poll_bus(now);
+    } else {
+        ble_poll_radio(now);
+    }
 }
 
 static bool in_standby(void) {
-#if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
-    return ble_in_standby();
-#else
-    return false;
-#endif
+    return ble_active() && ble_in_standby();
 }
 
 static bool give_click_to_prompt(uint32_t now) {
-#if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
-    return ble_handle_click(now);
-#else
-    (void)now;
-    return false;
-#endif
-}
-
-static void request_ram_scan(void) {
-#if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
-    ble_request_ram_scan();
-#endif
-}
-
-static void disconnect_dongle(void) {
-#if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
-    ble_go_offline();
-#endif
-}
-
-static void request_can_listen(void) {
-#if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
-    ble_request_can_listen();
-#endif
+    return ble_active() && ble_handle_click(now);
 }
 
 // remember_connected_dongle keeps the dongle just connected to in the settings, as
 // the one the connect prompt offers first.
 static void remember_connected_dongle(settings_t *cfg) {
-#if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
     dongle_t d;
-    if (ble_take_connected_dongle(&d)) {
+    if (ble_active() && ble_take_connected_dongle(&d)) {
         cfg->dongle = d;
     }
-#else
-    (void)cfg;
-#endif
-}
-
-static void send_log_to_phone(datalog_t *log) {
-#if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
-    ble_send_log(log);
-#else
-    (void)log;
-#endif
 }
 
 // record_datalog_sample samples the gauges into the data log while the engine runs (RPM
@@ -133,23 +103,26 @@ static void record_datalog_sample(uint32_t now) {
 
 // run_settings_action carries out a click on an action row of the settings page.
 static void run_settings_action(action_t action) {
+    if (!ble_active()) {
+        return;
+    }
     switch (action) {
     case ACTION_SEND_LOG: {
         datalog_t *log = store_get_datalog();
         if (log) {
             datalog_flush(log);
-            send_log_to_phone(log);
+            ble_send_log(log);
         }
         break;
     }
     case ACTION_SCAN:
-        request_ram_scan();
+        ble_request_ram_scan();
         break;
     case ACTION_LISTEN:
-        request_can_listen();
+        ble_request_can_listen();
         break;
     case ACTION_DISCONNECT:
-        disconnect_dongle();
+        ble_go_offline();
         break;
     case ACTION_NONE:
         break;
@@ -157,12 +130,12 @@ static void run_settings_action(action_t action) {
 }
 
 static void __attribute__((noreturn)) reboot_board(bool connect) {
-#if !SIM && DATA_SOURCE == SOURCE_ELM327_BLE
-    ble_disconnect_before_reboot();
-    for (uint32_t until = now_ms() + 300; now_ms() < until;) {
-        poll_data_source(now_ms());
+    if (ble_active()) {
+        ble_disconnect_before_reboot();
+        for (uint32_t until = now_ms() + 300; now_ms() < until;) {
+            poll_data_source(now_ms());
+        }
     }
-#endif
     watchdog_hw->scratch[SCRATCH_CONNECT_NOW] = connect ? CONNECT_NOW : 0;
     watchdog_reboot(0, 0, 0);
     for (;;) {
@@ -253,14 +226,15 @@ int main(void) {
     adc_gpio_init(ETHANOL_PIN);
     adc_select_input(ETHANOL_ADC_INPUT);
 
-#if SIM
-    (void)connect_now;
-#elif DATA_SOURCE == SOURCE_MCP2515
-    (void)connect_now;
-    mcp2515_source_init(&state);
-#else
-    ble_init(&state, cfg.auto_connect || connect_now, &cfg.dongle);
-#endif
+    source = cfg.source;
+    log_line("boot: data source %s", source == SOURCE_CAN ? "CAN (MCP2515)" : "BLE dongle");
+    if (SIM) {
+        (void)connect_now;
+    } else if (source == SOURCE_CAN) {
+        mcp2515_source_init(&state);
+    } else {
+        ble_init(&state, cfg.auto_connect || connect_now, &cfg.dongle);
+    }
 
     // The boot animation stays within the spinner's rows: after a first
     // whole frame, only those are drawn and pushed.
@@ -313,6 +287,10 @@ int main(void) {
         if (screen.page == PAGE_GAUGES && !settings_equal(cfg, saved)) {
             store_save_settings(cfg);
             saved = cfg;
+            if (cfg.source != source) {
+                log_line("settings: data source changed, rebooting");
+                reboot_board(false);
+            }
         }
 
         // In standby, only a click matters: no drawing, no busy loop.

@@ -14,6 +14,8 @@ enum {
     FLAG_FLIP = 1 << 1,
     FLAG_ETHANOL_SENSOR = 1 << 2,
     FLAG_DONGLE = 1 << 4,
+    // Clear in settings saved before the choice existed: the dongle.
+    FLAG_CAN_SOURCE = 1 << 5,
 };
 
 void settings_encode(settings_t s, uint8_t out[SETTINGS_SIZE]) {
@@ -21,7 +23,8 @@ void settings_encode(settings_t s, uint8_t out[SETTINGS_SIZE]) {
     out[4] = VERSION;
     out[5] = (uint8_t)s.brightness;
     out[6] = (uint8_t)((s.auto_connect ? FLAG_AUTO_CONNECT : 0) | (s.flip ? FLAG_FLIP : 0) |
-                       (s.ethanol_sensor ? FLAG_ETHANOL_SENSOR : 0) | (s.dongle.set ? FLAG_DONGLE : 0));
+                       (s.ethanol_sensor ? FLAG_ETHANOL_SENSOR : 0) | (s.dongle.set ? FLAG_DONGLE : 0) |
+                       (s.source == SOURCE_CAN ? FLAG_CAN_SOURCE : 0));
     out[7] = (uint8_t)(s.shift_rpm / SHIFT_RPM_STEP);
     memset(out + 8, 0, 10);
     memcpy(out + 18, s.dongle.addr, sizeof s.dongle.addr);
@@ -46,6 +49,7 @@ settings_t settings_decode(const uint8_t in[SETTINGS_SIZE]) {
         }
     }
     return (settings_t){
+        .source = (in[6] & FLAG_CAN_SOURCE) ? SOURCE_CAN : SOURCE_BLE,
         .brightness = in[5],
         .auto_connect = (in[6] & FLAG_AUTO_CONNECT) != 0,
         .flip = (in[6] & FLAG_FLIP) != 0,
@@ -56,8 +60,9 @@ settings_t settings_decode(const uint8_t in[SETTINGS_SIZE]) {
 }
 
 bool settings_equal(settings_t a, settings_t b) {
-    return a.brightness == b.brightness && a.auto_connect == b.auto_connect && a.flip == b.flip &&
-           a.ethanol_sensor == b.ethanol_sensor && a.shift_rpm == b.shift_rpm && dongle_equal(a.dongle, b.dongle);
+    return a.source == b.source && a.brightness == b.brightness && a.auto_connect == b.auto_connect &&
+           a.flip == b.flip && a.ethanol_sensor == b.ethanol_sensor && a.shift_rpm == b.shift_rpm &&
+           dongle_equal(a.dongle, b.dongle);
 }
 
 bool dongle_equal(dongle_t a, dongle_t b) {

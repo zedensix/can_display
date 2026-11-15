@@ -32,13 +32,3 @@
 
 #define PANEL_WIDTH 240
 #define PANEL_HEIGHT 320
-
-// Where car data comes from. SOURCE_ELM327_BLE talks to an ELM327 OBD
-// dongle over Bluetooth LE: nothing to wire into the car, a few
-// refreshes a second (standard PIDs, the oil temperature through Toyota's
-// Mode 21). SOURCE_MCP2515 listens to the CAN bus through an MCP2515
-// wired to the OBD port: faster, from the broadcast frames. The `sim`
-// build replaces both with fake data.
-#define SOURCE_ELM327_BLE 1
-#define SOURCE_MCP2515 2
-#define DATA_SOURCE SOURCE_ELM327_BLE

@@ -28,6 +28,7 @@
 - [x] Plateau : nervure de 6 mm au dos de chaque pont au bout des fentes du Pico (il cassait là au démoulage et à la pose du transfo), loin de la prise micro-USB
 - [x] Rebord de 2 x 2 mm le long du bord : au dos de la façade, au dos du plateau (entaillé autour des têtes de vis et pour la fiche micro-USB du Pico) ; aucun sur les faces avant, imprimées à plat sans supports
 - [x] Schéma de câblage : fils de couleurs différentes jamais superposés (broches des modules décalées d'un demi-pas), étiquettes lisibles par-dessus les fils
+- [x] Sélecteur de source dans les réglages (Data source : BLE / CAN), appliqué par un redémarrage en quittant la page ; le MCP2515 peut rester câblé en BLE, les lignes qui ont besoin du dongle sont grisées en CAN
 - [ ] Transfo : couper ses oreilles au ras du boîtier
 - [ ] Encodeur : dessouder le connecteur coudé et le ressouder au dos de la carte (côté opposé au potard)
 - [ ] Façade : fixation dans la voiture (où elle va, comment elle tient)

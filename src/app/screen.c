@@ -24,6 +24,11 @@ void screen_apply_turn(screen_t *s, int detents, int views, settings_t *cfg) {
     }
 }
 
+bool screen_row_needs_ble(int row) {
+    return row == ROW_AUTO_CONNECT || row == ROW_SEND_LOG || row == ROW_SCAN || row == ROW_LISTEN ||
+           row == ROW_DISCONNECT;
+}
+
 void screen_apply_click(screen_t *s, settings_t *cfg) {
     if (s->page == PAGE_GAUGES) {
         s->page = PAGE_SETTINGS;
@@ -31,10 +36,16 @@ void screen_apply_click(screen_t *s, settings_t *cfg) {
         s->editing = false;
         return;
     }
+    if (cfg->source != SOURCE_BLE && screen_row_needs_ble(s->cursor)) {
+        return;
+    }
     switch (s->cursor) {
     case ROW_BRIGHTNESS:
     case ROW_SHIFT_LIGHT:
         s->editing = !s->editing;
+        break;
+    case ROW_SOURCE:
+        cfg->source = cfg->source == SOURCE_BLE ? SOURCE_CAN : SOURCE_BLE;
         break;
     case ROW_AUTO_CONNECT:
         cfg->auto_connect = !cfg->auto_connect;

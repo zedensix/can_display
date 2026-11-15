@@ -455,10 +455,18 @@ static void test_flashlog(void) {
 }
 
 static void test_settings(void) {
-    settings_t cfg = {.brightness = 40, .auto_connect = true, .flip = true, .ethanol_sensor = true, .shift_rpm = 7100};
+    settings_t cfg = {.source = SOURCE_CAN,
+                      .brightness = 40,
+                      .auto_connect = true,
+                      .flip = true,
+                      .ethanol_sensor = true,
+                      .shift_rpm = 7100};
     uint8_t buf[SETTINGS_SIZE];
     settings_encode(cfg, buf);
     CHECK(settings_equal(settings_decode(buf), cfg), "settings didn't round-trip");
+    cfg.source = SOURCE_BLE;
+    settings_encode(cfg, buf);
+    CHECK(settings_decode(buf).source == SOURCE_BLE, "the BLE source didn't round-trip");
     buf[4] = 1; // saved by a firmware without the shift light
     settings_t old = settings_decode(buf);
     CHECK(old.brightness == 40 && old.flip && old.shift_rpm == 0, "version 1 settings lost (shift %d)", old.shift_rpm);
@@ -505,6 +513,21 @@ static void test_screen(void) {
     screen_apply_turn(&s, -100, 6, &cfg);
     screen_apply_click(&s, &cfg);
     CHECK(cfg.shift_rpm == 0, "shift light %d turned all the way down, want off", cfg.shift_rpm);
+    screen_apply_turn(&s, 1, 6, &cfg);
+    screen_apply_click(&s, &cfg);
+    CHECK(cfg.source == SOURCE_CAN, "a click on the data source didn't switch it to CAN");
+    // With the CAN source, the rows needing the dongle do nothing.
+    for (int row = 0; row < SETTINGS_ROWS; row++) {
+        if (screen_row_needs_ble(row)) {
+            screen_t at = {.page = PAGE_SETTINGS, .cursor = row};
+            settings_t before = cfg;
+            screen_apply_click(&at, &cfg);
+            CHECK(at.page == PAGE_SETTINGS && at.action == ACTION_NONE && settings_equal(cfg, before),
+                  "row %d acted with the CAN source", row);
+        }
+    }
+    screen_apply_click(&s, &cfg);
+    CHECK(cfg.source == SOURCE_BLE, "a second click didn't switch the data source back to BLE");
     screen_apply_turn(&s, 1, 6, &cfg);
     screen_apply_click(&s, &cfg);
     CHECK(cfg.auto_connect, "a click on auto-connect didn't turn it on");

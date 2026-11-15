@@ -85,7 +85,7 @@ play in every pocket and hole.
 | --- | --- |
 | 4 × M2x4 self-tapping | the display board, into the faceplate |
 | 2 × M2x6 self-tapping | the encoder's board, into the faceplate |
-| 4 × M2x6 self-tapping | the Pico, into the tray |
+| 4 × M2x5 self-tapping | the Pico, into the tray (an M2x6 would hit the bottom of its 4.7 mm hole) |
 | 4 × M3x6 self-tapping | the MCP2515, into the tray |
 | 4 × M3x10 self-tapping | the tray, onto the faceplate's posts |
 | 1 zip tie, 4 mm wide at most | the converter, around it and through the tray |

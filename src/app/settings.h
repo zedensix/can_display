@@ -15,7 +15,20 @@ typedef struct {
     char name[DONGLE_NAME];
 } dongle_t;
 
+// source_t is where car data comes from. SOURCE_BLE talks to an ELM327
+// OBD dongle over Bluetooth LE: nothing to wire into the car, a few
+// refreshes a second. SOURCE_CAN listens to the CAN bus through the
+// MCP2515 wired to the OBD port: faster, from the broadcast frames. Both
+// can stay wired: the MCP2515 has its own pins (SPI1).
+typedef enum {
+    SOURCE_BLE,
+    SOURCE_CAN,
+} source_t;
+
 typedef struct {
+    // source takes effect at the next boot: leaving the settings page
+    // with it changed reboots.
+    source_t source;
     // brightness is the backlight level, in percent.
     int brightness;
     // auto_connect connects to the OBD dongle at power-on, and reconnects

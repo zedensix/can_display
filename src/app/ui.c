@@ -434,6 +434,7 @@ static void draw_settings_page(canvas_t *c, const theme_t *t, const screen_t *sc
     const char *rows[SETTINGS_ROWS][2] = {
         [ROW_BRIGHTNESS] = {"Brightness", brightness},
         [ROW_SHIFT_LIGHT] = {"Shift light", shift},
+        [ROW_SOURCE] = {"Data source", cfg->source == SOURCE_BLE ? "BLE" : "CAN"},
         [ROW_AUTO_CONNECT] = {"Auto-connect", cfg->auto_connect ? "ON" : "OFF"},
         [ROW_FLIP] = {"Flip screen", cfg->flip ? "ON" : "OFF"},
         [ROW_ETHANOL_SENSOR] = {"Ethanol sensor", cfg->ethanol_sensor ? "ON" : "OFF"},
@@ -447,13 +448,16 @@ static void draw_settings_page(canvas_t *c, const theme_t *t, const screen_t *sc
     int first = screen->cursor < SETTINGS_VISIBLE ? 0 : screen->cursor - SETTINGS_VISIBLE + 1;
     for (int i = first; i < SETTINGS_ROWS && i < first + SETTINGS_VISIBLE; i++) {
         int y = SETTINGS_TOP + (i - first) * SETTINGS_ROW_HEIGHT;
-        bool off = strcmp(rows[i][1], "OFF") == 0;
-        color_t label = t->label, value = off ? t->frame : t->accent;
+        // With the CAN source, the rows needing the dongle are dimmed and say why.
+        bool ble_only = cfg->source != SOURCE_BLE && screen_row_needs_ble(i);
+        const char *shown = ble_only ? "BLE" : rows[i][1];
+        bool off = ble_only || strcmp(shown, "OFF") == 0;
+        color_t label = ble_only ? t->frame : t->label, value = off ? t->frame : t->accent;
         if (i == screen->cursor) {
             int h = SETTINGS_ROW_HEIGHT - 6;
             draw_outline(c, SETTINGS_MARGIN, y, c->width - 2 * SETTINGS_MARGIN, h, t->accent);
             gfx_fill_rect(c, SETTINGS_MARGIN, y, 4, h, t->accent);
-            label = t->alarm_text;
+            label = ble_only ? t->label : t->alarm_text;
             if (off) {
                 value = t->label;
             }
@@ -462,8 +466,8 @@ static void draw_settings_page(canvas_t *c, const theme_t *t, const screen_t *sc
             }
         }
         gfx_text(c, label_font, SETTINGS_MARGIN + 12, y + 16, rows[i][0], label, 1);
-        int width = gfx_text_width(label_font, rows[i][1]);
-        gfx_text(c, label_font, c->width - SETTINGS_MARGIN - 10 - width, y + 16, rows[i][1], value, 1);
+        int width = gfx_text_width(label_font, shown);
+        gfx_text(c, label_font, c->width - SETTINGS_MARGIN - 10 - width, y + 16, shown, value, 1);
     }
     draw_text_centered(c, label_font, c->width / 2, c->height - 6, "hold: reboot", t->frame, 1);
 }

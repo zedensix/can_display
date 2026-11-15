@@ -80,8 +80,8 @@ socket, like a phone charger.
 
 ## Car data, option A (default): ELM327 Bluetooth LE OBD dongle
 
-Selected by `DATA_SOURCE` in `src/firmware/board.h`.
-Nothing to wire: plug the dongle into the OBD port, the Pico W connects
+Selected by **Data source: BLE** in the dash's settings (the default);
+changing it reboots the dash. Nothing to wire: plug the dongle into the OBD port, the Pico W connects
 to it over BLE with its onboard radio. Written for a Vgate iCar Pro 2S,
 seen working on hardware: it advertises no name, and serves its serial
 port on service `18f0` (notify `2af0`, write `2af1`). It answers `ATI`
@@ -118,8 +118,13 @@ verified yet.
 
 ## Car data, option B: MCP2515 SPI CAN controller module
 
-Selected by setting `DATA_SOURCE` to `SOURCE_MCP2515` in
-`src/firmware/board.h`. Wired straight to the CAN bus:
+Selected by **Data source: CAN** in the dash's settings; changing it
+reboots the dash. It can stay wired while the BLE dongle is the source:
+it has its own pins (SPI1) and is left alone. With both on the car, plug
+the dongle and the MCP2515's wires into the OBD port through a Y
+splitter. With the CAN source, the rows that need the dongle (Auto-connect,
+Send log, Scan ECU RAM, Listen CAN, Disconnect) are dimmed and do
+nothing. Wired straight to the CAN bus:
 faster, and gets oil temperature, but needs the wiring below.
 
 | MCP2515 pin | Pico W pin | Notes |

@@ -80,7 +80,7 @@
 <nav>
   <h1>GT86 DASH WIRING</h1>
   <span class="hint">Drag to move · cmd+scroll or pinch to zoom · double-click to fit · click a wire to follow it, a board to turn it over</span>
-  <button type="button" id="data-source" title="How the car data comes in: DATA_SOURCE in board.h">Data: BLE dongle</button>
+  <button type="button" id="data-source" title="How the car data comes in: Data source in the dash's settings. The MCP2515 can stay wired either way">Data: BLE dongle</button>
   <button type="button" id="flip-pico" aria-pressed="false">Pico from below</button>
   <a href="#color" id="nav-color">Color</a>
   <a href="#blueprint" id="nav-blueprint">Blueprint</a>
@@ -126,7 +126,7 @@ function picoPin(n) {
 
 // What the drawing shows, kept per browser: each board's face (back is
 // the side you wire from: the Pico from below, the modules from their
-// pins' side), and how the car data comes in (DATA_SOURCE in board.h).
+// pins' side), and how the car data comes in (Data source in the dash's settings).
 const VIEW_KEY = "wiringView";
 let wiringView = { faces: { pico: "back", display: "back", encoder: "back", mcp: "back" }, source: "ble" };
 try {

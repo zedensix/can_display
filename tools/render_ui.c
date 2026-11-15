@@ -140,6 +140,14 @@ static void shot_settings(canvas_t *c) {
     render_screen(c, &s, (screen_t){.page = PAGE_SETTINGS, .cursor = ROW_SHIFT_LIGHT, .editing = true});
 }
 
+// With the CAN source, the rows needing the dongle dimmed.
+static void shot_settings_can(canvas_t *c) {
+    state_t s = {0};
+    settings_t can = cfg;
+    can.source = SOURCE_CAN;
+    ui_render(c, &s, &(screen_t){.page = PAGE_SETTINGS, .cursor = ROW_SOURCE}, &can, now);
+}
+
 // The boot animation: spinning, then closing into the logo.
 static void shot_boot_spin(canvas_t *c) {
     ui_render_boot(c, BOOT_SPIN_MS / 2, now);
@@ -168,6 +176,7 @@ static const shot_t shots[] = {
     {"scan", shot_scan},
     {"failed", shot_failed},
     {"settings", shot_settings},
+    {"settings_can", shot_settings_can},
     {"shot_boot_spin", shot_boot_spin},
     {"shot_boot_morph", shot_boot_morph},
     {"shot_boot_logo", shot_boot_logo},
