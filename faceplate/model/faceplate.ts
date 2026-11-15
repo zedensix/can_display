@@ -93,12 +93,13 @@ export class Faceplate {
       throw new Error("display.glassFromPcbTop + glassLength + ribbonAllowance must fit within display.pcbLength");
     }
     const holeRadius = c.screw.pilotDiameter / 2;
+    // Under 1 mm of plate between a screw and the panel's pocket, the screw splits it.
     if (
-      -display.holeInset - holeRadius < this.glassPocketTop ||
-      -(display.pcbLength - display.holeInset) + holeRadius > this.glassPocketBottom
+      -display.holeInset - holeRadius - 1 < this.glassPocketTop ||
+      -(display.pcbLength - display.holeInset) + holeRadius + 1 > this.glassPocketBottom
     ) {
       throw new Error(
-        "the display board's screw holes fall inside the panel's pocket: check display.holeInset, glassFromPcbTop, glassLength and ribbonAllowance",
+        "the display board's screw holes leave under 1 mm of plate beside the panel's pocket: check display.holeInset, glassFromPcbTop, glassLength and ribbonAllowance",
       );
     }
     if (encoder.panelThickness >= this.thickness) {

@@ -79,19 +79,19 @@ union()
         }
         union()
         {
-          translate(v = [-15.75, -3, 1.2])
+          translate(v = [-16.55, -2.2, 1.2])
           {
             cylinder(h = 5.4, r = 0.85, center = false);
           }
-          translate(v = [-15.75, -55, 1.2])
+          translate(v = [-16.55, -55.8, 1.2])
           {
             cylinder(h = 5.4, r = 0.85, center = false);
           }
-          translate(v = [15.75, -3, 1.2])
+          translate(v = [16.55, -2.2, 1.2])
           {
             cylinder(h = 5.4, r = 0.85, center = false);
           }
-          translate(v = [15.75, -55, 1.2])
+          translate(v = [16.55, -55.8, 1.2])
           {
             cylinder(h = 5.4, r = 0.85, center = false);
           }

@@ -23,7 +23,7 @@
   "converter.earSlotWidth": 5,
   "converter.earSlotDepth": 7,
   "display.pcbThickness": 1.2,
-  "display.holeInset": 3,
+  "display.holeInset": 2.2,
   "display.glassWidth": 35.2,
   "display.glassLength": 48.5,
   "display.glassThickness": 3,

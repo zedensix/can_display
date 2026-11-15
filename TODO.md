@@ -23,6 +23,7 @@
 - [x] Plan de câblage : connecteurs dans leur vrai ordre, chaque carte retournable (vue de dos par défaut, Pico par-dessous), bouton BLE / filaire, convertisseur en micro-USB dans le Pico
 - [ ] WIP Façade : 1er essai PLA corrigé (écran 37,5 x 58 + dégagement des soudures, encodeur tourné sur 4 colonnes, colonnes du Pico coupées pour l'USB, convertisseur hors plateau) ; reste à mesurer la vitre de l'écran (épaisseur, longueur, position) et la hauteur du corps de l'encodeur, puis réimprimer
 - [ ] WIP Façade v2 : creux pour les soudures aux deux bouts de l'écran, connecteur de l'encodeur ressoudé au dos de la carte (gorge sous la carte seulement s'il reste côté potard), convertisseur oreilles coupées au dos du plateau entre le Pico et le MCP2515 (butées, rilsan), Pico retourné avec ses picots et fiches à travers le plateau : l'ensemble passe de 77 x 127 à 54 x 97 mm, rendu de l'assemblage avec chaque composant modélisé
+- [x] Trous de l'écran à 2,2 mm des bords, jamais moins de 1 mm de paroi contre la poche de la vitre (le 1er essai a éclaté)
 - [x] Schéma de câblage : fils de couleurs différentes jamais superposés (broches des modules décalées d'un demi-pas), étiquettes lisibles par-dessus les fils
 - [ ] Transfo : couper ses oreilles au ras du boîtier
 - [ ] Encodeur : dessouder le connecteur coudé et le ressouder au dos de la carte (côté opposé au potard)
