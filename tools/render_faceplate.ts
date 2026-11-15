@@ -1,5 +1,6 @@
 // Renders each printable part of faceplate/ (the faceplate, the tray) to
-// faceplate/<part>.stl, pictures of them to faceplate/*.png, and the
+// faceplate/<part>.stl, pictures of them to faceplate/*.png, the assembly
+// with every module in place to faceplate/assembly.scad, and the
 // dimensions they're built from to faceplate/dimensions.js, which the
 // wiring page's Dimensions tab shows (a script, so it loads from file://).
 //
@@ -27,7 +28,9 @@ const pictures: Record<string, { object: ScadObject; rotation: number[]; colors?
   "faceplate-front": { object: parts.faceplate.rotate([0, 180, 0]), rotation: [25, 0, 0] }, // turned over: what shows in the car
   "faceplate-back": { object: parts.faceplate, rotation: [55, 0, 25] }, // as it sits on the bed: pockets and posts
   "tray-back": { object: parts.tray, rotation: [55, 0, 25] }, // as it sits on the bed: the boards' standoffs
-  assembly: { object: assembly, rotation: [70, 0, 140], colors: true }, // from behind, the boards in place
+  assembly: { object: assembly, rotation: [70, 0, 140], colors: true }, // from behind, every module in place
+  "assembly-front": { object: assembly.rotate([0, 180, 0]), rotation: [55, 0, 20], colors: true }, // what shows in the car
+  "assembly-side": { object: assembly, rotation: [90, 0, 90], colors: true }, // from the side: the stack, the front at the bottom
 };
 
 async function renderStl(source: string, path: string): Promise<void> {
@@ -69,6 +72,11 @@ const dimensions = {
     plateThickness: faceplate.thickness,
     outlineWidth: 2 * faceplate.halfWidth,
     outlineHeight: faceplate.top - faceplate.bottom,
+    // The tray, widened below the faceplate for the converter.
+    trayWidth: 2 * Math.max(faceplate.halfWidth, tray.extensionHalfWidth),
+    trayHeight: faceplate.top - tray.bottom,
+    // The encoder board's ends from the shaft, its pins near the right one.
+    encoderBoard: [faceplate.encoderBoardLeft, faceplate.encoderBoardRight],
     depth: faceplate.thickness + config.tray.gap + config.tray.thickness,
     // Each board's pilot hole, from its holes' size.
     pilots: Object.fromEntries(Object.entries(config.boards).map(([name, board]) => [name, tray.pilotOf(board)])),
@@ -77,6 +85,12 @@ const dimensions = {
 await Bun.write(
   join(outputDir, "dimensions.js"),
   `// Written by tools/render_faceplate.ts (mise run faceplate): don't edit.\nwindow.FACEPLATE = ${JSON.stringify(dimensions, null, 2)};\n`,
+);
+
+// The assembly as OpenSCAD source, to turn around in its window (`mise run assembly`).
+await Bun.write(
+  join(outputDir, "assembly.scad"),
+  `// Written by tools/render_faceplate.ts (mise run faceplate): don't edit. Preview (F5) keeps the colors.\n${assembly.serialize(vars)}`,
 );
 
 for (const [name, part] of Object.entries(parts)) {

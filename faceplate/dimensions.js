@@ -31,7 +31,11 @@ window.FACEPLATE = {
       "belowDisplay": 16,
       "holeSpacing": 13.75,
       "holesFromShaft": 7.9,
-      "standoffDiameter": 5
+      "standoffDiameter": 5,
+      "pinsDepth": 0,
+      "pinsFromShaft": 13,
+      "boardLength": 30,
+      "boardWidth": 18.5
     },
     "plate": {
       "frontSkin": 1.2,
@@ -57,7 +61,8 @@ window.FACEPLATE = {
           0,
           -51.25
         ]
-      }
+      },
+      "converterPad": 3
     },
     "boards": {
       "pico": {
@@ -146,12 +151,22 @@ window.FACEPLATE = {
     "boards.mcp2515.holeDiameter": 3.5,
     "encoder.nutThickness": 0,
     "encoder.bushingLength": 6,
+    "encoder.pinsDepth": 0,
+    "encoder.boardWidth": 18.5,
+    "encoder.boardLength": 30,
+    "encoder.pinsFromShaft": 13,
     "encoder.panelThickness": 1
   },
   "printed": {
     "plateThickness": 5.4,
     "outlineWidth": 54.1,
     "outlineHeight": 96.85,
+    "trayWidth": 77,
+    "trayHeight": 126.85,
+    "encoderBoard": [
+      -15,
+      15
+    ],
     "depth": 27.9,
     "pilots": {
       "pico": 1.7,

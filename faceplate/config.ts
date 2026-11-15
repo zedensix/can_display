@@ -23,7 +23,7 @@ const defaults = {
     activeWidth: 30.6, // the lit area (240 pixels), across, centered on the panel
     activeLength: 40.8, // the lit area (320 pixels), top to bottom
     activeFromGlassTop: 2.5, // from the panel's top edge to the lit area's top edge
-    solderRowWidth: 20, // the pin header's solder joints on the board's face, across, centered, at its bottom end
+    solderRowWidth: 20, // the solder joints on the board's face, across, centered, at each end (the pin header's and the pads above the panel)
     solderHeight: 1, // how far those joints stand off the board's face: the plate is relieved under them
   },
   screw: {
@@ -36,16 +36,25 @@ const defaults = {
     nutThickness: 0, // the nut clamping a threaded collar to the plate, washer included; 0 without thread: the board's screws alone hold it
     bodySize: 12.6, // the encoder's square metal body, its side facing the board's holes (they sit right against it)
     bodyHeight: 6.5, // from the board's face to the encoder's face, where the bushing starts
-    panelThickness: 2, // the plate at the encoder, thin enough for the nut to grab the bushing
+    panelThickness: 2, // the plate under the encoder's body: the thinner, the further the collar and the shaft stick out (and a nut, if threaded, can grab the collar)
     belowDisplay: 16, // from the display board's bottom edge to the shaft's center
-    // The board stands on 4 standoffs around the body. Its pin header
-    // points to one side (left or right), inside the dash: its 2 mounting
+    // The board stands on 4 standoffs around the body, its long side
+    // across, centered on the shaft, its pins to the right seen from the back: its 2 mounting
     // holes then sit above or below the shaft, screwed with M2
     // self-tapping screws (screw.pilotDiameter); the 2 opposite standoffs
     // only hold the board level.
     holeSpacing: 13.75, // between the centers of the board's 2 mounting holes
     holesFromShaft: 7.9, // from the shaft's center to the line through the 2 holes
     standoffDiameter: 4.5, // the board's standoffs, cut flat where they meet the body
+    // Its 5 header pins, in a row across the board, bent outward along it
+    // past its end, the wires' plugs on them. Soldered on the back of the
+    // board they point into the room behind the plate: nothing under the
+    // board. Soldered on the knob side they'd hold the board off the plate,
+    // so a channel runs under them out to the plate's edge.
+    pinsDepth: 0, // room the pins and their plugs take under the board, on the knob side; 0: the header is on the back
+    pinsFromShaft: 15, // from the shaft's center to the pin row, along the board
+    boardLength: 26, // the board, from the end with the pins to the other one
+    boardWidth: 19, // the board, across (the pin row's direction)
   },
   plate: {
     frontSkin: 1.2, // material in front of the display glass
@@ -67,6 +76,7 @@ const defaults = {
     standoffHeight: 5, // under each board: clears the solder joints, and the Pico's parts facing the tray (boards.pico.componentsHeight)
     standoffWall: 1.8, // around each standoff's pilot hole
     wireSlot: { width: 40, length: 7, center: [0, -51.25] }, // where the wires go through the tray, in the boards' frame below
+    converterPad: 3, // under the converter, on the tray's extension below the faceplate: depth for its 2 screws to bite
   },
   // Each board on the tray's back, seen from the back of the dash, where
   // you screw it on. width runs along x, length along y; its 4 holes on a
@@ -97,9 +107,9 @@ const defaults = {
     },
   },
   // The potted 12V-to-5V converter (its 5V comes out on a micro-USB plug
-  // for the Pico). Not on the tray: with its ears it's 74 long, the tray
-  // is narrower; it's zip-tied on the harness behind the dash. Here for
-  // the wiring page's Dimensions tab.
+  // for the Pico). With its ears it's wider than the faceplate: it lies
+  // across an extension of the tray below it, 2 M3 screws through the
+  // slots in its ears.
   converter: {
     length: 46,
     width: 27.5,

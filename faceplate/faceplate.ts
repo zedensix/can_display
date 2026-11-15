@@ -11,6 +11,10 @@ import type { ScadObject } from "scad-js";
 import { cube, cylinder, difference, hull, square, union } from "scad-js";
 import type { Config } from "./config";
 
+/** The encoder board's header: 5 pins (CLK, DT, SW, +, GND) at 2.54 mm, in a row across the board. */
+export const ENCODER_PINS = 5;
+export const ENCODER_PIN_PITCH = 2.54;
+
 /** A box from x0..x1, y0..y1, z0..z1. */
 export function box(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): ScadObject {
   return cube([x1 - x0, y1 - y0, z1 - z0], { center: false }).translate([x0, y0, z0]);
@@ -26,16 +30,20 @@ export class Faceplate {
   /** Centers of the 4 posts the tray screws onto. */
   readonly posts: [number, number][];
   /** Where the panel's top edge, and the lit area's, sit. */
-  private readonly glassTop: number;
-  private readonly activeTop: number;
+  readonly glassTop: number;
+  readonly activeTop: number;
   private readonly glassPocketBottom: number;
   private readonly glassPocketTop: number;
-  private readonly shaftY: number;
+  readonly shaftY: number;
   private readonly encoderRecessHalf: number;
-  /** Where the encoder's board sits, its body against the thin plate. */
-  private readonly encoderBoardFace: number;
+  /** Where the encoder's board sits, on its standoffs, and its face, where the collar starts. */
+  readonly encoderBoardFace: number;
+  readonly encoderBodyFace: number;
   /** The encoder board's standoff centers, in the plate's X and Y. */
   private readonly encoderBoardStandoffs: [number, number][];
+  /** The encoder board's ends along X, centered on the shaft: its pins near the right one, seen from the back. */
+  readonly encoderBoardLeft: number;
+  readonly encoderBoardRight: number;
 
   constructor(readonly c: Config) {
     const { display, encoder, plate, window, tray, clearance } = c;
@@ -47,17 +55,24 @@ export class Faceplate {
     this.glassPocketTop = this.glassTop + display.ribbonAllowance + clearance;
     this.shaftY = -display.pcbLength - encoder.belowDisplay;
     this.encoderRecessHalf = encoder.bodySize / 2 + clearance;
-    this.encoderBoardFace = encoder.panelThickness + encoder.bodyHeight;
+    this.encoderBodyFace = encoder.panelThickness;
+    this.encoderBoardFace = this.encoderBodyFace + encoder.bodyHeight;
     this.encoderBoardStandoffs = [-1, 1].flatMap((sx) =>
       [-1, 1].map((sy): [number, number] => [
         (sx * encoder.holeSpacing) / 2,
         this.shaftY + sy * encoder.holesFromShaft,
       ]),
     );
-    this.halfWidth = display.pcbWidth / 2 + clearance + plate.margin;
+    this.encoderBoardRight = encoder.boardLength / 2;
+    this.encoderBoardLeft = -encoder.boardLength / 2;
+    const postInset = tray.postDiameter / 2 + 0.5;
+    // Wide enough for the display, and for the encoder's board beside the bottom posts.
+    this.halfWidth = Math.max(
+      display.pcbWidth / 2 + clearance + plate.margin,
+      Math.max(-this.encoderBoardLeft, this.encoderBoardRight) + 0.5 + tray.postDiameter / 2 + postInset,
+    );
     this.top = clearance + plate.margin;
     this.bottom = this.shaftY - this.encoderRecessHalf - plate.margin;
-    const postInset = tray.postDiameter / 2 + 0.5;
     const postX = this.halfWidth - postInset;
     this.posts = [this.top - postInset, this.bottom + postInset].flatMap((y): [number, number][] => [
       [-postX, y],
@@ -85,17 +100,40 @@ export class Faceplate {
         "the display board's screw holes fall inside the panel's pocket: check display.holeInset, glassFromPcbTop, glassLength and ribbonAllowance",
       );
     }
-    if (encoder.nutThickness > 0 && encoder.bushingLength - encoder.panelThickness < encoder.nutThickness) {
-      throw new Error("encoder.panelThickness leaves too little bushing for the nut");
-    }
     if (encoder.panelThickness >= this.thickness) {
       throw new Error("encoder.panelThickness must be thinner than the plate");
     }
-    if (encoder.belowDisplay - this.encoderRecessHalf - clearance < 1) {
-      throw new Error("encoder.belowDisplay is too small: the encoder's recess runs into the display's pocket");
-    }
     if (this.encoderBoardFace <= this.thickness) {
       throw new Error("encoder.bodyHeight is too short: the encoder's board would sit inside the plate");
+    }
+    if (encoder.nutThickness > 0 && encoder.bushingLength - encoder.panelThickness < encoder.nutThickness) {
+      throw new Error("encoder.panelThickness leaves too little collar out the front for the nut");
+    }
+    const pinsFloor = this.encoderBoardFace - encoder.pinsDepth;
+    if (pinsFloor < plate.frontSkin) {
+      throw new Error(
+        `encoder.pinsDepth: the channel under the encoder's pins would come through the front, raise encoder.panelThickness to at least ${+(encoder.panelThickness + plate.frontSkin - pinsFloor).toFixed(2)} or solder the header on the board's back`,
+      );
+    }
+    if (encoder.pinsFromShaft - ENCODER_PIN_PITCH / 2 - clearance < this.encoderRecessHalf + 0.5) {
+      throw new Error("encoder.pinsFromShaft puts the pins' channel in the encoder's recess");
+    }
+    if (encoder.pinsFromShaft > this.encoderBoardRight) {
+      throw new Error("encoder.pinsFromShaft puts the pin row off the board (encoder.boardLength)");
+    }
+    const channelHalf = (ENCODER_PINS * ENCODER_PIN_PITCH) / 2 + clearance;
+    if (
+      pinsFloor < this.thickness &&
+      this.posts.some(
+        ([x, y]) =>
+          x + tray.postDiameter / 2 > encoder.pinsFromShaft &&
+          Math.abs(y - this.shaftY) < channelHalf + tray.postDiameter / 2,
+      )
+    ) {
+      throw new Error("the encoder pins' channel runs into a tray post: check encoder.belowDisplay or plate.margin");
+    }
+    if (encoder.belowDisplay - this.encoderRecessHalf - clearance < 1) {
+      throw new Error("encoder.belowDisplay is too small: the encoder's recess runs into the display's pocket");
     }
     if (
       Math.max(encoder.holeSpacing / 2, encoder.holesFromShaft) - this.encoderRecessHalf <
@@ -146,8 +184,8 @@ export class Faceplate {
 
   /**
    * The panel's pocket (with room for its ribbon), then the board's, both
-   * open at the back, and a relief under the pin header's solder joints,
-   * from the board's bottom edge up to the panel's pocket.
+   * open at the back, and a relief under the solder joints at each end of
+   * the board, between its edge and the panel's pocket.
    */
   private get displayPockets(): ScadObject {
     const { display, plate, clearance } = this.c;
@@ -168,13 +206,19 @@ export class Faceplate {
         plate.frontSkin + display.glassThickness,
         this.thickness + 1,
       ),
-      box(
-        -display.solderRowWidth / 2 - clearance,
-        display.solderRowWidth / 2 + clearance,
-        -display.pcbLength - clearance,
-        this.glassPocketBottom + 0.01,
-        plate.frontSkin + display.glassThickness - display.solderHeight,
-        this.thickness + 1,
+      // Pads at both ends of the board: the header's below the panel, the other row above it.
+      ...[
+        [-display.pcbLength - clearance, this.glassPocketBottom + 0.01],
+        [this.glassPocketTop - 0.01, clearance],
+      ].map(([y0, y1]) =>
+        box(
+          -display.solderRowWidth / 2 - clearance,
+          display.solderRowWidth / 2 + clearance,
+          y0,
+          y1,
+          plate.frontSkin + display.glassThickness - display.solderHeight,
+          this.thickness + 1,
+        ),
       ),
     );
   }
@@ -206,7 +250,25 @@ export class Faceplate {
         this.shaftY,
         -1,
       ]),
-      box(-half, half, this.shaftY - half, this.shaftY + half, encoder.panelThickness, this.encoderBoardFace + 1),
+      box(-half, half, this.shaftY - half, this.shaftY + half, this.encoderBodyFace, this.encoderBoardFace + 1),
+    );
+  }
+
+  /**
+   * The channel under the encoder board's bent pins and their plugs, from
+   * the pin row out through the plate's right edge, where the wires leave;
+   * from the back down to a skin at the front.
+   */
+  private get encoderPinsChannel(): ScadObject {
+    const { encoder, clearance } = this.c;
+    const halfRow = (ENCODER_PINS * ENCODER_PIN_PITCH) / 2 + clearance;
+    return box(
+      encoder.pinsFromShaft - ENCODER_PIN_PITCH / 2 - clearance,
+      this.halfWidth + 1,
+      this.shaftY - halfRow,
+      this.shaftY + halfRow,
+      this.encoderBoardFace - encoder.pinsDepth,
+      this.thickness + 1,
     );
   }
 
@@ -257,6 +319,8 @@ export class Faceplate {
         this.displayPockets,
         this.displayScrewHoles,
         this.encoderCutouts,
+        // Only if the pins sit on the knob side, lower than the plate's back.
+        ...(this.encoderBoardFace - this.c.encoder.pinsDepth < this.thickness ? [this.encoderPinsChannel] : []),
         this.encoderScrewHoles,
       ),
       this.trayPosts,

@@ -8,11 +8,14 @@
  *   against a thin skin of plate, its board in a shallower pocket around
  *   it, flush with the back, held by 4 M2 self-tapping screws.
  * - Encoder: its shaft goes through a hole, its body sits in a square
- *   recess from the back, its board screwed onto standoffs; where the plate
- *   is thin enough for a nut, if its collar is threaded.
+ *   recess from the back, its board screwed onto standoffs, its pins in a
+ *   pocket; where the plate is thin enough for a nut, if its collar is
+ *   threaded.
  * - Tray: it screws onto 4 posts at the faceplate's corners, leaving room
  *   between the two for the display's and the encoder's connectors. The
  *   boards screw onto standoffs on its back; the wires go through a slot.
+ *   Below the faceplate it widens for the 12V-to-5V converter, screwed
+ *   across it by its ears.
  *
  * Every dimension is in config.ts; each part is a class in its own file.
  */
@@ -21,6 +24,7 @@ import type { ScadObject, ScadSpecialVariables } from "scad-js";
 import { union } from "scad-js";
 import { config } from "./config";
 import { Faceplate } from "./faceplate";
+import { mockups } from "./mockups";
 import { Tray } from "./tray";
 
 export const vars: ScadSpecialVariables = { $fn: 64 }; // smoothness of the holes and posts
@@ -34,8 +38,11 @@ export const parts: Record<string, ScadObject> = {
   tray: tray.object,
 };
 
-/** Everything in place, the boards as colored slabs: for a picture, never printed. */
+const modules = mockups(config, faceplate, tray);
+
+/** Everything in place with every module modeled, the front at z = 0: for the pictures, never printed. */
 export const assembly: ScadObject = union(
   faceplate.object.color("gold"),
-  union(tray.object.color("silver"), tray.boardMockups).translate([0, 0, faceplate.thickness + config.tray.gap]),
+  modules.faceplate,
+  union(tray.object.color("silver"), modules.tray).translate([0, 0, faceplate.thickness + config.tray.gap]),
 );

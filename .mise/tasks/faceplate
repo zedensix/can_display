@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Render the faceplate (display + encoder) to faceplate/faceplate.stl and its pictures"
+#MISE description="Render the faceplate and the tray to faceplate/*.stl, their pictures and faceplate/assembly.scad"
 set -euo pipefail
 
 bun install --frozen-lockfile >/dev/null

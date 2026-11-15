@@ -110,4 +110,10 @@ const server = Bun.serve({
 
 const url = new URL("/docs/wiring.html", server.url).href;
 console.log(`wiring and dimensions on ${url} (ctrl+c to stop)`);
-Bun.spawn(["open", url]);
+// Once per process: `bun --hot` (bun run dev:wiring) reruns this file on
+// every change, measured.json included, but keeps globalThis.
+const shared = globalThis as { wiringPageOpened?: boolean };
+if (!shared.wiringPageOpened) {
+  shared.wiringPageOpened = true;
+  Bun.spawn(["open", url]);
+}

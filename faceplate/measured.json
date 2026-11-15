@@ -46,5 +46,9 @@
   "boards.mcp2515.holeDiameter": 3.5,
   "encoder.nutThickness": 0,
   "encoder.bushingLength": 6,
+  "encoder.pinsDepth": 0,
+  "encoder.boardWidth": 18.5,
+  "encoder.boardLength": 30,
+  "encoder.pinsFromShaft": 13,
   "encoder.panelThickness": 1
 }
