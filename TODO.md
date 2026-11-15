@@ -26,7 +26,7 @@
 - [x] Trous de l'écran à 2,2 mm des bords, jamais moins de 1 mm de paroi contre la poche de la vitre (le 1er essai a éclaté)
 - [ ] Encodeur : mesurer au pied à coulisse le décalage des trous vers le connecteur (encoder.holesTowardPins, 2 mm lu sur photo), puis réimprimer la façade
 - [x] Plateau : nervure de 6 mm au dos de chaque pont au bout des fentes du Pico (il cassait là au démoulage et à la pose du transfo), loin de la prise micro-USB
-- [x] Rebord de 2 x 2 mm le long du bord : au dos de la façade, sur les 2 faces du plateau (entaillé autour des colonnes et pour la fiche micro-USB du Pico)
+- [x] Rebord de 2 x 2 mm le long du bord : au dos de la façade, au dos du plateau (entaillé autour des têtes de vis et pour la fiche micro-USB du Pico) ; aucun sur les faces avant, imprimées à plat sans supports
 - [x] Schéma de câblage : fils de couleurs différentes jamais superposés (broches des modules décalées d'un demi-pas), étiquettes lisibles par-dessus les fils
 - [ ] Transfo : couper ses oreilles au ras du boîtier
 - [ ] Encodeur : dessouder le connecteur coudé et le ressouder au dos de la carte (côté opposé au potard)

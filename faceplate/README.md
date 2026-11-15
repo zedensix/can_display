@@ -114,6 +114,6 @@ on where it goes.
 
 Print `stl/faceplate.stl` and `stl/tray.stl`, each front face down on the bed: the pockets open upward, the posts
 and standoffs stand up, the window bevel is a 45 degree overhang, so the
-faceplate needs no supports. The tray stands on the 2 mm rim of its front
-face: supports under the plate, inside the rim. PETG or ASA rather than PLA, which softens in a car parked in
+faceplate needs no supports, nor does the tray: their 2 mm rims are on
+their backs only. PETG or ASA rather than PLA, which softens in a car parked in
 the sun.

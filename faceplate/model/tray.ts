@@ -4,12 +4,14 @@
 // out: its 2 rows of header pins go through 2 slots, the Dupont plugs on
 // them in the gap toward the faceplate, with the display's and the
 // encoder's; a rib on the back stiffens each thin bridge the slots leave
-// at the tray's edges. A rim runs along the edge on both faces, notched
-// around the posts and for the Pico's micro-USB plug. The MCP2515's wires go around the tray's bottom edge.
+// at the tray's edges. A rim runs along the edge of the back, notched
+// around the screws' heads and for the Pico's micro-USB plug (none on the
+// front: the tray would print on it, over supports). The MCP2515's wires
+// go around the tray's bottom edge.
 //
 // Its front face (toward the faceplate) is at z = 0, the standoffs stand
 // up from its back; same X and Y as the faceplate. It prints front face
-// down, standing on its front rim: the plate needs supports under it.
+// down, no supports.
 
 import type { ScadObject } from "scad-js";
 import { cylinder, difference, union } from "scad-js";
@@ -173,7 +175,6 @@ export class Tray {
     return difference(
       union(
         this.faceplate.outline(tray.thickness),
-        this.faceplate.rim(rim.height + 0.01).translate([0, 0, -rim.height]),
         this.faceplate.rim(rim.height + 0.01).translate([0, 0, tray.thickness - 0.01]),
         this.converterStops,
         ...this.slotRibs.map(([x0, x1, y0, y1]) =>
@@ -186,11 +187,13 @@ export class Tray {
       ...this.faceplate.posts.map(([x, y]) =>
         cylinder(tray.thickness + 2, tray.screwClearance / 2, { center: false }).translate([x, y, -1]),
       ),
-      // The rims stop around each post (it sits in the notch) and its screw's head.
-      ...this.faceplate.posts.flatMap(([x, y]) =>
-        [-rim.height - 1, tray.thickness].map((z) =>
-          cylinder(rim.height + 1, tray.postDiameter / 2 + clearance, { center: false }).translate([x, y, z]),
-        ),
+      // The rim stops around each screw's head.
+      ...this.faceplate.posts.map(([x, y]) =>
+        cylinder(rim.height + 1, tray.postDiameter / 2 + clearance, { center: false }).translate([
+          x,
+          y,
+          tray.thickness,
+        ]),
       ),
       // The back rim stops for the converter's micro-USB plug, at the Pico's right end.
       box(
@@ -202,7 +205,7 @@ export class Tray {
         tray.thickness + rim.height + 1,
       ),
       ...this.zipTieHoles.map(([x0, x1, y0, y1]) => box(x0, x1, y0, y1, -99, 99)),
-      // The Pico's pin rows and their plugs, through the tray, its rims and the standoffs' edges.
+      // The Pico's pin rows and their plugs, through the tray, its rim and the standoffs' edges.
       ...this.picoSlots.map(([x0, x1, y0, y1]) => box(x0, x1, y0, y1, -99, 99)),
       // Blind pilots, so the front face stays closed under each board.
       ...this.standoffs.map(({ x, y, height, pilotDiameter }) =>

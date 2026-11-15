@@ -453,32 +453,6 @@ union()
                 }
               }
             }
-            translate(v = [0, 0, -2])
-            {
-              difference()
-              {
-                translate(v = [0, -40.125, 0])
-                {
-                  linear_extrude(height = 2.01, center = false, convexity = undef, twist = undef, slices = undef, scale = 1, $fn = 20)
-                  {
-                    offset(r = 3, delta = undef, chamfer = undef)
-                    {
-                      square(size = [48.1, 90.85], center = true);
-                    }
-                  }
-                }
-                translate(v = [0, -40.125, -1])
-                {
-                  linear_extrude(height = 4.01, center = false, convexity = undef, twist = undef, slices = undef, scale = 1, $fn = 20)
-                  {
-                    offset(r = 1, delta = undef, chamfer = undef)
-                    {
-                      square(size = [48.1, 90.85], center = true);
-                    }
-                  }
-                }
-              }
-            }
             translate(v = [0, 0, 2.49])
             {
               difference()
@@ -581,15 +555,7 @@ union()
           {
             cylinder(h = 4.5, r = 1.7, center = false);
           }
-          translate(v = [-23.3, 4.550000000000001, -3])
-          {
-            cylinder(h = 3, r = 3.55, center = false);
-          }
           translate(v = [-23.3, 4.550000000000001, 2.5])
-          {
-            cylinder(h = 3, r = 3.55, center = false);
-          }
-          translate(v = [23.3, 4.550000000000001, -3])
           {
             cylinder(h = 3, r = 3.55, center = false);
           }
@@ -597,15 +563,7 @@ union()
           {
             cylinder(h = 3, r = 3.55, center = false);
           }
-          translate(v = [-23.3, -84.8, -3])
-          {
-            cylinder(h = 3, r = 3.55, center = false);
-          }
           translate(v = [-23.3, -84.8, 2.5])
-          {
-            cylinder(h = 3, r = 3.55, center = false);
-          }
-          translate(v = [23.3, -84.8, -3])
           {
             cylinder(h = 3, r = 3.55, center = false);
           }

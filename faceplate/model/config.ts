@@ -62,7 +62,7 @@ const defaults = {
     margin: 8, // plate around the display board and the encoder body: wide enough for tray.postDiameter beside the board
     cornerRadius: 3, // rounding of the plate's corners, seen from the front
   },
-  // A lip along the edge: on the faceplate's back, and on both faces of the tray.
+  // A lip along the edge, on the faceplate's back and the tray's: on their fronts, they'd print over supports.
   rim: {
     height: 2,
     width: 2,
