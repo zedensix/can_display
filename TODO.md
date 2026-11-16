@@ -7,7 +7,8 @@
 - [x] Hooks set up: `mise install` runs `prek install` (mise.toml's postinstall)
 - [x] GitHub Actions CI: the prek hooks (clang-format, Biome, bun check, web and host tests under gcc) and the firmware build (UF2 as an artifact)
 - [ ] Ethanol without wiring: run "Scan ECU RAM" with the engine running, noting OFT's E%, then read the candidates in the logs
-- [ ] Stability control modes: the first Listen CAN (TRC OFF and everything off only) found 0x0D3 (byte 0 bit 5 TRC off, byte 1 bit 3 VSC off, byte 3 bit 0 VSC on); run the new 8-step one (VSC SPORT and both included) to confirm them and find VSC sport's bit
+- [x] Stability control modes: two Listen CAN runs found 0x0D3 (byte 0 bit 5 TRC off, byte 0 bit 3 VSC sport, byte 3 bit 0 cleared with everything off)
+- [ ] Check in the car: each of the 5 modes shows its badge, matching the cluster's lamps
 - [ ] Check in the car: multi-PID polling (log `polling every PID at once`), snappier gauges
 - [ ] Check in the car: Send log to the phone, acknowledged, back to the gauges
 - [ ] Check in the car: the dongle's name read and shown on READY and OFFLINE, reconnecting from OFFLINE without a reboot

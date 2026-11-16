@@ -160,16 +160,28 @@ noise, and a single candidate, **0x0D3** (7 bytes):
 
 | Mode | Data |
 | --- | --- |
-| on | `00 06 C0 0F 00 00 E8` |
-| TRC OFF | `20 06 C0 0F 00 00 31` |
-| everything off | `20 0E C0 0E 00 00 8D` |
+| on | `00 06 C0 0F 00 00 2B` |
+| TRC OFF | `20 06 C0 0F 00 00 26` |
+| VSC SPORT | `08 0E C0 0F 00 00 A0` |
+| VSC SPORT + TRC OFF | `28 0E C0 0F 00 00 AA` |
+| everything off | `20 0E C0 0E 00 00 A6` |
 
-Its bits read like the modes: byte 0 bit 5 (0x20) set with TRC off (in
-both off modes), byte 1 bit 3 (0x08) set with VSC off, byte 3 bit 0
-(0x01) set while VSC is on. The last byte changes every frame (a
-checksum or a counter, noise). One run only: a second one must find
-the same bits, and VSC SPORT's. The dash already reads TRC off and VSC
-off from them (`GT86_ID_DRIVE_MODE`).
+A first run (on, TRC OFF, everything off) found 0x0D3 alone; the second,
+through all 5 modes, found the same bits and VSC SPORT's:
+
+- byte 0 bit 5 (0x20): TRC off (TRC OFF, VSC SPORT + TRC OFF, everything off);
+- byte 0 bit 3 (0x08): VSC sport, alone or with TRC OFF;
+- byte 3 bit 0 (0x01): cleared with everything off;
+- byte 1 bit 3 (0x08): set in VSC SPORT and everything off alike, so it
+  tells neither (the first run, without VSC SPORT, mistook it for VSC
+  off).
+
+The last byte changes every frame (a checksum or a counter, noise). The
+second run also flagged 0x141 byte 2 bit 4, set in the TRC OFF step
+only: that byte drifts down step after step (85, 7C, 6B, 6A, 68), an
+analog value whose bit happened to line up, not a flag. The dash reads
+all 5 modes from 0x0D3 (`GT86_ID_DRIVE_MODE`); still to check against
+the cluster's own lamps on a drive.
 
 ## Adding an aftermarket ethanol source
 

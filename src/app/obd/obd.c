@@ -128,9 +128,10 @@ bool gt86_decode_broadcast(const can_frame_t *f, state_t *state, uint32_t now_ms
         return true;
     case GT86_ID_DRIVE_MODE:
         state_set_drive_mode(state,
-                             f->data[1] & 0x08   ? DRIVE_VSC_OFF
-                             : f->data[0] & 0x20 ? DRIVE_TRC_OFF
-                                                 : DRIVE_NORMAL,
+                             !(f->data[3] & 0x01) ? DRIVE_VSC_OFF
+                             : f->data[0] & 0x08  ? (f->data[0] & 0x20 ? DRIVE_SPORT_TRC_OFF : DRIVE_SPORT)
+                             : f->data[0] & 0x20  ? DRIVE_TRC_OFF
+                                                  : DRIVE_NORMAL,
                              now_ms);
         return true;
     case GT86_ID_TEMPERATURES:

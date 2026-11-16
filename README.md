@@ -24,8 +24,8 @@ a race-wheel shift light across the top, and every drive logged to your phone.
   colored by band: green fine, amber warns, a reading in danger blinks its whole tile red,
   blue is an engine not warm yet.
 - **Knows when you're on track.** With the traction or stability control off, the gauges
-  switch to a track layout, the oil and the AFR big, under a TRC OFF or VSC OFF badge (the
-  CAN bits it reads are found, still to be confirmed on a second run).
+  switch to a track layout, the oil and the AFR big, under a badge for each of the 5 modes
+  (TRC OFF, VSC SPORT, both, VSC OFF), read from bits two listens of the CAN bus agreed on.
 - **Says what matters.** From 130°C the oil temperature takes the whole screen. The AFR stays
   calm off the throttle, when the fuel cut reads lean. A reading too old shows `--`, never a
   frozen number.

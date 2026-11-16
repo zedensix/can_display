@@ -68,8 +68,8 @@ void test_isotp(void) {
     CHECK(!isotp_add_frame(&r, &wrong_sequence), "a consecutive frame out of sequence was accepted");
 }
 
-// The drive mode, from the three frames the guided Listen CAN read on this
-// car: everything on, TRC off, everything off. A mode read more than
+// The drive mode, from the frames the guided Listen CAN read on this car,
+// one per mode. A mode read more than
 // DRIVE_MODE_STALE_MS ago no longer counts.
 void test_drive_mode(void) {
     state_t s = {0};
@@ -80,6 +80,8 @@ void test_drive_mode(void) {
     } frames[] = {
         {{0x00, 0x06, 0xC0, 0x0F, 0x00, 0x00, 0xE8}, DRIVE_NORMAL},
         {{0x20, 0x06, 0xC0, 0x0F, 0x00, 0x00, 0x31}, DRIVE_TRC_OFF},
+        {{0x08, 0x0E, 0xC0, 0x0F, 0x00, 0x00, 0xA0}, DRIVE_SPORT},
+        {{0x28, 0x0E, 0xC0, 0x0F, 0x00, 0x00, 0xAA}, DRIVE_SPORT_TRC_OFF},
         {{0x20, 0x0E, 0xC0, 0x0E, 0x00, 0x00, 0x8D}, DRIVE_VSC_OFF},
     };
     for (size_t i = 0; i < sizeof frames / sizeof frames[0]; i++) {
