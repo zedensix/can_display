@@ -41,6 +41,7 @@ bool alarm_blink_lit(uint32_t now_ms);
 
 // ui_tiles.c
 void draw_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, uint32_t now_ms);
+void draw_track_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, drive_mode_t mode, uint32_t now_ms);
 void draw_tile_dial(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int y, int w, int h, const state_t *s,
                     uint32_t now_ms);
 

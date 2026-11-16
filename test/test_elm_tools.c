@@ -143,3 +143,39 @@ void test_elm_listen(void) {
     CHECK(strstr(d.logged, "sniff: 1A0") == NULL, "1A0, a counter, reported:\n%s", d.logged);
     CHECK(strstr(d.logged, "sniff: 4D0") == NULL, "4D0, drifting, reported:\n%s", d.logged);
 }
+
+// The drive mode through the dongle: every ELM_MODE_INTERVAL_MS polling
+// stops for a raw monitor of 0D3 alone, which stops at its first frame,
+// then the dongle is set back.
+void test_elm_drive_mode(void) {
+    static fake_dongle_t d;
+    memset(&d, 0, sizeof d);
+    state_t s = {0};
+    elm_t e;
+    elm_start_session(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
+    feed_dongle_answer(&e, "ELM327 v2.3\r>", 1);
+    for (int i = 0; i < 7 + 7; i++) {
+        feed_dongle_answer(&e, "OK\r>", 2);
+    }
+    // Polling (the oil and ethanol reads included) until the mode's turn.
+    uint32_t t = 2 + ELM_MODE_INTERVAL_MS;
+    for (int i = 0; i < 40 && strcmp(last_sent(&d), "ATCAF0\r") != 0; i++) {
+        feed_dongle_answer(&e, strncmp(last_sent(&d), "AT", 2) == 0 ? "OK\r>" : "NO DATA\r>", t);
+    }
+    CHECK(strcmp(last_sent(&d), "ATCAF0\r") == 0, "the mode's monitor didn't start: last sent %s", last_sent(&d));
+    feed_dongle_answer(&e, "OK\r>", t);
+    CHECK(strcmp(last_sent(&d), "ATCRA0D3\r") == 0, "then %s, want ATCRA0D3", last_sent(&d));
+    feed_dongle_answer(&e, "OK\r>", t);
+    CHECK(strcmp(last_sent(&d), "ATMA\r") == 0 && e.monitoring, "then %s, want ATMA", last_sent(&d));
+    feed_dongle_answer(&e, "0D3200EC00E00008D\r", t + 30); // everything off
+    CHECK(strcmp(last_sent(&d), "\r") == 0, "the monitor didn't stop at the frame: last sent %s", last_sent(&d));
+    CHECK(state_drive_mode(&s, t + 30) == DRIVE_VSC_OFF, "the mode read is %d, want VSC off",
+          state_drive_mode(&s, t + 30));
+    feed_dongle_answer(&e, "STOPPED\r>", t + 40);
+    CHECK(strcmp(last_sent(&d), "ATCRA\r") == 0, "after the monitor %s, want ATCRA", last_sent(&d));
+    feed_dongle_answer(&e, "OK\r>", t + 50);
+    CHECK(strcmp(last_sent(&d), "ATCAF1\r") == 0, "then %s, want ATCAF1", last_sent(&d));
+    feed_dongle_answer(&e, "OK\r>", t + 60);
+    CHECK(strncmp(last_sent(&d), "01", 2) == 0 || strcmp(last_sent(&d), "ATRV\r") == 0, "polling didn't resume: %s",
+          last_sent(&d));
+}

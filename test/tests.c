@@ -26,6 +26,8 @@ int main(void) {
     test_off_throttle();
     test_datalog();
     test_wrap();
+    test_drive_mode();
+    test_elm_drive_mode();
     test_choice_and_idle();
     if (failures) {
         printf("%d check(s) failed\n", failures);

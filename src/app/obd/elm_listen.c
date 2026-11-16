@@ -63,6 +63,7 @@ void handle_can_listen_answer(elm_t *e, uint32_t now_ms) {
         e->monitoring = true;
         e->stop_sent = false;
         e->monitor_ms = now_ms;
+        e->monitor_dwell_ms = ELM_LISTEN_DWELL_MS;
         send_command(e, "ATMA", ELM_LISTEN_DWELL_MS + ELM_TIMEOUT_MS, now_ms);
         return;
     }

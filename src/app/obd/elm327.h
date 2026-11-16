@@ -35,6 +35,15 @@
 #define ELM_ENGINE_MAX_MISSES 3
 #define ELM_ENGINE_READS 2
 
+// The drive mode (GT86_ID_DRIVE_MODE) is broadcast, not asked: every
+// ELM_MODE_INTERVAL_MS, polling stops for the dongle to monitor that ID
+// alone, raw (ATCAF0, ATCRA0D3, ATMA), until a frame or ELM_MODE_DWELL_MS,
+// then goes back (ATCRA, ATCAF1): 5 round trips. Dropped after
+// ELM_MODE_MAX_MISSES monitors without the frame while the ECU answers.
+#define ELM_MODE_INTERVAL_MS 3000
+#define ELM_MODE_DWELL_MS 400
+#define ELM_MODE_MAX_MISSES 3
+
 // The RAM scan reads ELM_SCAN_CHUNK bytes at a time (whole floats, and
 // the answer fits isotp_t), from ELM_SCAN_START until the ECU refuses an
 // address or ELM_SCAN_MAX bytes, and logs at most ELM_SCAN_LOGGED
@@ -93,6 +102,11 @@ typedef struct {
     uint32_t battery_ms;
     uint32_t engine_ms;
     int engine_step, engine_misses[ELM_ENGINE_READS];
+    // The drive mode's monitor: its step (0: not running), its last start,
+    // the monitors without its frame in a row, whether this one got it.
+    int mode_step, mode_misses;
+    uint32_t mode_ms;
+    bool mode_got;
     // ecu_ms is when the engine ECU last answered (or polling started):
     // a long silence means the car is off. ecu_answered is whether it
     // answered at all this session.
@@ -110,7 +124,8 @@ typedef struct {
     // prompt waits for the driver (elm_listen_click); monitoring is while
     // the dongle prints frames; windows counts a step's monitors.
     bool listen_requested, listen_awaiting_click, monitoring, stop_sent;
-    uint32_t monitor_ms;
+    // monitor_ms: when the monitor started; monitor_dwell_ms: how long it may run.
+    uint32_t monitor_ms, monitor_dwell_ms;
     int windows;
     sniff_t sniff;
 } elm_t;

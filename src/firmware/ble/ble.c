@@ -55,8 +55,8 @@ static void handle_connection_complete(uint8_t *packet) {
     }
     uint8_t status = gap_subevent_le_connection_complete_get_status(packet);
     if (status != ERROR_CODE_SUCCESS) {
-        char error[40];
-        snprintf(error, sizeof error, "connection failed (HCI 0x%02x)", status);
+        char error[80];
+        ble_error(error, sizeof error, "connection failed", status);
         fail_connection("BLE connect", error);
         return;
     }
@@ -118,7 +118,10 @@ static void handle_hci_event(uint8_t packet_type, uint16_t channel, uint8_t *pac
             // The phone gone: still sending, back on the air for it.
             phone = HCI_CON_HANDLE_INVALID;
             streaming = false;
-            if (phase == SENDING && !received_at) {
+            if (leaving_phone) {
+                leaving_phone = false;
+                start_dongle_scan();
+            } else if (phase == SENDING && !received_at) {
                 advertise_to_phone();
             }
             break;
@@ -130,9 +133,8 @@ static void handle_hci_event(uint8_t packet_type, uint16_t channel, uint8_t *pac
         } else if (phase == STANDBY || phase == OFFLINE) {
             hci_power_control(HCI_POWER_OFF);
         } else if (phase != FAILED && !disconnecting) {
-            char error[40];
-            snprintf(error, sizeof error, "disconnected (HCI 0x%02x)",
-                     hci_event_disconnection_complete_get_reason(packet));
+            char error[80];
+            ble_error(error, sizeof error, "disconnected", hci_event_disconnection_complete_get_reason(packet));
             fail_connection("BLE", error);
         }
         break;
@@ -218,6 +220,10 @@ static void check_phase_timeouts(void) {
     case SENDING:
         if (received_at && now - received_at > RESUME_MS) {
             back_to_dongle();
+        } else if (leaving_phone && now - leaving_since > STEP_TIMEOUT_MS) {
+            // The phone's disconnection never came: on to the dongle anyway.
+            leaving_phone = false;
+            start_dongle_scan();
         }
         break;
     case FAILED:

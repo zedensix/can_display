@@ -150,6 +150,8 @@ void ui_render(canvas_t *c, const state_t *state, const screen_t *screen, const 
         const tile_t *tile = &ui_tiles[screen->view - 1];
         draw_tile_dial(c, t, tile, GRID_GAP, top + GRID_GAP, c->width - 2 * GRID_GAP, c->height - top - 2 * GRID_GAP,
                        state, now_ms);
+    } else if (state_drive_mode(state, now_ms) != DRIVE_NORMAL) {
+        draw_track_grid(c, t, state, top, state_drive_mode(state, now_ms), now_ms);
     } else {
         draw_grid(c, t, state, top, now_ms);
     }

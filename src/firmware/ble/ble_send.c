@@ -15,6 +15,8 @@ bool streaming;
 static bool header_sent;
 static uint32_t first, total, sent;
 uint32_t received_at;
+bool leaving_phone;
+uint32_t leaving_since;
 
 void advertise_to_phone(void) {
     // Flags, then the service's UUID (bytes reversed) for the phone to
@@ -113,7 +115,14 @@ void back_to_dongle(void) {
     received_at = 0;
     gap_advertisements_enable(0);
     if (phone != HCI_CON_HANDLE_INVALID) {
+        // BTstack holds a single connection: the dongle's waits for the
+        // phone's to be gone (its disconnection event), or a connect finds
+        // no room (BTSTACK_MEMORY_ALLOC_FAILED, 0x56).
+        leaving_phone = true;
+        leaving_since = now;
+        state_set_status(state, "SEND LOG\nletting the phone go");
         gap_disconnect(phone);
+        return;
     }
     start_dongle_scan();
 }

@@ -187,3 +187,38 @@ void draw_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, uint32_
                   cell_h - 2 * GRID_GAP, s, now_ms);
     }
 }
+
+#define BADGE_HEIGHT 20
+
+static const tile_t *tile_for(signal_t signal) {
+    for (int i = 0; i < ui_tile_count; i++) {
+        if (ui_tiles[i].signal == signal) {
+            return &ui_tiles[i];
+        }
+    }
+    return &ui_tiles[0];
+}
+
+// draw_track_grid is the gauges with the stability control off, on track:
+// what matters there big (the oil and the AFR across the screen, the
+// coolant and the intake under them), the battery and the ethanol left
+// out, and a badge saying which mode it's in: TRC OFF amber, VSC OFF red.
+void draw_track_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, drive_mode_t mode, uint32_t now_ms) {
+    const char *label = mode == DRIVE_VSC_OFF ? "VSC OFF" : "TRC OFF";
+    color_t badge = mode == DRIVE_VSC_OFF ? t->danger : t->warning;
+    int badge_w = gfx_text_width(label_font, label) + 28;
+    fill_round_rect(c, (c->width - badge_w) / 2, top + 3, badge_w, BADGE_HEIGHT, BADGE_HEIGHT / 2, badge,
+                    t->background);
+    draw_text_centered(c, label_font, c->width / 2, top + 3 + BADGE_HEIGHT / 2 + 5, label,
+                       mode == DRIVE_VSC_OFF ? t->alarm_text : t->background, 1);
+
+    int y0 = top + BADGE_HEIGHT + 6, row_h = (c->height - y0) / 3, half = c->width / 2;
+    draw_tile(c, t, tile_for(SIG_OIL), GRID_GAP, y0 + GRID_GAP, c->width - 2 * GRID_GAP, row_h - 2 * GRID_GAP, s,
+              now_ms);
+    draw_tile(c, t, tile_for(SIG_AFR), GRID_GAP, y0 + row_h + GRID_GAP, c->width - 2 * GRID_GAP, row_h - 2 * GRID_GAP,
+              s, now_ms);
+    draw_tile(c, t, tile_for(SIG_COOLANT), GRID_GAP, y0 + 2 * row_h + GRID_GAP, half - 2 * GRID_GAP,
+              row_h - 2 * GRID_GAP, s, now_ms);
+    draw_tile(c, t, tile_for(SIG_IAT), half + GRID_GAP, y0 + 2 * row_h + GRID_GAP, half - 2 * GRID_GAP,
+              row_h - 2 * GRID_GAP, s, now_ms);
+}

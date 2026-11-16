@@ -67,3 +67,27 @@ void test_isotp(void) {
     isotp_add_frame(&r, &first);
     CHECK(!isotp_add_frame(&r, &wrong_sequence), "a consecutive frame out of sequence was accepted");
 }
+
+// The drive mode, from the three frames the guided Listen CAN read on this
+// car: everything on, TRC off, everything off. A mode read more than
+// DRIVE_MODE_STALE_MS ago no longer counts.
+void test_drive_mode(void) {
+    state_t s = {0};
+    CHECK(state_drive_mode(&s, 0) == DRIVE_NORMAL, "no mode read isn't normal");
+    static const struct {
+        uint8_t data[7];
+        drive_mode_t mode;
+    } frames[] = {
+        {{0x00, 0x06, 0xC0, 0x0F, 0x00, 0x00, 0xE8}, DRIVE_NORMAL},
+        {{0x20, 0x06, 0xC0, 0x0F, 0x00, 0x00, 0x31}, DRIVE_TRC_OFF},
+        {{0x20, 0x0E, 0xC0, 0x0E, 0x00, 0x00, 0x8D}, DRIVE_VSC_OFF},
+    };
+    for (size_t i = 0; i < sizeof frames / sizeof frames[0]; i++) {
+        can_frame_t f = {GT86_ID_DRIVE_MODE, 7, {0}};
+        memcpy(f.data, frames[i].data, 7);
+        CHECK(gt86_decode_broadcast(&f, &s, 1000) && state_drive_mode(&s, 1000) == frames[i].mode,
+              "frame %zu decoded mode %d, want %d", i, state_drive_mode(&s, 1000), frames[i].mode);
+    }
+    CHECK(state_drive_mode(&s, 1000 + DRIVE_MODE_STALE_MS) == DRIVE_VSC_OFF, "the mode went stale too early");
+    CHECK(state_drive_mode(&s, 1001 + DRIVE_MODE_STALE_MS) == DRIVE_NORMAL, "a stale mode still counts");
+}

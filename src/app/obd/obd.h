@@ -77,6 +77,11 @@ bool isotp_add_frame(isotp_t *r, const can_frame_t *f);
 // and are unverified on this car.
 #define GT86_ID_RPM 0x140
 #define GT86_ID_TEMPERATURES 0x360
+// The stability control's mode, broadcast: byte 0 bit 5 set with TRC off
+// (in both off modes), byte 1 bit 3 with VSC off. Found by a single
+// guided Listen CAN on this car (2026-11-16, the only candidate of 36
+// IDs): **unconfirmed** until a second run finds the same bits.
+#define GT86_ID_DRIVE_MODE 0x0D3
 
 // gt86_decode_broadcast handles the broadcast frames above. It returns false for
 // anything else.

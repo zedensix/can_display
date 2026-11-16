@@ -70,6 +70,15 @@ extern datalog_t *log_to_send;
 extern hci_con_handle_t phone;
 extern bool streaming;
 extern uint32_t received_at;
+// leaving_phone: Send log over, the phone's connection on its way out
+// since leaving_since; the dongle's scan starts once it's gone.
+extern bool leaving_phone;
+extern uint32_t leaving_since;
+
+// ble_errors.c
+// ble_error writes what went wrong in a few words, the code after it:
+// "<what>: <the code's meaning> (0x56)", or "<what> (HCI 0x..)" for a code it doesn't know.
+void ble_error(char *out, size_t size, const char *what, uint8_t code);
 
 // ble.c
 void set_phase(phase_t p, const char *status);

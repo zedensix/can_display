@@ -23,6 +23,9 @@ a race-wheel shift light across the top, and every drive logged to your phone.
 - **Looks like it came with the car.** Black, red-orange around the readings, segment gauges
   colored by band: green fine, amber warns, a reading in danger blinks its whole tile red,
   blue is an engine not warm yet.
+- **Knows when you're on track.** With the traction or stability control off, the gauges
+  switch to a track layout, the oil and the AFR big, under a TRC OFF or VSC OFF badge (the
+  CAN bits it reads are found, still to be confirmed on a second run).
 - **Says what matters.** From 130°C the oil temperature takes the whole screen. The AFR stays
   calm off the throttle, when the fuel cut reads lean. A reading too old shows `--`, never a
   frozen number.
@@ -44,6 +47,8 @@ a race-wheel shift light across the top, and every drive logged to your phone.
 | **Cold engine**: blue, don't rev it yet | **Shift light**, lit in pairs from both ends | **Oil at 130°C**: the whole screen |
 | <img src="ui/ready.png" width="240" alt="Connect prompt"> | <img src="ui/settings.png" width="240" alt="Settings"> | <img src="ui/showcar.png" width="240" alt="Screensaver"> |
 | **Ready**: connect, or the settings | **Settings**, one screen, on the knob | **Screensaver**, nothing connected |
+| <img src="ui/track_trc.png" width="240" alt="TRC off"> | <img src="ui/track_vsc.png" width="240" alt="VSC off"> | <img src="ui/shot_boot_morph.png" width="240" alt="Starting up"> |
+| **TRC off**: the track layout | **VSC off**: everything off, in red | **Starting up**: the ring closes into the logo |
 
 A rotary encoder drives it all: turn for the views, click for the settings, hold to reboot.
 Every picture here comes from the UI code itself (`mise run ui`), the same code the firmware

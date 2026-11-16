@@ -7,7 +7,7 @@
 - [x] Hooks set up: `mise install` runs `prek install` (mise.toml's postinstall)
 - [x] GitHub Actions CI: the prek hooks (clang-format, Biome, bun check, web and host tests under gcc) and the firmware build (UF2 as an artifact)
 - [ ] Ethanol without wiring: run "Scan ECU RAM" with the engine running, noting OFT's E%, then read the candidates in the logs
-- [ ] VSC / TRC OFF: the first Listen CAN found a single candidate, 0x0D3 (byte 0 bit 5 TRC off, byte 1 bit 3 VSC off, byte 3 bit 0 VSC on); run it a second time to confirm before using it
+- [ ] VSC / TRC OFF: the first Listen CAN found a single candidate, 0x0D3 (byte 0 bit 5 TRC off, byte 1 bit 3 VSC off, byte 3 bit 0 VSC on); run it a second time to confirm (the dash already reads it: if the badge shows the wrong mode, that's why)
 - [ ] Check in the car: multi-PID polling (log `polling every PID at once`), snappier gauges
 - [ ] Check in the car: Send log to the phone, acknowledged, back to the gauges
 - [ ] Check in the car: the dongle's name read and shown on READY and OFFLINE, reconnecting from OFFLINE without a reboot
@@ -64,3 +64,7 @@
 - [x] Data log: the throttle in the record's free bytes (no cost in flash or history), charted and in the CSV
 - [ ] Data log: real start and end times need a clock: the dash has none (see the choice: an RTC module or the phone's time)
 - [x] Types checked by `bun check --no-script` instead of tsc (10x faster); prek runs only on tracked files: Biome run over everything before a commit
+- [x] BLE: after Send log, connecting to the dongle waited for nothing: gap_connect 0x56 (BTstack's single connection still the phone's); now it waits for the phone's disconnection; failures name what the code means
+- [ ] Check in the car: Send log, then back to the dongle without 0x56
+- [x] Drive mode read from 0x0D3: the MCP2515 as it streams, the dongle every 3s (a raw monitor of that ID); a track layout with a TRC OFF / VSC OFF badge when off
+- [ ] Check in the car: the badge follows the TRC OFF button (short press, held), the gauges barely slower with the dongle

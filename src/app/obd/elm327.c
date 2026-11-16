@@ -132,7 +132,13 @@ void elm_feed_dongle_output(elm_t *e, const uint8_t *data, size_t len, uint32_t 
             e->rx[e->rx_len] = 0;
             can_frame_t f;
             if (elm_parse_frame(e->rx, &f)) {
-                sniff_add_frame(&e->sniff, &f);
+                if (e->phase == ELM_LISTEN) {
+                    sniff_add_frame(&e->sniff, &f);
+                } else if (mode_monitor_frame(e, &f, now_ms) && !e->stop_sent) {
+                    // The mode's in: the monitor can stop right away.
+                    e->stop_sent = true;
+                    e->cb.write(e->cb.ctx, "\r");
+                }
             }
             e->rx_len = 0;
         } else if (data[i] == '>') {
@@ -145,7 +151,7 @@ void elm_feed_dongle_output(elm_t *e, const uint8_t *data, size_t len, uint32_t 
 }
 
 void elm_check_timers(elm_t *e, uint32_t now_ms) {
-    if (e->monitoring && !e->stop_sent && now_ms - e->monitor_ms >= ELM_LISTEN_DWELL_MS) {
+    if (e->monitoring && !e->stop_sent && now_ms - e->monitor_ms >= e->monitor_dwell_ms) {
         e->stop_sent = true;
         e->cb.write(e->cb.ctx, "\r");
         return;

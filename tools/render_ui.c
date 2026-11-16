@@ -63,6 +63,23 @@ static state_t state_with_alarms(void) {
     return s;
 }
 
+// On track, the stability control off: the track grid and its badge.
+static void shot_track(canvas_t *c, drive_mode_t mode) {
+    state_t s = state_while_driving();
+    s.readings[SIG_OIL].value = 116;
+    s.readings[SIG_AFR].value = 12.4f;
+    state_set_drive_mode(&s, mode, now);
+    render_screen(c, &s, (screen_t){0});
+}
+
+static void shot_track_trc(canvas_t *c) {
+    shot_track(c, DRIVE_TRC_OFF);
+}
+
+static void shot_track_vsc(canvas_t *c) {
+    shot_track(c, DRIVE_VSC_OFF);
+}
+
 static void shot_alarms(canvas_t *c) {
     state_t s = state_with_alarms();
     render_screen(c, &s, (screen_t){0});
@@ -191,6 +208,8 @@ static void shot_boot_logo(canvas_t *c) {
 static const shot_t shots[] = {
     {"grid", shot_grid},
     {"alarms", shot_alarms},
+    {"track_trc", shot_track_trc},
+    {"track_vsc", shot_track_vsc},
     {"shot_alarms_unlit", shot_alarms_unlit},
     {"oil_critical", shot_oil_critical},
     {"cold", shot_cold},

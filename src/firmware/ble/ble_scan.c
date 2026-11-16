@@ -73,8 +73,8 @@ void connect_to_dongle(const bd_addr_t addr, uint8_t type, const char *name) {
     snprintf(connecting_to.name, sizeof connecting_to.name, "%s", name);
     uint8_t err = gap_connect(addr, (bd_addr_type_t)type);
     if (err != ERROR_CODE_SUCCESS) {
-        char error[32];
-        snprintf(error, sizeof error, "gap_connect error 0x%02x", err);
+        char error[80];
+        ble_error(error, sizeof error, "can't connect", err);
         fail_connection("BLE connect", error);
     }
 }

@@ -62,4 +62,6 @@ void test_extremes(void);
 void test_off_throttle(void);
 void test_datalog(void);
 void test_wrap(void);
+void test_drive_mode(void);
+void test_elm_drive_mode(void);
 void test_choice_and_idle(void);

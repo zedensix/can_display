@@ -28,13 +28,20 @@ static bool engine_read_wanted(const elm_t *e, int read) {
 static void send_next_engine_command(elm_t *e, uint32_t now_ms);
 
 void send_next_poll_command(elm_t *e, uint32_t now_ms) {
-    // A scan or a listen waits for the engine ECU's header switching to be over.
-    if (e->scan_requested && e->engine_step == 0) {
+    // A scan or a listen waits for the engine ECU's header switching, and
+    // the drive mode's monitor, to be over: each leaves the dongle set up
+    // otherwise until its last command.
+    bool idle = e->engine_step == 0 && e->mode_step == 0;
+    if (e->scan_requested && idle) {
         start_ram_scan(e, now_ms);
         return;
     }
-    if (e->listen_requested && e->engine_step == 0) {
+    if (e->listen_requested && idle) {
         start_can_listen(e, now_ms);
+        return;
+    }
+    if (e->mode_step > 0) {
+        send_next_mode_command(e, now_ms);
         return;
     }
     bool any_wanted = false;
@@ -46,6 +53,10 @@ void send_next_poll_command(elm_t *e, uint32_t now_ms) {
             e->engine_ms = now_ms;
         }
         send_next_engine_command(e, now_ms);
+        return;
+    }
+    if (mode_read_due(e, now_ms)) {
+        send_next_mode_command(e, now_ms);
         return;
     }
     if (now_ms - e->battery_ms >= ELM_BATTERY_INTERVAL_MS) {
@@ -86,6 +97,7 @@ void start_polling(elm_t *e, uint32_t now_ms) {
     e->step = 0;
     e->battery_ms = now_ms - ELM_BATTERY_INTERVAL_MS;
     e->engine_ms = now_ms;
+    e->mode_ms = now_ms;
     e->ecu_ms = now_ms;
     e->cb.ready(e->cb.ctx);
     send_next_poll_command(e, now_ms);
@@ -136,6 +148,9 @@ void handle_poll_answer(elm_t *e, char *lines[], int n, uint32_t now_ms) {
     if (got != SIG_COUNT) {
         e->ecu_ms = now_ms;
         e->ecu_answered = true;
+    }
+    if (strcmp(e->command, "ATMA") == 0) {
+        mode_monitor_over(e);
     }
     // An engine ECU read left unanswered only counts against it while the
     // ECU answers the rest: with the car off, nothing answers, and it
