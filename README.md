@@ -24,7 +24,7 @@ mise run ui          # render every screen into ui/*.png (ui/sheet.png: all side
 mise run wiring      # capture the wiring diagram (docs/wiring.html) for docs/wiring.md
 bun run wiring       # the wiring diagram in the browser, and the modules' dimensions to enter before printing
 mise run faceplate   # render the printed parts (faceplate with display + encoder, tray with the boards): STLs and pictures, see faceplate/README.md
-prek install         # once: code quality hooks on every commit (clang-format, biome, tsc, tests)
+mise install         # the tools, and the code quality hooks on every commit (clang-format, biome, tsc, tests)
 ```
 
 The simulator needs SDL2 (`brew install sdl2`).

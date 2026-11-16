@@ -533,6 +533,9 @@ static void test_screen(void) {
     CHECK(cfg.shift_rpm == 0, "shift light %d turned all the way down, want off", cfg.shift_rpm);
     screen_apply_turn(&s, 1, 6, &cfg);
     screen_apply_click(&s, &cfg);
+    CHECK(cfg.flip, "a click on flip didn't turn it on");
+    screen_apply_turn(&s, 1, 6, &cfg);
+    screen_apply_click(&s, &cfg);
     CHECK(cfg.source == SOURCE_CAN, "a click on the data source didn't switch it to CAN");
     // With the CAN source, the rows needing the dongle do nothing.
     for (int row = 0; row < SETTINGS_ROWS; row++) {
@@ -549,9 +552,6 @@ static void test_screen(void) {
     screen_apply_turn(&s, 1, 6, &cfg);
     screen_apply_click(&s, &cfg);
     CHECK(cfg.auto_connect, "a click on auto-connect didn't turn it on");
-    screen_apply_turn(&s, 1, 6, &cfg);
-    screen_apply_click(&s, &cfg);
-    CHECK(cfg.flip, "a click on flip didn't turn it on");
     static const struct {
         int row;
         action_t action;

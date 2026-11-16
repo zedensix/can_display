@@ -1,45 +1,48 @@
 # TODO
 
-- [ ] Passer en mode filaire avec le MCP2515
-- [x] Schéma de câblage en HTML (`docs/wiring.html`) : une version modules en couleur, une version blueprint, deux liens pour passer de l'une à l'autre
-- [x] Captures du schéma (couleur et blueprint) dans `docs/resources/`, générées par `mise run wiring`, affichées dans `docs/wiring.md`
-- [x] Qualité de code : hooks prek (clang-format pour le C, Biome pour le TS/CSS/JSON, tsc, tests hôte)
-- [ ] Activer les hooks : `prek install` (une fois, dans ce clone)
-- [ ] Éthanol sans câblage : lancer « Scan ECU RAM » moteur tournant en notant l'E% d'OFT, puis lire les candidats dans les logs
-- [ ] VSC / TRC OFF : 1er Listen CAN = un seul candidat, 0x0D3 (octet 0 bit 5 TRC off, octet 1 bit 3 VSC off, octet 3 bit 0 VSC actif) ; refaire un 2e passage pour confirmer avant de s'en servir
-- [ ] Vérifier dans la caisse : polling multi-PID (log `polling every PID at once`), jauges plus réactives
-- [ ] Vérifier dans la caisse : Send log vers le téléphone, accusé de réception et retour aux jauges
-- [ ] Vérifier dans la caisse : nom du dongle lu et affiché sur READY et OFFLINE, reconnexion depuis OFFLINE sans reboot
-- [ ] Vérifier sur la carte : encodeur demi-pas (un cran = une ligne), loader fluide
-- [ ] Héberger la page web sur gt.ombrage.space (`Dockerfile` à la racine, derrière le proxy https)
-- [x] Doc câblage, section MCP2515 : plus de références au code Go, `DATA_SOURCE` et les registres CNF à la place
-- [x] Façade imprimable (écran ST7789 + encodeur KY-040) : modèle scad-js, rendu STL + PNG par `mise run faceplate`
-- [x] Encodeur : deux colonnes au dos de la façade pour visser la carte HW-040 (M2), en plus de l'écrou
-- [x] Plateau vissé derrière la façade : Pico, convertisseur 12V/5V et MCP2515 sur entretoises, fente pour les fils
-- [x] MCP2515 : registres CNF pour le quartz 8 MHz de la carte bleue (500 kbps, échantillonnage à 75 %)
-- [x] Onglet Dimensions sur la page de câblage (`bun run wiring`) : chaque module dessiné avec ses cotes, mesurées ou devinées
-- [x] Saisie des cotes dans l'onglet Dimensions : enregistrement automatique dans `faceplate/data/measured.json` (et le navigateur tant que le serveur ne l'a pas), relance `mise run faceplate`, une cote refusée reste enregistrée ; survol d'une ligne = la cote surlignée sur les dessins (vues de dessus et de côté), dessins fixés à l'écran pendant le défilement
-- [x] Cotes : on saisit le trou de la carte (il choisit M2 ou M3), plus le trou pilote ; encodeur sans filetage ni écrou (tenu par ses 2 vis)
-- [x] Plan de câblage : connecteurs dans leur vrai ordre, chaque carte retournable (vue de dos par défaut, Pico par-dessous), bouton BLE / filaire, convertisseur en micro-USB dans le Pico
-- [ ] WIP Façade : 1er essai PLA corrigé (écran 37,5 x 58 + dégagement des soudures, encodeur tourné sur 4 colonnes, colonnes du Pico coupées pour l'USB, convertisseur hors plateau) ; reste à mesurer la vitre de l'écran (épaisseur, longueur, position) et la hauteur du corps de l'encodeur, puis réimprimer
-- [ ] WIP Façade v2 : creux pour les soudures aux deux bouts de l'écran, connecteur de l'encodeur ressoudé au dos de la carte (gorge sous la carte seulement s'il reste côté potard), convertisseur oreilles coupées au dos du plateau entre le Pico et le MCP2515 (butées, rilsan), Pico retourné avec ses picots et fiches à travers le plateau : l'ensemble passe de 77 x 127 à 54 x 97 mm, rendu de l'assemblage avec chaque composant modélisé
-- [x] Trous de l'écran à 2,2 mm des bords, jamais moins de 1 mm de paroi contre la poche de la vitre (le 1er essai a éclaté)
-- [ ] Encodeur : mesurer au pied à coulisse le décalage des trous vers le connecteur (encoder.holesTowardPins, 2 mm lu sur photo), puis réimprimer la façade
-- [x] Plateau : nervure de 6 mm au dos de chaque pont au bout des fentes du Pico (il cassait là au démoulage et à la pose du transfo), loin de la prise micro-USB
-- [x] Rebord de 2 x 2 mm le long du bord : au dos de la façade, au dos du plateau (entaillé autour des têtes de vis et pour la fiche micro-USB du Pico) ; aucun sur les faces avant, imprimées à plat sans supports
-- [x] Schéma de câblage : fils de couleurs différentes jamais superposés (broches des modules décalées d'un demi-pas), étiquettes lisibles par-dessus les fils
-- [x] Sélecteur de source dans les réglages (Data source : BLE / CAN), appliqué par un redémarrage en quittant la page ; le MCP2515 peut rester câblé en BLE, les lignes qui ont besoin du dongle sont grisées en CAN
-- [ ] Transfo : couper ses oreilles au ras du boîtier
-- [x] Encodeur : pastilles du connecteur arrachées, 4 fils soudés sur ses pattes (C vers GND, A GP2, B GP3, la patte du bouton à côté de R1 vers GP4 ; pas de pont : la carte relie déjà C à l'autre patte du bouton, un pont le court-circuite), colle chaude dessus ; A sur GP3 et B sur GP2 pour le bon sens ; enlever R2 et R3 (le + en l'air relie A et B par 20K : un cran sur deux perdu)
-- [ ] Façade : fixation dans la voiture (où elle va, comment elle tient)
-- [x] AFR pied levé : papillon (PID 0x11) lu avec le reste, l'AFR (pauvre à la coupure d'injection en décélération) s'affiche en blanc sans alerte tant que le papillon est fermé (min de la session + 5 %) et 1 s après sa réouverture
-- [ ] Vérifier dans la caisse : AFR blanc sans clignoter au lever de pied, rouge s'il est pauvre pied au plancher
-- [x] Multi-PID actif sur la voiture : `010C24050F113` répond en 3 trames, `polling every PID at once` (papillon 14 à 17 % au ralenti)
-- [x] Multi-PID jamais actif : le dongle IOS-Vlink compte des trames, pas des réponses, le « 1 » le coupait après la 1re trame ; le chiffre vaut maintenant 3 (les 3 trames de la réponse)
-- [x] Scan RAM : 120 candidats loggés au lieu de 40 (79 et 58 trouvés, la fin de la RAM manquait)
-- [x] Listen CAN par bit au lieu de par ID : 1er essai, 15 IDs bruyants sur 36 et 0 candidat (le drapeau partage sa trame avec un compteur)
-- [x] Listen CAN guidé : 5 étapes (tout actif, TRC OFF, actif, tout coupé, actif), chacune annoncée à l'écran et écoutée après un clic du potard ; candidats = bits stables dans chaque étape, identiques dans les étapes « actif », différents entre modes
-- [x] Éthanol lu dans la RAM de l'ECU moteur : FFF87C7C (float, seule adresse dans les 3 scans, colle avec OFT), demandée toutes les 3 s avec l'huile, tuile éthanol
-- [ ] Éthanol : vérifier au plein suivant (autre mélange) que la tuile suit OFT
-- [x] Option « Ethanol sensor » retirée (entrée ADC, diviseur, réglage) : l'éthanol vient de la RAM de l'ECU
-- [x] Licence MIT (sauf la police, GPLv3 avec exception, et le logo 86 de Toyota)
+- [ ] Switch to the wired mode with the MCP2515
+- [x] Wiring diagram in HTML (`docs/wiring.html`): a color modules version, a blueprint version, two links to switch between them
+- [x] Diagram captures (color and blueprint) in `docs/resources/`, made by `mise run wiring`, shown in `docs/wiring.md`
+- [x] Code quality: prek hooks (clang-format for the C, Biome for the TS/CSS/JSON, tsc, host tests)
+- [x] Hooks set up: `mise install` runs `prek install` (mise.toml's postinstall)
+- [x] GitHub Actions CI: the prek hooks (clang-format, Biome, tsc, host tests under gcc) and the firmware build (UF2 as an artifact)
+- [ ] Ethanol without wiring: run "Scan ECU RAM" with the engine running, noting OFT's E%, then read the candidates in the logs
+- [ ] VSC / TRC OFF: the first Listen CAN found a single candidate, 0x0D3 (byte 0 bit 5 TRC off, byte 1 bit 3 VSC off, byte 3 bit 0 VSC on); run it a second time to confirm before using it
+- [ ] Check in the car: multi-PID polling (log `polling every PID at once`), snappier gauges
+- [ ] Check in the car: Send log to the phone, acknowledged, back to the gauges
+- [ ] Check in the car: the dongle's name read and shown on READY and OFFLINE, reconnecting from OFFLINE without a reboot
+- [ ] Check on the board: half-step encoder (one detent = one row), smooth loader
+- [ ] Host the web page on gt.ombrage.space (`Dockerfile` at the root, behind the https proxy)
+- [x] Wiring doc, MCP2515 section: no more references to the Go code, `DATA_SOURCE` and the CNF registers instead
+- [x] Printable faceplate (ST7789 display + KY-040 encoder): scad-js model, STL + PNG renders by `mise run faceplate`
+- [x] Encoder: two posts on the faceplate's back to screw the HW-040 board on (M2), besides the nut
+- [x] Tray screwed behind the faceplate: Pico, 12V/5V converter and MCP2515 on standoffs, a slot for the wires
+- [x] MCP2515: CNF registers for the blue board's 8 MHz crystal (500 kbps, sampled at 75%)
+- [x] Dimensions tab on the wiring page (`bun run wiring`): each module drawn with its dimensions, measured or guessed
+- [x] Entering dimensions in the Dimensions tab: saved as typed to `faceplate/data/measured.json` (and the browser until the server has it), reruns `mise run faceplate`, a refused value stays saved; hovering a row highlights the dimension on the drawings (top and side views), drawings pinned while scrolling
+- [x] Dimensions: enter the board's hole (it picks M2 or M3), plus the pilot hole; encoder without thread or nut (held by its 2 screws)
+- [x] Wiring plan: headers in their real order, each board can be turned over (back view by default, Pico from below), BLE / wired button, converter into the Pico's micro-USB
+- [ ] WIP Faceplate: first PLA test fixed (display 37.5 x 58 + room for the solder joints, encoder turned on 4 posts, Pico posts cut for the USB, converter off the tray); still to measure the display's glass (thickness, length, position) and the encoder body's height, then reprint
+- [ ] WIP Faceplate v2: recesses for the solder joints at both ends of the display, the encoder's header resoldered on the board's back (a channel under the board only if it stays on the knob side), the converter with its ears cut off on the tray's back between the Pico and the MCP2515 (stops, zip tie), the Pico turned over with its pins and plugs through the tray: the assembly goes from 77 x 127 to 54 x 97 mm, an assembly render with every component modeled
+- [x] Display holes 2.2 mm from the edges, never less than 1 mm of wall beside the glass pocket (the first test print cracked)
+- [ ] Encoder: measure with calipers how far the holes sit toward the header (encoder.holesTowardPins, 2 mm read off a photo), then reprint the faceplate
+- [x] Tray: a 6 mm rib on the back of each bridge at the end of the Pico's slots (it broke there off the bed and fitting the converter), clear of the micro-USB plug
+- [x] A 2 x 2 mm rim along the edge: on the faceplate's back, on the tray's back (notched around the screw heads and for the Pico's micro-USB plug); none on the fronts, printed flat without supports
+- [x] Wiring diagram: wires of different colors never on top of each other (module pins offset by half a pitch), labels readable over the wires
+- [x] Source selector in the settings (Data source: BLE / CAN), applied by a reboot when leaving the page; the MCP2515 can stay wired in BLE, the rows needing the dongle are dimmed with CAN
+- [ ] Converter: cut its ears off flush with the box
+- [x] Encoder: header pads torn off, 4 wires soldered on its legs (C to GND, the button leg next to R1 to GP4; no bridge: the board already ties C to the button's other leg, a bridge shorts it), hot glue over them; A on GP3 and B on GP2 for the right direction; remove R2 and R3 (the floating + ties A and B through 20K: every other detent lost)
+- [ ] Faceplate: mounting in the car (where it goes, how it holds)
+- [x] AFR off the throttle: throttle (PID 0x11) read with the rest, the AFR (lean in the deceleration fuel cut) drawn white with no alarm while the throttle is closed (session minimum + 5%) and 1s after it opens
+- [ ] Check in the car: AFR white without blinking when lifting off, red if lean with the pedal down
+- [x] Multi-PID on in the car: `010C24050F113` answers in 3 frames, `polling every PID at once` (throttle 14 to 17% idling)
+- [x] Multi-PID never on: the IOS-Vlink dongle counts frames, not answers, the "1" cut it after the first frame; the digit is now 3 (the answer's 3 frames)
+- [x] RAM scan: 120 candidates logged instead of 40 (79 and 58 found, the end of the RAM was missing)
+- [x] Listen CAN by bit instead of by ID: first run, 15 noisy IDs out of 36 and no candidate (the flag shares its frame with a counter)
+- [x] Guided Listen CAN: 5 steps (everything on, TRC OFF, on, everything off, on), each prompted on screen and listened to after a knob click; candidates = bits steady within each step, the same in the "on" steps, different between modes
+- [x] Ethanol read from the engine ECU's RAM: FFF87C7C (a float, the only address in all 3 scans, matches OFT), asked every 3s with the oil, ethanol tile
+- [ ] Ethanol: check at the next fill-up (another blend) that the tile follows OFT
+- [x] "Ethanol sensor" option dropped (ADC input, divider, setting): the ethanol comes from the ECU's RAM
+- [x] MIT license (except the font, GPLv3 with the font exception, and Toyota's 86 logo)
+- [x] Settings page redesigned: one screen without scrolling, DISPLAY / CONNECTION / TOOLS groups, a BACK button, values as controls (segment bar, switches, BLE | CAN choice, chevrons)
+- [ ] Split the code files over about 300 lines: `docs/wiring.html` (1363), `src/firmware/ble.c` (895), `src/app/ui.c` (711), `test/tests.c` (690), `src/app/elm327.c` (601), `faceplate/model/faceplate.ts` (348), `src/firmware/main.c` (303)

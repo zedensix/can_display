@@ -1,5 +1,5 @@
-# Code quality on every commit, run by prek (`prek install` once per
-# clone; `prek run --all-files` to check everything). Generated sources
+# Code quality on every commit, run by prek (installed by `mise install`;
+# `prek run --all-files` to check everything, as the CI does). Generated sources
 # (fonts, logo) are left as generated.
 exclude: ^src/app/(fonts|logo)\.c$
 

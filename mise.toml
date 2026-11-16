@@ -5,7 +5,7 @@ ninja = "1.13.2"
 python = "3.14.10"
 # The web page (web/): its server, bundler and Tailwind build.
 bun = "1.4.4"
-# Git hooks (.pre-commit-config.yaml): `prek install` once per clone.
+# Git hooks (.pre-commit-config.yaml), set up by `mise install` (below).
 prek = "0.5.9"
 node = "latest"
 
@@ -28,6 +28,10 @@ rm -rf "$MISE_TOOL_INSTALL_PATH/OpenSCAD.app"
 cp -R "$mnt/OpenSCAD.app" "$MISE_TOOL_INSTALL_PATH/"
 hdiutil detach -quiet "$mnt"
 '''
+
+# `mise install` sets up the git hooks: no clone forgets them.
+[hooks]
+postinstall = "prek install"
 
 [env]
 PICO_SDK_VERSION = "2.2.0"

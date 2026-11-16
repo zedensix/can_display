@@ -20,13 +20,14 @@ typedef enum {
     PAGE_SETTINGS,
 } page_t;
 
-// Rows of the settings page, top to bottom.
+// Rows of the settings page, top to bottom, in its groups: display,
+// connection, tools, then Back.
 enum {
     ROW_BRIGHTNESS,
     ROW_SHIFT_LIGHT,
+    ROW_FLIP,
     ROW_SOURCE,
     ROW_AUTO_CONNECT,
-    ROW_FLIP,
     ROW_SEND_LOG,
     ROW_SCAN,
     ROW_LISTEN,
