@@ -12,7 +12,7 @@
 // No authentication here: the https reverse proxy in front asks who's
 // there (and Web Bluetooth only works over https). The logs go to
 // DATA_DIR (./data by default; the Docker image's volume).
-import { MAX_NAME, parseDataLog, RECORD, type SessionQuery } from "./datalog";
+import { MAX_NAME, parseDataLog, type SessionQuery, SLOT } from "./datalog";
 import index from "./index.html";
 import { openStore, type Store } from "./store";
 
@@ -61,8 +61,8 @@ async function rename(store: Store, id: number, request: Request): Promise<Respo
 
 async function upload(store: Store, request: Request): Promise<Response> {
   const bytes = new Uint8Array(await request.arrayBuffer());
-  if (bytes.length === 0 || bytes.length % RECORD !== 0) {
-    return new Response(`a dash log is whole ${RECORD}-byte records`, { status: 400 });
+  if (bytes.length === 0 || bytes.length % SLOT !== 0) {
+    return new Response(`a dash log is whole ${SLOT}-byte slots`, { status: 400 });
   }
   const samples = parseDataLog(bytes);
   return Response.json({ samples: samples.length, added: store.add(samples, Date.now()) });

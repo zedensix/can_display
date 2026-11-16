@@ -57,6 +57,35 @@ signal_t obd_decode_message(const uint8_t *msg, int len, state_t *state, uint32_
         } else if (msg[i] == PID_THROTTLE && value_len >= 1) {
             got = SIG_THROTTLE, size = 1;
             state_set_reading(state, got, (float)v[0] * 100 / 255, now_ms);
+        } else if (msg[i] == PID_PEDAL && value_len >= 1) {
+            got = SIG_PEDAL, size = 1;
+            state_set_reading(state, got, (float)v[0] * 100 / 255, now_ms);
+        } else if (msg[i] == PID_LOAD && value_len >= 1) {
+            got = SIG_LOAD, size = 1;
+            state_set_reading(state, got, (float)v[0] * 100 / 255, now_ms);
+        } else if (msg[i] == PID_TIMING && value_len >= 1) {
+            got = SIG_TIMING, size = 1;
+            state_set_reading(state, got, (float)v[0] / 2 - 64, now_ms);
+        } else if ((msg[i] == PID_STFT || msg[i] == PID_LTFT) && value_len >= 1) {
+            got = msg[i] == PID_STFT ? SIG_STFT : SIG_LTFT, size = 1;
+            state_set_reading(state, got, ((float)v[0] - 128) * 100 / 128, now_ms);
+        } else if (msg[i] == PID_AFR_TARGET && value_len >= 2) {
+            got = SIG_AFR_TARGET, size = 2;
+            state_set_reading(state, got, (float)(v[0] << 8 | v[1]) * 2 / 65536 * GASOLINE_STOICH_AFR, now_ms);
+        } else if (msg[i] == PID_RAIL && value_len >= 2) {
+            // 10 kPa a bit, gauge.
+            got = SIG_RAIL, size = 2;
+            state_set_reading(state, got, (float)(v[0] << 8 | v[1]) / 100, now_ms);
+        } else if (msg[i] == PID_SPEED && value_len >= 1) {
+            got = SIG_SPEED, size = 1;
+            state_set_reading(state, got, (float)v[0], now_ms);
+        } else if (msg[i] == PID_AMBIENT && value_len >= 1) {
+            got = SIG_AMBIENT, size = 1;
+            state_set_reading(state, got, (float)v[0] - 40, now_ms);
+        } else if (msg[i] == PID_ODOMETER && value_len >= 4) {
+            got = SIG_ODOMETER, size = 4;
+            uint32_t tenths = (uint32_t)v[0] << 24 | (uint32_t)v[1] << 16 | (uint32_t)v[2] << 8 | v[3];
+            state_set_reading(state, got, (float)tenths / 10, now_ms);
         } else {
             break;
         }

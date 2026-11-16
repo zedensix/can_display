@@ -25,8 +25,7 @@ void screen_apply_turn(screen_t *s, int detents, int views, settings_t *cfg) {
 }
 
 bool screen_row_needs_ble(int row) {
-    return row == ROW_AUTO_CONNECT || row == ROW_SEND_LOG || row == ROW_SCAN || row == ROW_LISTEN ||
-           row == ROW_DISCONNECT;
+    return row == ROW_AUTO_CONNECT || row == ROW_SEND_LOG || row == ROW_SCAN || row == ROW_DISCONNECT;
 }
 
 void screen_apply_click(screen_t *s, settings_t *cfg) {
@@ -53,14 +52,15 @@ void screen_apply_click(screen_t *s, settings_t *cfg) {
     case ROW_FLIP:
         cfg->flip = !cfg->flip;
         break;
+    case ROW_LANDSCAPE:
+        cfg->landscape = !cfg->landscape;
+        break;
     case ROW_SEND_LOG:
     case ROW_SCAN:
-    case ROW_LISTEN:
     case ROW_DISCONNECT: {
         static const action_t actions[SETTINGS_ROWS] = {
             [ROW_SEND_LOG] = ACTION_SEND_LOG,
             [ROW_SCAN] = ACTION_SCAN,
-            [ROW_LISTEN] = ACTION_LISTEN,
             [ROW_DISCONNECT] = ACTION_DISCONNECT,
         };
         s->action = actions[s->cursor];
@@ -92,6 +92,8 @@ bool screen_apply_input(screen_t *s, const state_t *state, int detents, bool pre
         screen_apply_click(s, cfg);
         return false;
     }
-    s->idle = s->page == PAGE_GAUGES && state->wait != WAIT_NONE && now - s->input_ms >= SCREEN_IDLE_MS;
+    // Nothing connected, not a scan's progress: that one stays on screen.
+    bool unconnected = state->wait == WAIT_CHOICE || state->wait == WAIT_RETRY;
+    s->idle = s->page == PAGE_GAUGES && unconnected && now - s->input_ms >= SCREEN_IDLE_MS;
     return press;
 }

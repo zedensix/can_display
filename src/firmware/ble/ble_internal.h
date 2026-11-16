@@ -84,6 +84,12 @@ void ble_error(char *out, size_t size, const char *what, uint8_t code);
 void set_phase(phase_t p, const char *status);
 void start_bluetooth(void);
 void fail_connection(const char *step, const char *error);
+// ble_dongle_asleep is a disconnection with the car off (the engine ECU
+// silent: DONGLE_ASLEEP_SILENCE_MS, or never answered): the dongle went
+// to sleep, no failure. OFFLINE, the radio off, nothing retried: a click
+// connects back to it.
+void ble_dongle_asleep(void);
+#define DONGLE_ASLEEP_SILENCE_MS 5000
 
 // ble_scan.c
 void start_dongle_scan(void);

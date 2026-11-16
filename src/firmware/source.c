@@ -101,9 +101,6 @@ void run_settings_action(action_t action) {
     case ACTION_SCAN:
         ble_request_ram_scan();
         break;
-    case ACTION_LISTEN:
-        ble_request_can_listen();
-        break;
     case ACTION_DISCONNECT:
         ble_go_offline();
         break;

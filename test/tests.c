@@ -16,7 +16,6 @@ int main(void) {
     test_elm_oil_car_off();
     test_elm_scan();
     test_elm_multi_pid();
-    test_elm_listen();
     test_isotp();
     test_flashlog();
     test_settings();
@@ -30,6 +29,9 @@ int main(void) {
     test_elm_drive_mode();
     test_choice_and_idle();
     test_mcp_check();
+    test_limiter_flash();
+    test_gear_and_trip();
+    test_orientations();
     if (failures) {
         printf("%d check(s) failed\n", failures);
         return 1;

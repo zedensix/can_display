@@ -150,6 +150,9 @@ static void handle_hci_event(uint8_t packet_type, uint16_t channel, uint8_t *pac
             advertise_to_phone();
         } else if (phase == STANDBY || phase == OFFLINE) {
             hci_power_control(HCI_POWER_OFF);
+        } else if (phase == RUNNING && !disconnecting &&
+                   (!elm.ecu_answered || now - elm.ecu_ms > DONGLE_ASLEEP_SILENCE_MS)) {
+            ble_dongle_asleep();
         } else if (phase != FAILED && !disconnecting) {
             char error[80];
             ble_error(error, sizeof error, "disconnected", hci_event_disconnection_complete_get_reason(packet));

@@ -13,6 +13,17 @@ typedef enum {
     SIG_AFR,
     SIG_ETHANOL,
     SIG_THROTTLE, // %, absolute: not shown, it tells the AFR alarm a deceleration
+    SIG_PEDAL,    // %, the accelerator pedal: what the driver asks, the throttle what the ECU does
+    SIG_LOAD,     // %, the engine load the ECU computes
+    // The rest is logged, not shown: what checks the tune.
+    SIG_TIMING,     // degrees before top dead center
+    SIG_STFT,       // %, short term fuel trim
+    SIG_LTFT,       // %, long term fuel trim
+    SIG_AFR_TARGET, // the AFR the ECU commands, to hold the AFR against
+    SIG_RAIL,       // MPa, the direct injection rail's pressure
+    SIG_SPEED,      // km/h
+    SIG_AMBIENT,    // degrees C, outside
+    SIG_ODOMETER,   // km, the car's own, if its ECU knows it (PID 0xA6)
     SIG_COUNT,
 } signal_t;
 
@@ -25,12 +36,13 @@ typedef struct {
     float min, max;
 } reading_t;
 
-// wait_t is what the data source offers the driver while nothing's
-// connected, with Settings always beside it (to switch to the CAN source
+// wait_t is what the data source offers the driver while it isn't
+// delivering, with Settings always beside it (to switch to the CAN source
 // when Bluetooth won't do): WAIT_CHOICE, Connect (READY, OFFLINE);
-// WAIT_RETRY, Retry (on the way to the dongle, or a failure). WAIT_NONE
-// while it's delivering, or busy with something of its own.
-typedef enum { WAIT_NONE, WAIT_CHOICE, WAIT_RETRY } wait_t;
+// WAIT_RETRY, Retry (on the way to the dongle, or a failure);
+// WAIT_CANCEL, Cancel (a RAM scan). WAIT_NONE while it's delivering, or
+// busy with something of its own.
+typedef enum { WAIT_NONE, WAIT_CHOICE, WAIT_RETRY, WAIT_CANCEL } wait_t;
 
 // drive_mode_t is the stability control's mode, from its two buttons:
 // everything on; TRC off (a short press on TRC OFF); VSC SPORT (its own
@@ -43,6 +55,8 @@ typedef enum { DRIVE_NORMAL, DRIVE_TRC_OFF, DRIVE_SPORT, DRIVE_SPORT_TRC_OFF, DR
 typedef struct {
     reading_t readings[SIG_COUNT];
     uint32_t throttle_closed_ms; // the last throttle reading that counted as closed
+    // trip_km is the distance since boot, the speed readings added up.
+    float trip_km;
     wait_t wait;
     // drive_mode as last read, at drive_mode_ms; drive_mode_read: ever.
     drive_mode_t drive_mode;
@@ -73,6 +87,29 @@ bool reading_is_stale(const reading_t *r, uint32_t now_ms, uint32_t max_age_ms);
 // the fuel and the AFR reads lean (20.4 on this car), or idling. Without
 // a throttle reading, false.
 bool state_off_throttle(const state_t *s, uint32_t now_ms, uint32_t max_age_ms);
+
+// TRIP_MAX_GAP_MS: speed readings further apart than that (the source
+// busy elsewhere) don't add up the time between them to the trip.
+#define TRIP_MAX_GAP_MS 2000
+
+// The gear comes from how fast the engine turns for the car's speed:
+// RPM per km/h is GEAR_RPM_PER_KMH times the gear's ratio, for the
+// GT86's manual gearbox and its 4.1 final drive. The speed the ECU gives
+// counts wheel turns at the size it was set for, the stock 215/45R17
+// (1.964m around, assumed): the tyres fitted (225/40R18 here, 2.002m)
+// change the true speed, not this ratio. The gears are 20% apart or
+// more: off by more than GEAR_TOLERANCE from every one, the clutch is in
+// (or slipping).
+#define GEAR_RPM_PER_KMH (1000.0f / 60 / 1.964f * 4.1f)
+#define GEAR_TOLERANCE 0.08f
+#define GEAR_MIN_KMH 5
+#define GEARS 6
+extern const float gear_ratios[GEARS];
+
+// state_gear is the gear engaged, 1 to 6, from fresh RPM and speed
+// readings (max_age_ms); 0 for none: stopped, the clutch in, or no
+// readings.
+int state_gear(const state_t *s, uint32_t now_ms, uint32_t max_age_ms);
 
 void state_set_drive_mode(state_t *s, drive_mode_t mode, uint32_t now_ms);
 

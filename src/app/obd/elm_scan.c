@@ -41,8 +41,10 @@ void start_ram_scan(elm_t *e, uint32_t now_ms) {
     e->phase = ELM_SCAN;
     e->scan_addr = ELM_SCAN_START;
     e->scan_candidates = 0;
+    e->scan_cancelled = false;
     e->cb.log(e->cb.ctx, "scan: started");
     state_set_status(e->state, "DEEP SCAN\nreaching the ECU");
+    e->state->wait = WAIT_CANCEL;
     send_command(e, "ATSH7E0", ELM_TIMEOUT_MS, now_ms);
 }
 
@@ -51,16 +53,22 @@ void finish_ram_scan(elm_t *e, uint32_t now_ms) {
     snprintf(line, sizeof line, "scan: stopped at %08lX, %d candidates", (unsigned long)e->scan_addr,
              e->scan_candidates);
     e->cb.log(e->cb.ctx, line);
+    e->state->wait = WAIT_NONE;
     send_command(e, "ATSH7DF", ELM_TIMEOUT_MS, now_ms);
 }
 
 void handle_ram_scan_answer(elm_t *e, char *lines[], int n, uint32_t now_ms) {
-    if (strcmp(e->command, "ATSH7E0") == 0) {
-        send_ram_scan_read(e, now_ms);
-        return;
-    }
     if (strcmp(e->command, "ATSH7DF") == 0) {
         start_polling(e, now_ms);
+        return;
+    }
+    // Cancelled: the answer in flight is the last one.
+    if (e->scan_cancelled) {
+        finish_ram_scan(e, now_ms);
+        return;
+    }
+    if (strcmp(e->command, "ATSH7E0") == 0) {
+        send_ram_scan_read(e, now_ms);
         return;
     }
     isotp_t answer = {0};

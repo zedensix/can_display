@@ -143,7 +143,7 @@ reboots the dash. It can stay wired while the BLE dongle is the source:
 it has its own pins (SPI1) and is left alone. With both on the car, plug
 the dongle and the MCP2515's wires into the OBD port through a Y
 splitter. With the CAN source, the rows that need the dongle (Auto-connect,
-Send log, Scan ECU RAM, Listen CAN, Disconnect) are dimmed and do
+Send log, Scan ECU RAM, Disconnect) are dimmed and do
 nothing. Wired straight to the CAN bus:
 faster, and gets oil temperature, but needs the wiring below.
 

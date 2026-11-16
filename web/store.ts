@@ -15,7 +15,7 @@ import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import type { Sample, SessionPage, SessionQuery, SessionSummary, StoredSession } from "./datalog";
 import { samples, sessions } from "./schema";
 
-// Rows per INSERT: 10 columns each, under SQLite's 32766 variables.
+// Rows per INSERT: 19 columns each, under SQLite's 32766 variables.
 const BATCH = 1000;
 
 export type Store = ReturnType<typeof openStore>;

@@ -42,6 +42,9 @@ void test_screen(void) {
     CHECK(cfg.flip, "a click on flip didn't turn it on");
     screen_apply_turn(&s, 1, 6, &cfg);
     screen_apply_click(&s, &cfg);
+    CHECK(cfg.landscape, "a click on landscape didn't turn it on");
+    screen_apply_turn(&s, 1, 6, &cfg);
+    screen_apply_click(&s, &cfg);
     CHECK(cfg.source == SOURCE_CAN, "a click on the data source didn't switch it to CAN");
     // With the CAN source, the rows needing the dongle do nothing.
     for (int row = 0; row < SETTINGS_ROWS; row++) {
@@ -61,10 +64,7 @@ void test_screen(void) {
     static const struct {
         int row;
         action_t action;
-    } actions[] = {{ROW_SEND_LOG, ACTION_SEND_LOG},
-                   {ROW_SCAN, ACTION_SCAN},
-                   {ROW_LISTEN, ACTION_LISTEN},
-                   {ROW_DISCONNECT, ACTION_DISCONNECT}};
+    } actions[] = {{ROW_SEND_LOG, ACTION_SEND_LOG}, {ROW_SCAN, ACTION_SCAN}, {ROW_DISCONNECT, ACTION_DISCONNECT}};
     for (size_t i = 0; i < sizeof actions / sizeof actions[0]; i++) {
         screen_apply_turn(&s, actions[i].row - s.cursor, 6, &cfg);
         screen_apply_click(&s, &cfg);
@@ -169,4 +169,48 @@ void test_choice_and_idle(void) {
     CHECK(!s.idle, "the screensaver came on with the data source delivering");
     screen_apply_input(&s, &state, 1, false, 6, &cfg, 200001);
     CHECK(s.view == 1, "turning with nothing to choose didn't change the view");
+}
+
+// Near the rev limiter the whole page flashes red; under it, it doesn't.
+void test_limiter_flash(void) {
+    static color_t pixels[240 * 320];
+    canvas_t c = {pixels, 240, 320, 0, 320};
+    state_t s = {0};
+    screen_t screen = {0};
+    settings_t cfg = SETTINGS_DEFAULT;
+    color_t red = theme_dark.danger;
+    // 200ms falls in the flash's lit half, 300ms in the dark one.
+    state_set_reading(&s, SIG_RPM, 7450, 200);
+    ui_render(&c, &s, &screen, &cfg, 200);
+    CHECK(pixels[0] == red && pixels[320 * 240 - 1] == red, "7450 rpm, lit half: the screen isn't red");
+    ui_render(&c, &s, &screen, &cfg, 300);
+    CHECK(pixels[320 * 240 - 1] != red, "7450 rpm, dark half: the screen stays red");
+    state_set_reading(&s, SIG_RPM, 7000, 400);
+    ui_render(&c, &s, &screen, &cfg, 400);
+    CHECK(pixels[320 * 240 - 1] != red, "7000 rpm: the screen flashed");
+}
+
+// Every page draws in both orientations without touching a pixel outside
+// the canvas (the sanitizers watch the buffer's ends), and the gauges keep
+// the info strip at the bottom.
+void test_orientations(void) {
+    static color_t pixels[240 * 320];
+    state_t s = {0};
+    for (int i = 0; i < SIG_COUNT; i++) {
+        state_set_reading(&s, (signal_t)i, 50, 1000);
+    }
+    settings_t cfg = SETTINGS_DEFAULT;
+    for (int landscape = 0; landscape < 2; landscape++) {
+        int w = landscape ? 320 : 240, h = landscape ? 240 : 320;
+        canvas_t c = {pixels, w, h, 0, h};
+        for (int view = 0; view <= ui_view_count; view++) {
+            ui_render(&c, &s, &(screen_t){.view = view}, &cfg, 1000);
+        }
+        ui_render(&c, &s, &(screen_t){.page = PAGE_SETTINGS, .cursor = ROW_DISCONNECT}, &cfg, 1000);
+        state_t waiting = {.wait = WAIT_RETRY, .status = "NO LINK\nsomething long enough to wrap over a few lines"};
+        ui_render(&c, &waiting, &(screen_t){0}, &cfg, 1000);
+        // The strip's separator, a line across the bottom of the gauges.
+        ui_render(&c, &s, &(screen_t){0}, &cfg, 1000);
+        CHECK(pixels[(h - 22) * w + w / 2] == theme_dark.frame, "%dx%d: no info strip at the bottom", w, h);
+    }
 }

@@ -105,66 +105,84 @@ void draw_spinner(canvas_t *c, const theme_t *t, int cx, int cy, uint32_t now_ms
 
 #define CHOICE_HEIGHT 26
 
-// draw_choice_buttons draws the data source's button (Connect, or Retry)
-// and Settings along the bottom, the one a click does filled.
+// draw_choice_buttons draws the data source's button (Connect, Retry or
+// Cancel) and Settings along the bottom, the one a click does filled.
 static void draw_choice_buttons(canvas_t *c, const theme_t *t, wait_t wait, choice_t choice) {
     int gap = 8, w = (c->width - 2 * STATUS_MARGIN - gap) / 2, y = c->height - CHOICE_HEIGHT - 8;
-    bool retry = wait == WAIT_RETRY;
-    draw_button(c, t, STATUS_MARGIN, y, w, CHOICE_HEIGHT, retry ? ICON_RETRY : ICON_BLUETOOTH,
-                retry ? "Retry" : "Connect", choice == CHOICE_CONNECT);
+    icon_t icon = wait == WAIT_RETRY ? ICON_RETRY : wait == WAIT_CANCEL ? ICON_BACK : ICON_BLUETOOTH;
+    const char *label = wait == WAIT_RETRY ? "Retry" : wait == WAIT_CANCEL ? "Cancel" : "Connect";
+    draw_button(c, t, STATUS_MARGIN, y, w, CHOICE_HEIGHT, icon, label, choice == CHOICE_CONNECT);
     draw_button(c, t, STATUS_MARGIN + w + gap, y, w, CHOICE_HEIGHT, ICON_GEAR, "Settings", choice == CHOICE_SETTINGS);
 }
 
 // draw_status_screen is the source's report while it isn't delivering: the
 // logo in a spinner (so a slow step doesn't look frozen), the first
-// paragraph as a title, the rest centered and wrapped under it. Nothing
-// connected, Connect (or Retry) and Settings along the bottom.
+// paragraph as a title, the rest centered and wrapped under it (in
+// landscape, beside it). While it waits on the driver, its button
+// (Connect, Retry, Cancel) and Settings along the bottom.
 #define STATUS_MAX_LINES 14
 // The compact layout's logo, above the text, when the text needs the room.
 #define COMPACT_LOGO_Y 44
 #define COMPACT_TEXT_Y 110
 
-void draw_status_screen(canvas_t *c, const theme_t *t, const state_t *state, const screen_t *screen, uint32_t now_ms) {
-    bool choosing = state->wait != WAIT_NONE;
-    int bottom = choosing ? c->height - CHOICE_HEIGHT - 12 : c->height;
-
-    // Every line first, the title's then the rest's, to know how high they stand.
-    char lines[STATUS_MAX_LINES][64];
-    bool title[STATUS_MAX_LINES];
-    int n = 0, height = 0;
+// wrap_status wraps status to width: its title's lines then the rest's
+// in lines, title telling which. It returns how many, and their height.
+static int wrap_status(const char *status, int width, char lines[][64], bool title[], int *height) {
+    int n = 0;
+    *height = 0;
     char paragraph[192];
-    snprintf(paragraph, sizeof paragraph, "%s", state->status);
+    snprintf(paragraph, sizeof paragraph, "%s", status);
     for (char *p = paragraph; p && n < STATUS_MAX_LINES;) {
         char *next = strchr(p, '\n');
         if (next) {
             *next++ = 0;
         }
         bool first = n == 0;
-        int added = ui_wrap_text(first ? &font_bold12 : label_font, p, c->width - 2 * STATUS_MARGIN, &lines[n],
-                                 STATUS_MAX_LINES - n);
+        int added = ui_wrap_text(first ? &font_bold12 : label_font, p, width, &lines[n], STATUS_MAX_LINES - n);
         for (int i = n; i < n + added; i++) {
             title[i] = first;
-            height += STATUS_LINE_HEIGHT + (first ? 6 : 0);
+            *height += STATUS_LINE_HEIGHT + (first ? 6 : 0);
         }
         n += added;
         p = next;
     }
+    return n;
+}
 
-    // The logo in its spinner, the text under it; a long text (an error
-    // over the buttons) gets the room instead, under a small logo.
-    int y = RING_Y + RING_OUT + 34;
-    if (y + height - STATUS_LINE_HEIGHT > bottom) {
+void draw_status_screen(canvas_t *c, const theme_t *t, const state_t *state, const screen_t *screen, uint32_t now_ms) {
+    bool choosing = state->wait != WAIT_NONE, side = is_landscape(c);
+    int bottom = choosing ? c->height - CHOICE_HEIGHT - 12 : c->height;
+    // Portrait: the ring centered, the text under it. Landscape: the ring
+    // on the left, the text in a column on its right, around RING_Y.
+    int ring_x = side ? STATUS_MARGIN + RING_OUT + 8 : c->width / 2;
+    int text_left = side ? ring_x + RING_OUT + 16 : STATUS_MARGIN, text_w = c->width - STATUS_MARGIN - text_left;
+
+    char lines[STATUS_MAX_LINES][64];
+    bool title[STATUS_MAX_LINES];
+    int height, n = wrap_status(state->status, text_w, lines, title, &height);
+    int y = side ? RING_Y - height / 2 + STATUS_LINE_HEIGHT - 4 : RING_Y + RING_OUT + 34;
+    // A word wider than the text's column can't wrap: it doesn't fit.
+    bool too_wide = false;
+    for (int i = 0; i < n; i++) {
+        too_wide = too_wide || gfx_text_width(title[i] ? &font_bold12 : label_font, lines[i]) > text_w;
+    }
+    // A long text (an error over the buttons), or one too wide, gets the
+    // whole width instead, under a small logo.
+    if (too_wide || y + height - STATUS_LINE_HEIGHT > bottom || y < STATUS_LINE_HEIGHT) {
+        text_left = STATUS_MARGIN;
+        text_w = c->width - 2 * STATUS_MARGIN;
+        n = wrap_status(state->status, text_w, lines, title, &height);
         draw_logo(c, c->width / 2, COMPACT_LOGO_Y, 3, t->accent);
         y = COMPACT_TEXT_Y;
     } else {
-        draw_spinner(c, t, c->width / 2, RING_Y, now_ms, 0);
-        draw_logo(c, c->width / 2, RING_Y, 2, t->accent);
+        draw_spinner(c, t, ring_x, RING_Y, now_ms, 0);
+        draw_logo(c, ring_x, RING_Y, 2, t->accent);
     }
     if (choosing) {
         draw_choice_buttons(c, t, state->wait, screen->choice);
     }
     for (int i = 0; i < n && y <= bottom; i++) {
-        draw_text_centered(c, title[i] ? &font_bold12 : label_font, c->width / 2, y, lines[i],
+        draw_text_centered(c, title[i] ? &font_bold12 : label_font, text_left + text_w / 2, y, lines[i],
                            title[i] ? t->accent : t->label, 1);
         y += STATUS_LINE_HEIGHT + (title[i] ? 6 : 0);
     }

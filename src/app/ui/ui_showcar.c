@@ -12,8 +12,9 @@
 #define RISE 10      // how far it rises in each fade, pixels
 #define SHINE_FROM 900
 #define SHINE_MS 900
-#define LOGO_Y 140
-#define DOTS_Y 290
+// The logo's center and the dots' top, from the bottom: the logo 140px
+// down on a 320px panel, at the same share of a landscape one.
+#define DOTS_FROM_BOTTOM 30
 
 // draw_dots draws a dot per logo, the one shown a lit pill.
 static void draw_dots(canvas_t *c, const theme_t *t, int count, int shown) {
@@ -21,7 +22,7 @@ static void draw_dots(canvas_t *c, const theme_t *t, int count, int shown) {
     int x = (c->width - (count - 1) * (dot + gap) - pill) / 2;
     for (int i = 0; i < count; i++) {
         int w = i == shown ? pill : dot;
-        fill_round_rect(c, x, DOTS_Y, w, dot, dot / 2,
+        fill_round_rect(c, x, c->height - DOTS_FROM_BOTTOM, w, dot, dot / 2,
                         i == shown ? t->accent : gfx_blend(t->background, t->label, 0.25f), t->background);
         x += w + gap;
     }
@@ -35,7 +36,7 @@ void draw_showcar(canvas_t *c, const theme_t *t, uint32_t now_ms) {
     // In: from below, fading in; out: on up, fading out.
     float in = fminf(1, (float)at / FADE_MS), out = fminf(1, (float)(LOGO_MS - at) / FADE_MS);
     float ease_in = 1 - (1 - in) * (1 - in), ease_out = 1 - (1 - out) * (1 - out);
-    int y = LOGO_Y + (int)lroundf(RISE * (1 - ease_in)) - (int)lroundf(RISE * (1 - ease_out));
+    int y = c->height * 140 / 320 + (int)lroundf(RISE * (1 - ease_in)) - (int)lroundf(RISE * (1 - ease_out));
     float shown_fade = fminf(ease_in, ease_out);
 
     // The shine crosses the logo once it's in.

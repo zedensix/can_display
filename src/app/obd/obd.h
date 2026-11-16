@@ -27,6 +27,26 @@ typedef struct {
 // Listed as supported by this car's engine ECU (0100 bitmap BE3FA813,
 // 2026-11-14); it read 14 to 17% idling (2026-11-16), wide open isn't known.
 #define PID_THROTTLE 0x11
+// Also listed as supported by its bitmaps (0100 BE3FA813, 0120 B007B011,
+// 0140 FEDC8041), never read yet: their values aren't checked.
+#define PID_LOAD 0x04
+// The fuel trims, bank 1: the FA20 has a single A/F sensor where both
+// banks meet, and the bitmap lists no bank 2 trims (0x08, 0x09). One byte
+// each, bank 3 being absent.
+#define PID_STFT 0x06
+#define PID_LTFT 0x07
+#define PID_SPEED 0x0D
+#define PID_TIMING 0x0E
+#define PID_RAIL 0x23
+#define PID_AFR_TARGET 0x44
+// Outside air, A - 40 in degrees C.
+#define PID_AMBIENT 0x46
+// The odometer, 4 bytes in tenths of a km: a newer PID, which this car's
+// ECU may not have (its bitmaps from 0x60 on were never asked).
+#define PID_ODOMETER 0xA6
+// The relative pedal position: 0 to 100% of its travel, where 0x49 (the
+// absolute one) stops short of both ends.
+#define PID_PEDAL 0x5A
 
 // GASOLINE_STOICH_AFR turns lambda into a gasoline AFR.
 #define GASOLINE_STOICH_AFR 14.7f

@@ -3,7 +3,7 @@
 void fake_write(void *ctx, const char *command) {
     fake_dongle_t *d = ctx;
     if (d->sent_count < 512) {
-        snprintf(d->sent[d->sent_count++], 16, "%s", command);
+        snprintf(d->sent[d->sent_count++], sizeof d->sent[0], "%s", command);
     }
 }
 void fake_log(void *ctx, const char *line) {

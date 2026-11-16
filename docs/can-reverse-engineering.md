@@ -130,8 +130,11 @@ then.
 The GT86 has two buttons for it: TRC OFF and VSC SPORT. Together they
 make 5 modes: everything on; TRC off (a short press of TRC OFF); VSC
 sport; both; everything off (TRC OFF held a few seconds: VSC off too).
-"Listen CAN" on the settings page looks for the bits that tell them
-apart, through the dongle (`src/app/obd/sniff.c`).
+A "Listen CAN" tool on the settings page looked for the bits that tell
+them apart, through the dongle. It found them (below) and was removed
+since; it's in the history, `git show 48b9d51:src/app/obd/sniff.c` (and
+`elm_listen.c`, the settings row and `test_elm_listen`), to bring back
+for another flag. How it ran:
 
 1. Engine running, parked. Click Listen CAN.
 2. The screen prompts each of 8 steps: everything on, TRC OFF, back on,

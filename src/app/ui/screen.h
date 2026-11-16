@@ -14,13 +14,14 @@
 // alone. A click opens the settings. There, turning moves the cursor, a
 // click toggles the row under it or, on brightness and the shift light,
 // makes turning change the value until the next click. The action rows
-// (Send log, Scan ECU RAM, Listen CAN, Disconnect) return
+// (Send log, Scan ECU RAM, Disconnect) return
 // to the gauges and set action. Back returns to the gauges. With the CAN
 // source, the rows that need the dongle (screen_row_needs_ble) do nothing.
 //
-// With nothing connected (state_t.wait: READY, OFFLINE, on the way to the
-// dongle, a failure), turning on the gauges picks between Connect (or
-// Retry) and Settings instead, and a click does it. Nothing connected and
+// While the data source waits on the driver (state_t.wait: READY,
+// OFFLINE, on the way to the dongle, a failure, a RAM scan), turning on
+// the gauges picks between its button (Connect, Retry, Cancel) and
+// Settings instead, and a click does it. Nothing connected and
 // no input for SCREEN_IDLE_MS, the screensaver comes on; the next input
 // only wakes it.
 
@@ -35,11 +36,11 @@ enum {
     ROW_BRIGHTNESS,
     ROW_SHIFT_LIGHT,
     ROW_FLIP,
+    ROW_LANDSCAPE,
     ROW_SOURCE,
     ROW_AUTO_CONNECT,
     ROW_SEND_LOG,
     ROW_SCAN,
-    ROW_LISTEN,
     ROW_DISCONNECT,
     ROW_BACK,
     SETTINGS_ROWS,
@@ -51,12 +52,11 @@ typedef enum {
     ACTION_NONE,
     ACTION_SEND_LOG,
     ACTION_SCAN,
-    ACTION_LISTEN,
     ACTION_DISCONNECT,
 } action_t;
 
-// choice_t is what a click does while nothing's connected: CHOICE_CONNECT
-// is Connect or Retry, the data source's own.
+// choice_t is what a click does while the data source waits on the
+// driver: CHOICE_CONNECT is its own button (Connect, Retry, Cancel).
 typedef enum { CHOICE_CONNECT, CHOICE_SETTINGS } choice_t;
 
 #define SCREEN_IDLE_MS 30000

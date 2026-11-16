@@ -11,16 +11,23 @@
 // 1MHz is conservative on purpose: plenty for dashboard-rate data, and it
 // survives the SO line's resistor divider and long jumper wires.
 #define CAN_BAUD 1000000
-// The AFR and the throttle need requests: they aren't broadcast. One
-// at a time, in turn: TX0 holds a single frame.
-#define REQUEST_INTERVAL_MS 125
+// What isn't broadcast needs requests, one at a time (TX0 holds a single
+// frame), every REQUEST_INTERVAL_MS: a cycle asks for each of
+// fast_pids, then the next of slow_pids. The answers come back by PID,
+// whenever the ECU sends them.
+#define REQUEST_INTERVAL_MS 40
+static const uint8_t fast_pids[] = {PID_LAMBDA, PID_THROTTLE, PID_PEDAL, PID_LOAD};
+static const uint8_t slow_pids[] = {PID_IAT,        PID_TIMING, PID_STFT,  PID_LTFT,
+                                    PID_AFR_TARGET, PID_RAIL,   PID_SPEED, PID_AMBIENT};
+#define FAST_COUNT (int)(sizeof fast_pids / sizeof fast_pids[0])
+#define SLOW_COUNT (int)(sizeof slow_pids / sizeof slow_pids[0])
 
 // Where the source stands: the self test failed (nothing more until a
 // reboot), it listens to the bus, or the chip is in normal mode.
 static enum { CAN_FAILED, CAN_LISTENING, CAN_RUNNING } phase;
 static state_t *state;
 static uint32_t request_ms;
-static bool request_throttle;
+static int request_step, slow_step;
 
 void mcp2515_transfer(const uint8_t *out, uint8_t *in, size_t len) {
     gpio_put(CAN_CS, 0);
@@ -130,8 +137,9 @@ void mcp2515_poll_bus(uint32_t now_ms) {
     }
     if (now_ms - request_ms >= REQUEST_INTERVAL_MS) {
         request_ms = now_ms;
-        can_frame_t request = obd_build_request(request_throttle ? PID_THROTTLE : PID_LAMBDA);
-        request_throttle = !request_throttle;
+        uint8_t pid = request_step < FAST_COUNT ? fast_pids[request_step] : slow_pids[slow_step++ % SLOW_COUNT];
+        request_step = (request_step + 1) % (FAST_COUNT + 1);
+        can_frame_t request = obd_build_request(pid);
         mcp2515_send(&request);
     }
 }

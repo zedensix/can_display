@@ -29,7 +29,7 @@ static inline bool nearly_equal(float a, float b) {
 
 // fake_dongle records what the session sends and lets a test answer.
 typedef struct {
-    char sent[512][16];
+    char sent[512][24];
     int sent_count;
     int ready, failed;
     char failed_step[32];
@@ -51,7 +51,6 @@ void test_elm_oil(void);
 void test_elm_oil_car_off(void);
 void test_elm_scan(void);
 void test_elm_multi_pid(void);
-void test_elm_listen(void);
 void test_isotp(void);
 void test_elm_init_rejected(void);
 void test_flashlog(void);
@@ -59,6 +58,9 @@ void test_settings(void);
 void test_screen(void);
 void test_sensors(void);
 void test_mcp_check(void);
+void test_limiter_flash(void);
+void test_gear_and_trip(void);
+void test_orientations(void);
 void test_extremes(void);
 void test_off_throttle(void);
 void test_datalog(void);

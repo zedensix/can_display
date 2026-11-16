@@ -49,9 +49,10 @@ typedef struct {
 // ui_tiles is the stock GT86 layout. Thresholds live in ui.c's ranges:
 // retune gauges there.
 extern const tile_t ui_tiles[];
+// ui_tile_count is how many of ui_tiles the grid shows, the first ones.
 extern const int ui_tile_count;
 // ui_view_count is how many views the encoder cycles through past the
-// grid: each tile alone.
+// grid: each of ui_tiles alone, the ones the grid leaves out included.
 extern const int ui_view_count;
 
 // ui_render draws the frame for screen into c: the settings page, the

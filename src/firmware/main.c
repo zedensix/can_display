@@ -52,7 +52,9 @@ static void record_datalog_sample(uint32_t now) {
 // boot animation is over.
 static bool render_and_push_rows(int32_t boot_elapsed, const screen_t *screen, const settings_t *cfg, int top,
                                  int rows) {
-    canvas_t canvas = {frame + top * PANEL_WIDTH, PANEL_WIDTH, PANEL_HEIGHT, top, rows};
+    // In landscape the same frame holds PANEL_HEIGHT-wide rows.
+    int width = cfg->landscape ? PANEL_HEIGHT : PANEL_WIDTH, height = cfg->landscape ? PANEL_WIDTH : PANEL_HEIGHT;
+    canvas_t canvas = {frame + top * width, width, height, top, rows};
     display_wait_for_push();
     uint32_t now = now_ms();
     if (boot_elapsed >= 0) {
@@ -81,7 +83,7 @@ int main(void) {
 
     settings_t cfg = store_load_settings(), saved = cfg, applied = cfg;
     display_init();
-    display_set_flip(cfg.flip);
+    display_set_orientation(cfg.flip, cfg.landscape);
     display_set_brightness(cfg.brightness);
     knob_init();
 
@@ -91,9 +93,10 @@ int main(void) {
     // whole frame, only those are drawn and pushed.
     screen_t screen = {0};
     int spin_top, spin_rows;
-    ui_spinner_rows(PANEL_HEIGHT, true, &spin_top, &spin_rows);
-    for (uint32_t boot = now_ms(), first = 1; render_and_push_rows(
-             (int32_t)(now_ms() - boot), &screen, &cfg, first ? 0 : spin_top, first ? PANEL_HEIGHT : spin_rows);
+    int height = cfg.landscape ? PANEL_WIDTH : PANEL_HEIGHT;
+    ui_spinner_rows(height, true, &spin_top, &spin_rows);
+    for (uint32_t boot = now_ms(), first = 1; render_and_push_rows((int32_t)(now_ms() - boot), &screen, &cfg,
+                                                                   first ? 0 : spin_top, first ? height : spin_rows);
          first = 0) {
         watchdog_update();
     }
@@ -130,9 +133,10 @@ int main(void) {
         }
         if (!settings_equal(cfg, applied)) {
             display_wait_for_push();
-            display_set_flip(cfg.flip);
+            display_set_orientation(cfg.flip, cfg.landscape);
             display_set_brightness(cfg.brightness);
             applied = cfg;
+            height = cfg.landscape ? PANEL_WIDTH : PANEL_HEIGHT;
         }
         if (screen.page == PAGE_GAUGES && !settings_equal(cfg, saved)) {
             store_save_settings(cfg);
@@ -161,11 +165,11 @@ int main(void) {
         // alone, as often as they can go, for a smooth spin.
         bool status = ui_shows_status_screen(&state, &screen, start);
         if (status && shown[0] && strcmp(shown, state.status) == 0 && shown_choice == screen.choice) {
-            ui_spinner_rows(PANEL_HEIGHT, false, &spin_top, &spin_rows);
+            ui_spinner_rows(height, false, &spin_top, &spin_rows);
             render_and_push_rows(-1, &screen, &cfg, spin_top, spin_rows);
             continue;
         }
-        render_and_push_rows(-1, &screen, &cfg, 0, PANEL_HEIGHT);
+        render_and_push_rows(-1, &screen, &cfg, 0, height);
         snprintf(shown, sizeof shown, "%s", status ? state.status : "");
         shown_choice = screen.choice;
         while (now_ms() - start < FRAME_MS && !knob_has_new_input()) {

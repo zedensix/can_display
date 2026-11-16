@@ -36,6 +36,9 @@ typedef struct {
     bool auto_connect;
     // flip turns the picture upside down, for a panel mounted that way.
     bool flip;
+    // landscape turns it a quarter turn, 320 wide by 240 high, for a
+    // panel mounted on its side: every screen lays itself out for it.
+    bool landscape;
     // shift_rpm flashes the screen's edge from that RPM on, like a shift
     // light; 0 is off.
     int shift_rpm;

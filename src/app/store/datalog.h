@@ -15,17 +15,27 @@
 //   0  u16 session (0xFFFF: erased flash, no record)
 //   2  u8  kind: DATALOG_SAMPLE
 //   4  u32 milliseconds since boot
-//   8  i16 x 8: RPM, coolant x10, oil x10, intake x10 (degrees C),
-//      AFR x100, battery x100 (V), ethanol x10 (%), throttle x10 (%);
-//      -32768: no reading. The throttle came later: older records hold
-//      0xFFFF there (-1), no reading either.
-// Bytes 3 and 24 to 31 held lap times and GPS positions, a feature
-// dropped since: 0xFF. Room for 4 more readings, the record's size and
-// the ring's length (about 100 minutes of driving) unchanged.
+//   8  i16 x 16: RPM, coolant x10, oil x10, intake x10 (degrees C),
+//      AFR x100, battery x100 (V), ethanol x10 (%), throttle x10 (%),
+//      pedal x10 (%), load x10 (%), timing x10 (degrees), short and
+//      long term fuel trims x10 (%), commanded AFR x100, rail pressure
+//      x100 (MPa), speed (km/h), outside x10 (degrees C);
+//      -32768: no reading.
+// Byte 3 and bytes 42 to 63: 0xFF, room for 11 more readings. 64 bytes,
+// so a record never straddles a 256-byte flash page: about 50 minutes of
+// driving in the ring.
+//
+// A firmware before the tune's readings wrote DATALOG_RECORD_V1 records,
+// kind DATALOG_SAMPLE_V1: the first 8 readings, bytes 24 to 31 0xFF (and
+// the throttle 0xFFFF, -1, from before it was logged). The ring may still
+// hold them, at any 32-byte boundary: walking it, a record's kind says
+// its size, and a new record starts at a 64-byte boundary.
 
-#define DATALOG_RECORD 32
+#define DATALOG_RECORD 64
+#define DATALOG_RECORD_V1 32
 #define DATALOG_SAMPLE_MS 200
-#define DATALOG_SAMPLE 1
+#define DATALOG_SAMPLE 2
+#define DATALOG_SAMPLE_V1 1
 
 typedef struct {
     flash_dev_t dev;

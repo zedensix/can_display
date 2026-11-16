@@ -78,7 +78,12 @@ void test_flashlog(void) {
 }
 
 void test_settings(void) {
-    settings_t cfg = {.source = SOURCE_CAN, .brightness = 40, .auto_connect = true, .flip = true, .shift_rpm = 7100};
+    settings_t cfg = {.source = SOURCE_CAN,
+                      .brightness = 40,
+                      .auto_connect = true,
+                      .flip = true,
+                      .landscape = true,
+                      .shift_rpm = 7100};
     uint8_t buf[SETTINGS_SIZE];
     settings_encode(cfg, buf);
     CHECK(settings_equal(settings_decode(buf), cfg), "settings didn't round-trip");
@@ -115,21 +120,23 @@ void test_datalog(void) {
         datalog_sample(&log, &s, t);
     }
     datalog_flush(&log);
-    // 11 records: 8 in the first page, 3 flushed in the second.
+    // 11 records: 4 a page, the last 3 flushed in the third.
+    const int R = DATALOG_RECORD;
     CHECK(f.data[8] == (3000 & 0xFF) && f.data[9] == 3000 >> 8, "the first sample's RPM isn't in flash");
     CHECK(f.data[22] == (425 & 0xFF) && f.data[23] == 425 >> 8, "the throttle (x10) isn't at bytes 22-23");
-    CHECK(f.data[24] == 0xFF && f.data[31] == 0xFF, "bytes 24 to 31, free, aren't left erased");
-    CHECK(f.data[10 * 32 + 2] == DATALOG_SAMPLE && f.data[10 * 32 + 4] == (10 * DATALOG_SAMPLE_MS & 0xFF),
+    CHECK(f.data[24] == 0x00 && f.data[25] == 0x80, "a pedal never read isn't -32768");
+    CHECK(f.data[42] == 0xFF && f.data[63] == 0xFF, "bytes 42 to 63, free, aren't left erased");
+    CHECK(f.data[10 * R + 2] == DATALOG_SAMPLE && f.data[10 * R + 4] == (10 * DATALOG_SAMPLE_MS & 0xFF),
           "the 11th sample isn't in flash");
     CHECK(f.data[8 + 2 * 1] == 0x00 && f.data[8 + 2 * 1 + 1] == 0x80, "a coolant never read isn't -32768");
 
     // A new run carries on after it, in a new session.
     datalog_open(&log, dev);
-    CHECK(log.pos == 11 * 32 && log.session == 1, "reopened: pos %u session %u, want 352 and 1", (unsigned)log.pos,
-          log.session);
+    CHECK(log.pos == 11 * (uint32_t)R && log.session == 1, "reopened: pos %u session %u, want %d and 1",
+          (unsigned)log.pos, log.session, 11 * R);
     datalog_sample(&log, &s, 0);
     datalog_flush(&log);
-    CHECK(f.data[11 * 32] == 1 && f.data[10 * 32] == 0, "session 1 didn't follow session 0");
+    CHECK(f.data[11 * R] == 1 && f.data[10 * R] == 0, "session 1 didn't follow session 0");
 
     // Read back in ring order, the oldest first.
     uint8_t first[DATALOG_RECORD];
@@ -137,4 +144,22 @@ void test_datalog(void) {
     CHECK(first[0] == 0 && first[4] == 0, "ring order doesn't start with the oldest record");
     CHECK(datalog_oldest_record_offset(&log) == sizeof f.data - log.pos, "oldest at %u, want %u",
           (unsigned)datalog_oldest_record_offset(&log), (unsigned)(sizeof f.data - log.pos));
+
+    // A ring an older firmware wrote: 3 records of 32 bytes, session 5.
+    // The new ones go after them, at the next 64-byte boundary.
+    memset(f.data, 0xFF, sizeof f.data);
+    for (int i = 0; i < 3; i++) {
+        uint8_t *r = &f.data[i * DATALOG_RECORD_V1];
+        r[0] = 5, r[1] = 0, r[2] = DATALOG_SAMPLE_V1, r[4] = (uint8_t)i;
+        r[5] = r[6] = r[7] = 0;
+    }
+    datalog_open(&log, dev);
+    CHECK(log.pos == 2 * (uint32_t)R && log.session == 6, "after old records: pos %u session %u, want %d and 6",
+          (unsigned)log.pos, log.session, 2 * R);
+    datalog_sample(&log, &s, 0);
+    datalog_flush(&log);
+    CHECK(f.data[2 * DATALOG_RECORD_V1] == 5 && f.data[2 * R] == 6, "an old record was overwritten, or misplaced");
+    datalog_open(&log, dev);
+    CHECK(log.pos == 3 * (uint32_t)R && log.session == 7, "reopened after both kinds: pos %u session %u",
+          (unsigned)log.pos, log.session);
 }

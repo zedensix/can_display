@@ -47,10 +47,6 @@ bool ble_in_standby(void);
 // polls (elm_request_ram_scan).
 void ble_request_ram_scan(void);
 
-// ble_request_can_listen starts listening to the CAN bus for a button's ID, once
-// the session polls (elm_request_can_listen).
-void ble_request_can_listen(void);
-
 // ble_send_log lets the dongle go and advertises the dash to a phone,
 // which gets log (see web/). Once the phone says it got it all, or on a
 // click, the dash goes back to the dongle.

@@ -2,6 +2,7 @@
 
 // What the UI's files share. ui.c holds the theme, the gauges' ranges and
 // ui_render; ui_tiles.c draws the gauges (grid tiles, a dial alone);
+// ui_strip.c the info strip under them;
 // ui_status.c the status screen and the boot animation; ui_settings.c the
 // settings page; ui_draw.c the drawing helpers they all use.
 
@@ -15,7 +16,15 @@
 #define SLOW_STALE_MS 10000
 
 #define GRID_GAP 3
-#define GRID_COLUMNS 2
+
+// A canvas wider than tall: the panel turned (settings_t.landscape).
+// Each screen lays itself out for one or the other.
+static inline bool is_landscape(const canvas_t *c) {
+    return c->width > c->height;
+}
+
+// The info strip's height, along the bottom of the gauges page.
+#define INFO_STRIP_HEIGHT 22
 
 extern const font_t *const label_font;
 
@@ -39,11 +48,17 @@ void draw_text_fitting(canvas_t *c, int cx, int y, int max_width, const char *s,
 // A reading in danger blinks: its tile lit red, then not, twice a second.
 bool alarm_blink_lit(uint32_t now_ms);
 
-// ui_tiles.c
-void draw_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, uint32_t now_ms);
-void draw_track_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, drive_mode_t mode, uint32_t now_ms);
+// ui_tiles.c: the gauges between top and bottom.
+void draw_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, int bottom, uint32_t now_ms);
+void draw_track_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, int bottom, drive_mode_t mode,
+                     uint32_t now_ms);
 void draw_tile_dial(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int y, int w, int h, const state_t *s,
                     uint32_t now_ms);
+
+// ui_strip.c
+// draw_info_strip draws the gear, the outside temperature and the
+// distance along the canvas's bottom, INFO_STRIP_HEIGHT high.
+void draw_info_strip(canvas_t *c, const theme_t *t, const state_t *s, uint32_t now_ms);
 
 // ui_status.c
 void draw_status_screen(canvas_t *c, const theme_t *t, const state_t *state, const screen_t *screen, uint32_t now_ms);

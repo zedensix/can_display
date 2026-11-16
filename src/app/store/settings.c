@@ -16,6 +16,8 @@ enum {
     FLAG_DONGLE = 1 << 4,
     // Clear in settings saved before the choice existed: the dongle.
     FLAG_CAN_SOURCE = 1 << 5,
+    // Clear in settings saved before it existed: portrait.
+    FLAG_LANDSCAPE = 1 << 6,
 };
 
 void settings_encode(settings_t s, uint8_t out[SETTINGS_SIZE]) {
@@ -23,7 +25,8 @@ void settings_encode(settings_t s, uint8_t out[SETTINGS_SIZE]) {
     out[4] = VERSION;
     out[5] = (uint8_t)s.brightness;
     out[6] = (uint8_t)((s.auto_connect ? FLAG_AUTO_CONNECT : 0) | (s.flip ? FLAG_FLIP : 0) |
-                       (s.dongle.set ? FLAG_DONGLE : 0) | (s.source == SOURCE_CAN ? FLAG_CAN_SOURCE : 0));
+                       (s.dongle.set ? FLAG_DONGLE : 0) | (s.source == SOURCE_CAN ? FLAG_CAN_SOURCE : 0) |
+                       (s.landscape ? FLAG_LANDSCAPE : 0));
     out[7] = (uint8_t)(s.shift_rpm / SHIFT_RPM_STEP);
     memset(out + 8, 0, 10);
     memcpy(out + 18, s.dongle.addr, sizeof s.dongle.addr);
@@ -52,6 +55,7 @@ settings_t settings_decode(const uint8_t in[SETTINGS_SIZE]) {
         .brightness = in[5],
         .auto_connect = (in[6] & FLAG_AUTO_CONNECT) != 0,
         .flip = (in[6] & FLAG_FLIP) != 0,
+        .landscape = (in[6] & FLAG_LANDSCAPE) != 0,
         .shift_rpm = shift >= SHIFT_RPM_MIN && shift <= SHIFT_RPM_MAX ? shift : 0,
         .dongle = dongle,
     };
@@ -59,7 +63,8 @@ settings_t settings_decode(const uint8_t in[SETTINGS_SIZE]) {
 
 bool settings_equal(settings_t a, settings_t b) {
     return a.source == b.source && a.brightness == b.brightness && a.auto_connect == b.auto_connect &&
-           a.flip == b.flip && a.shift_rpm == b.shift_rpm && dongle_equal(a.dongle, b.dongle);
+           a.flip == b.flip && a.landscape == b.landscape && a.shift_rpm == b.shift_rpm &&
+           dongle_equal(a.dongle, b.dongle);
 }
 
 bool dongle_equal(dongle_t a, dongle_t b) {

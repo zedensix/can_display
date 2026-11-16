@@ -2,9 +2,9 @@
 #MISE description="Render the UI's screens with fixed readings into ui/*.png (ui/sheet.png: all of them)"
 set -euo pipefail
 
-# Start clean: a screen dropped from tools/render_ui.c leaves no stale PNG.
+# Start clean: a screen dropped from tools/render_ui_shots.c leaves no stale PNG.
 rm -rf build/ui ui/*.png
 mkdir -p build/ui
-cc -std=c11 -Wall -Wextra -Werror -DBRANDS_NONE -Isrc/app -o build/ui/render_ui tools/render_ui.c $(find src/app -name "*.c") -lm
+cc -std=c11 -Wall -Wextra -Werror -DBRANDS_NONE -Isrc/app -o build/ui/render_ui tools/render_ui.c tools/render_ui_shots.c $(find src/app -name "*.c") -lm
 build/ui/render_ui build/ui
 python3 tools/ppm2png.py ui build/ui/*.ppm

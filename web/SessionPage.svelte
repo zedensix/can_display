@@ -30,15 +30,26 @@
   const t0 = $derived(samples[0]?.t ?? 0);
   const span = $derived(samples.length ? (samples[samples.length - 1].t - t0) / 60000 : 0);
 
+  // What the driver did, then how the engine ran (the AFR beside the one
+  // the ECU commanded, the trims, the timing, the rail), then the temperatures.
   const CHARTS: { column: Column; label: string; unit: string; digits: number; color: string; minRange: number }[] = [
     { column: "rpm", label: "RPM", unit: "", digits: 0, color: "var(--accent)", minRange: 1000 },
+    { column: "speed", label: "Speed", unit: " km/h", digits: 0, color: "#f97316", minRange: 20 },
+    { column: "pedal", label: "Pedal", unit: "%", digits: 0, color: "#64748b", minRange: 20 },
+    { column: "throttle", label: "Throttle", unit: "%", digits: 0, color: "#94a3b8", minRange: 20 },
+    { column: "load", label: "Load", unit: "%", digits: 0, color: "#ec4899", minRange: 20 },
+    { column: "afr", label: "AFR", unit: "", digits: 1, color: "#a855f7", minRange: 2 },
+    { column: "afrTarget", label: "AFR commanded", unit: "", digits: 1, color: "#c084fc", minRange: 2 },
+    { column: "stft", label: "Short term trim", unit: "%", digits: 1, color: "#14b8a6", minRange: 10 },
+    { column: "ltft", label: "Long term trim", unit: "%", digits: 1, color: "#0d9488", minRange: 10 },
+    { column: "timing", label: "Timing", unit: "°", digits: 1, color: "#facc15", minRange: 10 },
+    { column: "rail", label: "DI rail", unit: " MPa", digits: 1, color: "#f43f5e", minRange: 4 },
     { column: "oil", label: "Oil", unit: "°C", digits: 0, color: "#ef4444", minRange: 10 },
     { column: "coolant", label: "Coolant", unit: "°C", digits: 0, color: "#3b82f6", minRange: 10 },
     { column: "intake", label: "Intake", unit: "°C", digits: 0, color: "#06b6d4", minRange: 10 },
-    { column: "afr", label: "AFR", unit: "", digits: 1, color: "#a855f7", minRange: 2 },
+    { column: "ambient", label: "Outside", unit: "°C", digits: 0, color: "#38bdf8", minRange: 10 },
     { column: "battery", label: "Battery", unit: "V", digits: 1, color: "#eab308", minRange: 1 },
     { column: "ethanol", label: "Ethanol", unit: "%", digits: 0, color: "var(--good)", minRange: 10 },
-    { column: "throttle", label: "Throttle", unit: "%", digits: 0, color: "#94a3b8", minRange: 20 },
   ];
   // A chart per signal the session has readings of.
   const charts = $derived(

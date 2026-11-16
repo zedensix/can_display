@@ -6,6 +6,13 @@
 // offline_from is the dongle a click on OFFLINE connects back to.
 static dongle_t offline_from;
 
+void ble_dongle_asleep(void) {
+    log_line("ble: the dongle let go with the engine ECU silent: car off, the dongle asleep");
+    offline_from = connected.set ? connected : last_dongle;
+    set_phase(OFFLINE, "DISCONNECTED\npress to reconnect");
+    hci_power_control(HCI_POWER_OFF);
+}
+
 void ble_go_offline(void) {
     if (!stack_up || phase == STANDBY || phase == OFFLINE) {
         return;
@@ -37,12 +44,6 @@ void ble_go_offline(void) {
 void ble_request_ram_scan(void) {
     if (phase == RUNNING) {
         elm_request_ram_scan(&elm);
-    }
-}
-
-void ble_request_can_listen(void) {
-    if (phase == RUNNING) {
-        elm_request_can_listen(&elm);
     }
 }
 
@@ -92,8 +93,8 @@ bool ble_handle_click(uint32_t now_ms) {
         back_to_dongle();
         return true;
     case RUNNING:
-        // A CAN listen's prompt: the driver has done what it asked.
-        return elm_listen_click(&elm, now_ms);
+        // A RAM scan's Cancel.
+        return elm_cancel_ram_scan(&elm);
     default:
         return false;
     }

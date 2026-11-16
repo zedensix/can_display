@@ -31,7 +31,9 @@ a race-wheel shift light across the top, and every drive logged to your phone.
   frozen number.
 - **Reads what the ECU doesn't publish.** The oil temperature through Toyota's Mode 21, the
   ethanol % of a flex-fuel tune straight from the engine ECU's RAM.
-- **Logs every drive.** Five readings a second to its own flash; "Send log" hands them to a
+- **Logs what checks the tune.** Besides the gauges: pedal, throttle, load, timing, both fuel
+  trims, the AFR the ECU commands beside the one it gets, the direct injection rail's pressure
+  and the speed, five times a second to its own flash; "Send log" hands them to a
   phone, and a small self-hosted site keeps every session and charts it.
 - **Knows the car is off.** It lets the dongle sleep and turns its own screen off; a click
   wakes it. Left waiting, it shows a screensaver of the badge and the logos of the parts on the
@@ -49,8 +51,15 @@ a race-wheel shift light across the top, and every drive logged to your phone.
 | **Ready**: connect, or the settings | **Settings**, one screen, on the knob | **Screensaver**, nothing connected |
 | <img src="ui/track_trc.png" width="240" alt="TRC off"> | <img src="ui/track_vsc.png" width="240" alt="VSC off"> | <img src="ui/shot_boot_morph.png" width="240" alt="Starting up"> |
 | **TRC off**: the track layout | **VSC off**: everything off, in red | **Starting up**: the ring closes into the logo |
+| <img src="ui/pedal.png" width="240" alt="Pedal"> | <img src="ui/load.png" width="240" alt="Engine load"> | <img src="ui/limiter.png" width="240" alt="Near the limiter"> |
+| **Pedal**, a view on the knob | **Engine load**, another | **Near the limiter**: the whole screen flashes |
+| <img src="ui/grid_landscape.png" width="240" alt="Landscape"> | <img src="ui/oil_landscape.png" width="240" alt="A gauge alone, landscape"> | <img src="ui/ready_landscape.png" width="240" alt="Connect prompt, landscape"> |
+| **Landscape**, the panel on its side | **A gauge alone**, its extremes beside it | Every screen turns with it |
 
-A rotary encoder drives it all: turn for the views, click for the settings, hold to reboot.
+Along the bottom of the gauges: the gear engaged (worked out from the RPM and the speed), the
+temperature outside and the distance driven. A rotary encoder drives it all: turn for the
+views, click for the settings, hold to reboot. The screen turns a quarter turn in the
+settings, for a panel mounted on its side.
 Every picture here comes from the UI code itself (`mise run ui`), the same code the firmware
 runs.
 
@@ -108,7 +117,7 @@ wiring page's Dimensions tab is where the measurements go in. More in
 1. Install [mise](https://mise.jdx.dev), then `mise install`: the ARM toolchain, CMake, Bun
    and the rest, pinned, and the git hooks.
 2. `mise run sim` opens the dash in a window, with made-up data: the arrows turn the knob,
-   space clicks (the simulator needs SDL2: `brew install sdl2`).
+   space clicks, l turns it to landscape (the simulator needs SDL2: `brew install sdl2`).
 3. `mise run firmware` builds `bin/firmware.uf2`; `mise run flash` builds and flashes a Pico
    on USB, rebooting it into BOOTSEL by itself.
 4. In the car: plug the dongle in, power the dash from a switched 12V, click Connect.
@@ -146,11 +155,14 @@ The CI runs every hook (clang-format, Biome, `bun check` for the types, the test
 | Throttle        | OBD PID 0x11 (dongle)                               | Read on this car; tells a lean AFR off the throttle from a real one |
 | Battery voltage | The dongle's `ATRV`                                 | Read on hardware (dongle only) |
 | Ethanol %       | The engine ECU's RAM at 0xFFF87C7C (dongle)         | Found by scans and matched against OFT on this car; specific to this tune |
+| Pedal, load, timing, fuel trims, commanded AFR, DI rail pressure, speed, outside temperature | OBD PIDs 0x5A, 0x04, 0x0E, 0x06/0x07, 0x44, 0x23, 0x0D, 0x46 | The ECU lists them all as supported; values **not read yet** |
+| Gear | RPM over speed, the manual gearbox's ratios | Worked out, **not checked in the car** |
+| Odometer | OBD PID 0xA6, if the ECU has it | **Unknown**: else the dash shows the trip since boot |
 
 The CAN IDs and formulas come from community reverse-engineering, not factory documentation:
 **don't trust them blindly**. [docs/can-reverse-engineering.md](docs/can-reverse-engineering.md)
-covers how to check them on your own car, and the dash's own tools for it: a scan of the
-ECU's RAM, and a guided listen of the CAN bus.
+covers how to check them on your own car, and the dash's own tool for it: a scan of the
+ECU's RAM.
 
 ## Design notes
 

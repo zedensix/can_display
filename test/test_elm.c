@@ -12,7 +12,7 @@ void test_elm_session(void) {
         feed_dongle_answer(&e, "OK\r\r>", 20);
     }
     CHECK(strcmp(last_sent(&d), "ATI\r") == 0, "after init sent %s, want the ATI probe", last_sent(&d));
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 9; i++) {
         feed_dongle_answer(&e, "whatever\r>", 30);
     }
     CHECK(d.ready == 1, "ready called %d times after the probes", d.ready);
@@ -53,7 +53,7 @@ void test_elm_oil(void) {
     elm_t e;
     elm_start_session(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
     feed_dongle_answer(&e, "ELM327 v2.3\r>", 1);
-    for (int i = 0; i < 7 + 7; i++) {
+    for (int i = 0; i < 7 + 9; i++) {
         feed_dongle_answer(&e, "OK\r>", 2);
     }
     feed_dongle_answer(&e, "12.4V\r>", 3); // ATRV, the first poll
@@ -68,6 +68,14 @@ void test_elm_oil(void) {
     feed_dongle_answer(&e, "7E8056342858000\r>", ELM_ENGINE_INTERVAL_MS + 6); // 66.75 as a big-endian float
     CHECK(nearly_equal(s.readings[SIG_ETHANOL].value, 66.75f), "ethanol %f, want 66.75",
           (double)s.readings[SIG_ETHANOL].value);
+    CHECK(strcmp(last_sent(&d), "0107\r") == 0, "then %s, want the long term trim", last_sent(&d));
+    feed_dongle_answer(&e, "7E803410790\r>", ELM_ENGINE_INTERVAL_MS + 7); // +12.5%
+    CHECK(nearly_equal(s.readings[SIG_LTFT].value, 12.5f), "long term trim %f, want 12.5",
+          (double)s.readings[SIG_LTFT].value);
+    CHECK(strcmp(last_sent(&d), "0146\r") == 0, "then %s, want the outside temperature", last_sent(&d));
+    feed_dongle_answer(&e, "7E803414637\r>", ELM_ENGINE_INTERVAL_MS + 8); // 15°C
+    CHECK(strcmp(last_sent(&d), "01A6\r") == 0, "then %s, want the odometer", last_sent(&d));
+    feed_dongle_answer(&e, "NO DATA\r>", ELM_ENGINE_INTERVAL_MS + 9);
     CHECK(strcmp(last_sent(&d), "ATSH7DF\r") == 0, "then %s, want the header back to ATSH7DF", last_sent(&d));
 
     for (int miss = 0; miss < ELM_ENGINE_MAX_MISSES; miss++) {
@@ -99,7 +107,7 @@ void test_elm_oil_car_off(void) {
     elm_t e;
     elm_start_session(&e, &s, (elm_callbacks_t){fake_write, fake_log, fake_ready, fake_failed, &d}, 0);
     feed_dongle_answer(&e, "ELM327 v2.3\r>", 1);
-    for (int i = 0; i < 7 + 7; i++) {
+    for (int i = 0; i < 7 + 9; i++) {
         feed_dongle_answer(&e, "OK\r>", 2);
     }
     for (uint32_t t = 3; t < 10 * ELM_ENGINE_INTERVAL_MS; t += 100) {

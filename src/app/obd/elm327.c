@@ -18,8 +18,15 @@ static const char *const init_commands[] = {
 };
 #define INIT_COUNT (int)(sizeof init_commands / sizeof init_commands[0])
 
-static const char *const probe_commands[] = {
-    "ATI", "ATRV", "0100", "0120", "0140", "010C", MULTI_POLL MULTI_POLL_FRAMES};
+static const char *const probe_commands[] = {"ATI",
+                                             "ATRV",
+                                             "0100",
+                                             "0120",
+                                             "0140",
+                                             "01A0",
+                                             "010C",
+                                             MULTI_POLL_FAST MULTI_POLL_FRAMES,
+                                             MULTI_POLL_SLOW MULTI_POLL_FRAMES};
 #define PROBE_COUNT (int)(sizeof probe_commands / sizeof probe_commands[0])
 
 void send_command(elm_t *e, const char *command, uint32_t timeout_ms, uint32_t now_ms) {
@@ -94,16 +101,14 @@ static void handle_dongle_answer(elm_t *e, uint32_t now_ms) {
         break;
     case ELM_PROBE:
         log_command_answer(e, e->command, lines, n);
-        if (strcmp(e->command, MULTI_POLL MULTI_POLL_FRAMES) == 0) {
+        if (strncmp(e->command, MULTI_POLL_FAST, strlen(MULTI_POLL_FAST)) == 0 ||
+            strncmp(e->command, MULTI_POLL_SLOW, strlen(MULTI_POLL_SLOW)) == 0) {
             enable_multi_pid_if_answered(e, lines, n);
         }
         send_next_probe(e, now_ms);
         break;
     case ELM_SCAN:
         handle_ram_scan_answer(e, lines, n, now_ms);
-        break;
-    case ELM_LISTEN:
-        handle_can_listen_answer(e, now_ms);
         break;
     case ELM_POLL:
         handle_poll_answer(e, lines, n, now_ms);
@@ -114,8 +119,8 @@ static void handle_dongle_answer(elm_t *e, uint32_t now_ms) {
 }
 
 void elm_start_session(elm_t *e, state_t *state, elm_callbacks_t cb, uint32_t now_ms) {
-    // Not *e = (elm_t){...}: with the sniff table, that temporary would
-    // take 5KB of the Pico's 2KB stack.
+    // Not *e = (elm_t){...}: with its buffers, that temporary would take
+    // a good part of the Pico's 2KB stack.
     memset(e, 0, sizeof *e);
     e->cb = cb;
     e->state = state;
@@ -132,9 +137,7 @@ void elm_feed_dongle_output(elm_t *e, const uint8_t *data, size_t len, uint32_t 
             e->rx[e->rx_len] = 0;
             can_frame_t f;
             if (elm_parse_frame(e->rx, &f)) {
-                if (e->phase == ELM_LISTEN) {
-                    sniff_add_frame(&e->sniff, &f);
-                } else if (mode_monitor_frame(e, &f, now_ms) && !e->stop_sent) {
+                if (mode_monitor_frame(e, &f, now_ms) && !e->stop_sent) {
                     // The mode's in: the monitor can stop right away.
                     e->stop_sent = true;
                     e->cb.write(e->cb.ctx, "\r");
@@ -175,12 +178,6 @@ void elm_check_timers(elm_t *e, uint32_t now_ms) {
         send_next_probe(e, now_ms);
         return;
     }
-    if (e->phase == ELM_LISTEN) {
-        e->cb.log(e->cb.ctx, error);
-        sniff_log_candidates(&e->sniff, e->cb.log, e->cb.ctx);
-        elm_start_session(e, e->state, e->cb, now_ms);
-        return;
-    }
     if (e->phase == ELM_SCAN) {
         e->waiting = false;
         e->cb.log(e->cb.ctx, error);
@@ -200,8 +197,12 @@ void elm_request_ram_scan(elm_t *e) {
     }
 }
 
-void elm_request_can_listen(elm_t *e) {
-    if (e->phase == ELM_POLL) {
-        e->listen_requested = true;
+bool elm_cancel_ram_scan(elm_t *e) {
+    if (e->phase != ELM_SCAN || e->scan_cancelled) {
+        return false;
     }
+    e->scan_cancelled = true;
+    state_set_status(e->state, "DEEP SCAN\ncancelling");
+    e->state->wait = WAIT_NONE;
+    return true;
 }

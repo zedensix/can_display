@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { chromium } from "playwright";
 import { serveLog } from "../web/server";
 
-const RECORD = 32;
+const RECORD = 64;
 const resources = join(import.meta.dir, "..", "docs", "resources");
 
 // A lap: [seconds, RPM at its start, at its end, AFR]: pulls through the
@@ -62,8 +62,10 @@ function drive(session: number, minutes: number, track: boolean): Uint8Array<Arr
     };
     const at = i * RECORD;
     view.setUint16(at, session, true);
-    view.setUint8(at + 2, 1);
+    view.setUint8(at + 2, 2);
     view.setUint32(at + 4, i * 200, true);
+    const flat = afr < 13;
+    const lift = afr > 19;
     const columns = [
       r.rpm,
       r.coolant * 10,
@@ -73,6 +75,15 @@ function drive(session: number, minutes: number, track: boolean): Uint8Array<Arr
       r.battery * 100,
       660,
       throttle * 10,
+      (flat ? 100 : lift ? 0 : throttle - 12) * 10, // pedal
+      (flat ? 92 : lift ? 12 : throttle * 0.9) * 10, // load
+      (flat ? 18 + (rpm - 4000) / 600 : lift ? 32 : 30) * 10, // timing
+      Math.sin(s * 3) * 3 * 10, // short term trim
+      2.3 * 10, // long term trim
+      (flat ? 12.2 : 14.7) * 100, // commanded AFR
+      (flat ? 19.5 - Math.max(0, rpm - 6500) / 600 : 7 + Math.sin(s / 5)) * 100, // DI rail, MPa
+      lapping ? rpm / 55 : 30 + Math.max(0, Math.sin(s / 9)) * 40, // speed
+      14 * 10, // outside
     ];
     for (const [k, value] of columns.entries()) view.setInt16(at + 8 + 2 * k, Math.round(value), true);
   }

@@ -14,15 +14,15 @@ static const struct {
     const char *title;
     int first, last;
 } settings_groups[] = {
-    {"DISPLAY", ROW_BRIGHTNESS, ROW_FLIP},
+    {"DISPLAY", ROW_BRIGHTNESS, ROW_LANDSCAPE},
     {"CONNECTION", ROW_SOURCE, ROW_AUTO_CONNECT},
     {"TOOLS", ROW_SEND_LOG, ROW_DISCONNECT},
 };
 
 static const char *const settings_labels[SETTINGS_ROWS] = {
-    [ROW_BRIGHTNESS] = "Brightness", [ROW_SHIFT_LIGHT] = "Shift light",   [ROW_FLIP] = "Flip screen",
-    [ROW_SOURCE] = "Source",         [ROW_AUTO_CONNECT] = "Auto-connect", [ROW_SEND_LOG] = "Send log",
-    [ROW_SCAN] = "Scan ECU RAM",     [ROW_LISTEN] = "Listen CAN",         [ROW_DISCONNECT] = "Disconnect",
+    [ROW_BRIGHTNESS] = "Brightness", [ROW_SHIFT_LIGHT] = "Shift light", [ROW_FLIP] = "Flip screen",
+    [ROW_LANDSCAPE] = "Landscape",   [ROW_SOURCE] = "Source",           [ROW_AUTO_CONNECT] = "Auto-connect",
+    [ROW_SEND_LOG] = "Send log",     [ROW_SCAN] = "Scan ECU RAM",       [ROW_DISCONNECT] = "Disconnect",
 };
 
 // draw_toggle draws a switch ending at right, centered on cy, on bg: a
@@ -90,6 +90,9 @@ static void draw_settings_value(canvas_t *c, const theme_t *t, int row, int righ
     case ROW_FLIP:
         draw_toggle(c, t, right, cy, cfg->flip, bg);
         break;
+    case ROW_LANDSCAPE:
+        draw_toggle(c, t, right, cy, cfg->landscape, bg);
+        break;
     case ROW_AUTO_CONNECT:
         draw_toggle(c, t, right, cy, cfg->auto_connect, bg);
         break;
@@ -104,18 +107,45 @@ static void draw_settings_value(canvas_t *c, const theme_t *t, int row, int righ
     }
 }
 
+// draw_settings_page draws the groups top down, Back under them. When they
+// don't fit above Back (landscape: 240px high), they scroll to keep the
+// row under the cursor in the middle; whatever wouldn't show whole is
+// left out.
 void draw_settings_page(canvas_t *c, const theme_t *t, const screen_t *screen, const settings_t *cfg) {
     int left = SETTINGS_MARGIN, right = c->width - SETTINGS_MARGIN, width = right - left;
+    int back_y = c->height - SETTINGS_BACK_HEIGHT - 20, view_h = back_y - 2 - SETTINGS_HEADER;
     color_t dim = gfx_blend(t->background, t->label, 0.35f);
     gfx_text(c, &font_bold12, left + 2, 20, "SETTINGS", t->accent, 1);
     gfx_fill_rect(c, left, 25, width, 2, t->accent);
 
-    int y = SETTINGS_HEADER;
+    // Where the groups reach, and the cursor's row, from the top of the list.
+    int content_h = 0, cursor_y = 0;
     for (size_t g = 0; g < sizeof settings_groups / sizeof settings_groups[0]; g++) {
-        gfx_text(c, label_font, left + 2, y + 11, settings_groups[g].title, gfx_blend(t->background, t->accent, 0.6f),
-                 1);
+        content_h += SETTINGS_GROUP_HEIGHT;
+        for (int row = settings_groups[g].first; row <= settings_groups[g].last; row++) {
+            cursor_y = row == screen->cursor ? content_h : cursor_y;
+            content_h += SETTINGS_ROW_HEIGHT;
+        }
+        content_h += 2;
+    }
+    int scroll = 0;
+    if (content_h > view_h) {
+        scroll = screen->cursor == ROW_BACK ? content_h - view_h : cursor_y + SETTINGS_ROW_HEIGHT / 2 - view_h / 2;
+        scroll = scroll < 0 ? 0 : scroll > content_h - view_h ? content_h - view_h : scroll;
+    }
+    int top = SETTINGS_HEADER, bottom = SETTINGS_HEADER + view_h;
+
+    int y = SETTINGS_HEADER - scroll;
+    for (size_t g = 0; g < sizeof settings_groups / sizeof settings_groups[0]; g++) {
+        if (y >= top && y + SETTINGS_GROUP_HEIGHT <= bottom) {
+            gfx_text(c, label_font, left + 2, y + 11, settings_groups[g].title,
+                     gfx_blend(t->background, t->accent, 0.6f), 1);
+        }
         y += SETTINGS_GROUP_HEIGHT;
         for (int row = settings_groups[g].first; row <= settings_groups[g].last; row++, y += SETTINGS_ROW_HEIGHT) {
+            if (y < top || y + SETTINGS_ROW_HEIGHT > bottom) {
+                continue;
+            }
             bool selected = row == screen->cursor;
             // With the CAN source, the rows needing the dongle are dimmed and say why.
             bool ble_only = cfg->source != SOURCE_BLE && screen_row_needs_ble(row);
@@ -138,7 +168,6 @@ void draw_settings_page(canvas_t *c, const theme_t *t, const screen_t *screen, c
         y += 2;
     }
 
-    int back_y = c->height - SETTINGS_BACK_HEIGHT - 20;
     draw_button(c, t, left, back_y, width, SETTINGS_BACK_HEIGHT, ICON_BACK, "Back", screen->cursor == ROW_BACK);
     draw_text_centered(c, label_font, c->width / 2, c->height - 4, "hold: reboot", dim, 1);
 }

@@ -4,7 +4,9 @@
 // The keyboard stands in for the rotary encoder: arrows turn, space
 // clicks; r shows or hides a READY prompt, as with nothing connected (its
 // Connect clears it; left alone 30s, the screensaver comes on); m steps
-// through the drive modes (normal, TRC off, VSC sport, both, VSC off).
+// through the drive modes (normal, TRC off, VSC sport, both, VSC off); l
+// turns the screen a quarter turn, as the Landscape setting does. The
+// fake data is a tour of the dash's scenarios (simdata.c).
 
 #include <SDL.h>
 #include <stdbool.h>
@@ -34,11 +36,11 @@ int main(void) {
         return 1;
     }
 
-    canvas_t canvas = {pixels, PANEL_WIDTH, PANEL_HEIGHT, 0, PANEL_HEIGHT};
     state_t state = {0};
     screen_t screen = {0};
     settings_t cfg = SETTINGS_DEFAULT;
     uint32_t start = SDL_GetTicks();
+    bool landscape = false;
 
     for (bool running = true; running;) {
         int turn = 0;
@@ -59,6 +61,9 @@ int main(void) {
                     break;
                 case SDLK_SPACE:
                     press = true;
+                    break;
+                case SDLK_l:
+                    cfg.landscape = !cfg.landscape;
                     break;
                 case SDLK_m:
                     state_set_drive_mode(&state,
@@ -86,10 +91,20 @@ int main(void) {
         if (state.drive_mode_read) {
             state.drive_mode_ms = now; // as if read again: it stays until m changes it
         }
+        // The Landscape setting turns the window a quarter turn, as it does the panel.
+        if (cfg.landscape != landscape) {
+            landscape = cfg.landscape;
+            int w = landscape ? PANEL_HEIGHT : PANEL_WIDTH, h = landscape ? PANEL_WIDTH : PANEL_HEIGHT;
+            SDL_DestroyTexture(texture);
+            texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB565, SDL_TEXTUREACCESS_STREAMING, w, h);
+            SDL_SetWindowSize(window, w * SCALE, h * SCALE);
+        }
+        canvas_t canvas = {pixels, landscape ? PANEL_HEIGHT : PANEL_WIDTH, landscape ? PANEL_WIDTH : PANEL_HEIGHT, 0,
+                           landscape ? PANEL_WIDTH : PANEL_HEIGHT};
         if (!ui_render_boot(&canvas, now - start, now)) {
             ui_render(&canvas, &state, &screen, &cfg, now);
         }
-        SDL_UpdateTexture(texture, NULL, pixels, PANEL_WIDTH * sizeof pixels[0]);
+        SDL_UpdateTexture(texture, NULL, pixels, canvas.width * (int)sizeof pixels[0]);
         SDL_RenderClear(renderer);
         SDL_RenderCopy(renderer, texture, NULL, NULL);
         SDL_RenderPresent(renderer);

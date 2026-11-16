@@ -131,7 +131,9 @@ static void draw_tile(canvas_t *c, const theme_t *t, const tile_t *tile, int x, 
 // draw_tile_dial draws a tile alone, as a round dial like the GT86's
 // tachometer: segments around the value, blown up as much as fits
 // inside, up to 3 times (chunky, but readable from the seat, without a
-// bigger font taking flash).
+// bigger font taking flash). In portrait, the session's extremes and the
+// label go under it; in landscape, the dial fills the height on the left
+// and they stand in a column on its right.
 void draw_tile_dial(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int y, int w, int h, const state_t *s,
                     uint32_t now_ms) {
     reading_t r = s->readings[tile->signal];
@@ -143,7 +145,15 @@ void draw_tile_dial(canvas_t *c, const theme_t *t, const tile_t *tile, int x, in
     if (alarm) {
         gfx_fill_rect(c, x, y, w, h, t->alarm);
     }
-    int cx = x + w / 2, r_out = w / 2 - 4, cy = y + r_out + 8, r_in = r_out - DIAL_WIDTH;
+    bool side = is_landscape(c);
+    int dial_w = side ? h : w;
+    int r_out = dial_w / 2 - 4;
+    // In portrait, the extremes and the label need about 104px plus 0.7
+    // of the radius under the ring's center.
+    if (!side && r_out > (h - 104) * 10 / 17) {
+        r_out = (h - 104) * 10 / 17;
+    }
+    int cx = x + dial_w / 2, cy = y + r_out + (side ? 4 : 8), r_in = r_out - DIAL_WIDTH;
     color_t colors[DIAL_SEGMENTS];
     float peak = r.valid ? scale_fraction(&tile->range, r.max) : -1;
     gauge_segment_colors(&tile->range, fraction, peak, DIAL_SEGMENTS, alarm, t, colors);
@@ -166,23 +176,40 @@ void draw_tile_dial(canvas_t *c, const theme_t *t, const tile_t *tile, int x, in
     draw_text_centered(c, label_font, cx - ends_dx, ends_y, end, dim, 1);
     snprintf(end, sizeof end, tile->format, (double)tile->range.max);
     draw_text_centered(c, label_font, cx + ends_dx, ends_y, end, dim, 1);
-    // The session's extremes, to read back after a run.
+    color_t ink = alarm ? t->alarm_text : t->label;
+    char low[16] = "--", high[16] = "--";
     if (r.valid) {
-        char low[16], high[16], line[48];
-        snprintf(low, sizeof low, tile->format, (double)r.min);
-        snprintf(high, sizeof high, tile->format, (double)r.max);
-        snprintf(line, sizeof line, "MIN %s%s   MAX %s%s", low, tile->unit, high, tile->unit);
-        draw_text_centered(c, label_font, cx, ends_y + 30, line, alarm ? t->alarm_text : t->label, 1);
+        // The session's extremes, to read back after a run.
+        char v[16];
+        snprintf(v, sizeof v, tile->format, (double)r.min);
+        snprintf(low, sizeof low, "%s%s", v, tile->unit);
+        snprintf(v, sizeof v, tile->format, (double)r.max);
+        snprintf(high, sizeof high, "%s%s", v, tile->unit);
+    }
+    if (side) {
+        int column = x + dial_w + 8, mid = (column + x + w) / 2, cy_text = y + h / 2;
+        draw_text_centered(c, &font_bold12, mid, cy_text - 34, tile->label, dim, 1);
+        char line[32];
+        snprintf(line, sizeof line, "MIN %s", low);
+        draw_text_centered(c, label_font, mid, cy_text + 4, line, ink, 1);
+        snprintf(line, sizeof line, "MAX %s", high);
+        draw_text_centered(c, label_font, mid, cy_text + 28, line, ink, 1);
+        return;
+    }
+    if (r.valid) {
+        char line[48];
+        snprintf(line, sizeof line, "MIN %s   MAX %s", low, high);
+        draw_text_centered(c, label_font, cx, ends_y + 30, line, ink, 1);
     }
     draw_text_centered(c, &font_bold12, cx, y + h - 14, tile->label, dim, 1);
 }
 
-// draw_grid draws every tile, from top down.
-void draw_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, uint32_t now_ms) {
-    int rows = (ui_tile_count + GRID_COLUMNS - 1) / GRID_COLUMNS;
-    int cell_w = c->width / GRID_COLUMNS, cell_h = (c->height - top) / rows;
+// draw_grid draws every tile, from top down: 2 columns, 3 in landscape.
+void draw_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, int bottom, uint32_t now_ms) {
+    int columns = is_landscape(c) ? 3 : 2, rows = (ui_tile_count + columns - 1) / columns;
+    int cell_w = c->width / columns, cell_h = (bottom - top) / rows;
     for (int i = 0; i < ui_tile_count; i++) {
-        int col = i % GRID_COLUMNS, row = i / GRID_COLUMNS;
+        int col = i % columns, row = i / columns;
         draw_tile(c, t, &ui_tiles[i], col * cell_w + GRID_GAP, top + row * cell_h + GRID_GAP, cell_w - 2 * GRID_GAP,
                   cell_h - 2 * GRID_GAP, s, now_ms);
     }
@@ -201,10 +228,11 @@ static const tile_t *tile_for(signal_t signal) {
 
 // draw_track_grid is the gauges in a sport mode, on track: what matters
 // there big (the oil and the AFR across the screen, the coolant and the
-// intake under them), the battery and the ethanol left out, and a badge
-// saying which mode: VSC SPORT in the accent, TRC OFF (alone or with it)
-// amber, VSC OFF (everything off) red.
-void draw_track_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, drive_mode_t mode, uint32_t now_ms) {
+// intake under them; in landscape, the four as 2 by 2), the battery and
+// the ethanol left out, and a badge saying which mode: VSC SPORT in the
+// accent, TRC OFF (alone or with it) amber, VSC OFF (everything off) red.
+void draw_track_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, int bottom, drive_mode_t mode,
+                     uint32_t now_ms) {
     static const char *const labels[DRIVE_MODES] = {
         [DRIVE_TRC_OFF] = "TRC OFF",
         [DRIVE_SPORT] = "VSC SPORT",
@@ -219,7 +247,17 @@ void draw_track_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, d
     draw_text_centered(c, label_font, c->width / 2, top + 3 + BADGE_HEIGHT / 2 + 5, label,
                        mode == DRIVE_VSC_OFF ? t->alarm_text : t->background, 1);
 
-    int y0 = top + BADGE_HEIGHT + 6, row_h = (c->height - y0) / 3, half = c->width / 2;
+    int y0 = top + BADGE_HEIGHT + 6, half = c->width / 2;
+    if (is_landscape(c)) {
+        static const signal_t order[] = {SIG_OIL, SIG_AFR, SIG_COOLANT, SIG_IAT};
+        int row_h = (bottom - y0) / 2;
+        for (int i = 0; i < 4; i++) {
+            draw_tile(c, t, tile_for(order[i]), i % 2 * half + GRID_GAP, y0 + i / 2 * row_h + GRID_GAP,
+                      half - 2 * GRID_GAP, row_h - 2 * GRID_GAP, s, now_ms);
+        }
+        return;
+    }
+    int row_h = (bottom - y0) / 3;
     draw_tile(c, t, tile_for(SIG_OIL), GRID_GAP, y0 + GRID_GAP, c->width - 2 * GRID_GAP, row_h - 2 * GRID_GAP, s,
               now_ms);
     draw_tile(c, t, tile_for(SIG_AFR), GRID_GAP, y0 + row_h + GRID_GAP, c->width - 2 * GRID_GAP, row_h - 2 * GRID_GAP,

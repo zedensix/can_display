@@ -37,6 +37,14 @@ const theme_t theme_dark = {
 #define BATTERY_RANGE {10, 16, 12, 15, 11.5f, 15.5f, -1}
 #define AFR_RANGE {10, 18, 12, 16, 11, 17, -1}
 #define ETHANOL_RANGE {0, 100, -1, 101, -1, 101, -1}
+// The pedal and the load: no wrong value, green all the way.
+#define PERCENT_RANGE {0, 100, -1, 101, -1, 101, -1}
+
+// From LIMITER_FLASH_RPM, near the rev limiter (RPM_RANGE's 7600), the
+// whole gauges page flashes: the shift light's LEDs are at the edge of
+// the eye, this isn't. Flashing every LIMITER_FLASH_MS.
+#define LIMITER_FLASH_RPM 7300
+#define LIMITER_FLASH_MS 100
 
 // From OIL_CRITICAL, the oil temperature takes the whole screen, on every
 // page: the tile alone, red from OIL_RANGE's 120, is easy to miss, and
@@ -52,8 +60,11 @@ const tile_t ui_tiles[] = {
     {"INTAKE", "%.0f", DEGREE "C", SIG_IAT, IAT_RANGE, FAST_STALE_MS},
     {"BATTERY", "%.1f", "V", SIG_BATTERY, BATTERY_RANGE, FAST_STALE_MS},
     {"ETHANOL", "%.0f", "%", SIG_ETHANOL, ETHANOL_RANGE, SLOW_STALE_MS},
+    // Views only, past the grid's tiles.
+    {"PEDAL", "%.0f", "%", SIG_PEDAL, PERCENT_RANGE, FAST_STALE_MS},
+    {"LOAD", "%.0f", "%", SIG_LOAD, PERCENT_RANGE, FAST_STALE_MS},
 };
-const int ui_tile_count = sizeof ui_tiles / sizeof ui_tiles[0];
+const int ui_tile_count = 6;
 const int ui_view_count = sizeof ui_tiles / sizeof ui_tiles[0];
 
 // The shift light is a race car steering wheel's LED bar across the top:
@@ -97,17 +108,24 @@ static void draw_oil_overheat_screen(canvas_t *c, const theme_t *t, float oil, u
     bool lit = alarm_blink_lit(now_ms);
     color_t text = lit ? t->alarm_text : t->danger;
     gfx_fill_rect(c, 0, 0, c->width, c->height, lit ? t->alarm : t->background);
-    draw_text_centered(c, &font_bold24, c->width / 2, 48, "OIL TEMP", text, 1);
+    // Laid out for 320px high, scaled to the canvas's height.
+    int h = c->height;
+    draw_text_centered(c, &font_bold24, c->width / 2, 48 * h / 320, "OIL TEMP", text, 1);
 
     // Degrees only: with the C it wouldn't fit 3 times as big.
     char value[16];
     snprintf(value, sizeof value, "%.0f" DEGREE, (double)oil);
+    // As big as fits the width, and a quarter of the height.
     int scale = 3;
-    while (scale > 1 && gfx_text_width(&font_bold24, value) * scale > c->width - 16) {
+    while (scale > 1 && (gfx_text_width(&font_bold24, value) * scale > c->width - 16 || 26 * scale > h / 4)) {
         scale--;
     }
-    draw_text_centered(c, &font_bold24, c->width / 2, 158 + 13 * scale, value, text, scale);
-    // The fonts are ASCII only: no accents.
+    draw_text_centered(c, &font_bold24, c->width / 2, 158 * h / 320 + 13 * scale, value, text, scale);
+    // The fonts are ASCII only: no accents. In landscape, one line.
+    if (is_landscape(c)) {
+        draw_text_fitting(c, c->width / 2, h - 24, c->width - 16, "TOO HOT, LIFT OFF", text);
+        return;
+    }
     draw_text_fitting(c, c->width / 2, 266, c->width - 16, "TOO HOT", text);
     draw_text_fitting(c, c->width / 2, 304, c->width - 16, "LIFT OFF", text);
 }
@@ -115,6 +133,22 @@ static void draw_oil_overheat_screen(canvas_t *c, const theme_t *t, float oil, u
 static bool oil_is_overheating(const state_t *state, uint32_t now_ms) {
     const reading_t *oil = &state->readings[SIG_OIL];
     return !reading_is_stale(oil, now_ms, SLOW_STALE_MS) && oil->value >= OIL_CRITICAL;
+}
+
+// draw_limiter_flash is the whole screen, every other LIMITER_FLASH_MS, at
+// LIMITER_FLASH_RPM or more: red, SHIFT across it.
+static void draw_limiter_flash(canvas_t *c, const theme_t *t, const reading_t *rpm, uint32_t now_ms) {
+    if (reading_is_stale(rpm, now_ms, FAST_STALE_MS) || rpm->value < LIMITER_FLASH_RPM ||
+        now_ms / LIMITER_FLASH_MS % 2) {
+        return;
+    }
+    gfx_fill_rect(c, 0, 0, c->width, c->height, t->danger);
+    int scale = 3;
+    while (scale > 1 && gfx_text_width(&font_bold24, "SHIFT") * scale > c->width - 16) {
+        scale--;
+    }
+    // The 24pt capitals rise about 26px above their baseline.
+    draw_text_centered(c, &font_bold24, c->width / 2, c->height / 2 + 13 * scale, "SHIFT", t->alarm_text, scale);
 }
 
 bool ui_shows_status_screen(const state_t *state, const screen_t *screen, uint32_t now_ms) {
@@ -146,13 +180,16 @@ void ui_render(canvas_t *c, const state_t *state, const screen_t *screen, const 
         draw_shift_light(c, t, &state->readings[SIG_RPM], cfg->shift_rpm, now_ms);
         top = SHIFT_BAR_HEIGHT;
     }
-    if (screen->view > 0 && screen->view <= ui_tile_count) {
+    int bottom = c->height - INFO_STRIP_HEIGHT;
+    if (screen->view > 0 && screen->view <= ui_view_count) {
         const tile_t *tile = &ui_tiles[screen->view - 1];
-        draw_tile_dial(c, t, tile, GRID_GAP, top + GRID_GAP, c->width - 2 * GRID_GAP, c->height - top - 2 * GRID_GAP,
+        draw_tile_dial(c, t, tile, GRID_GAP, top + GRID_GAP, c->width - 2 * GRID_GAP, bottom - top - 2 * GRID_GAP,
                        state, now_ms);
     } else if (state_drive_mode(state, now_ms) != DRIVE_NORMAL) {
-        draw_track_grid(c, t, state, top, state_drive_mode(state, now_ms), now_ms);
+        draw_track_grid(c, t, state, top, bottom, state_drive_mode(state, now_ms), now_ms);
     } else {
-        draw_grid(c, t, state, top, now_ms);
+        draw_grid(c, t, state, top, bottom, now_ms);
     }
+    draw_info_strip(c, t, state, now_ms);
+    draw_limiter_flash(c, t, &state->readings[SIG_RPM], now_ms);
 }

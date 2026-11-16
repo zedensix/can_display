@@ -1,9 +1,13 @@
-// The dash's data log: src/app/store/datalog.h's 32-byte little-endian records,
+// The dash's data log: src/app/store/datalog.h's little-endian records,
 // parsed into samples, and what the page shows of them. This parser must
-// follow datalog.h's record layout.
+// follow datalog.h's record layout: 64-byte records (kind 2), and the
+// 32-byte ones an older firmware wrote (kind 1), which a log may still
+// hold before them. A log is whole 32-byte slots.
 
-export const RECORD = 32;
-const SAMPLE = 1;
+export const SLOT = 32;
+const RECORD = 64;
+const SAMPLE = 2;
+const SAMPLE_V1 = 1;
 const NONE16 = -32768;
 
 // A reading per column, null where the dash had none.
@@ -18,10 +22,40 @@ export type Sample = {
   battery: number | null;
   ethanol: number | null;
   throttle: number | null;
+  pedal: number | null;
+  load: number | null;
+  timing: number | null;
+  stft: number | null;
+  ltft: number | null;
+  afrTarget: number | null;
+  rail: number | null;
+  speed: number | null;
+  ambient: number | null;
 };
 
-export type Column = "rpm" | "coolant" | "oil" | "intake" | "afr" | "battery" | "ethanol" | "throttle";
-export const COLUMNS: Column[] = ["rpm", "coolant", "oil", "intake", "afr", "battery", "ethanol", "throttle"];
+export type Column = Exclude<keyof Sample, "session" | "t">;
+
+// Each column in the record's order, its scale and its CSV header.
+const LAYOUT: [Column, number, string][] = [
+  ["rpm", 1, "rpm"],
+  ["coolant", 10, "coolant_c"],
+  ["oil", 10, "oil_c"],
+  ["intake", 10, "intake_c"],
+  ["afr", 100, "afr"],
+  ["battery", 100, "battery_v"],
+  ["ethanol", 10, "ethanol_pct"],
+  ["throttle", 10, "throttle_pct"],
+  ["pedal", 10, "pedal_pct"],
+  ["load", 10, "load_pct"],
+  ["timing", 10, "timing_deg"],
+  ["stft", 10, "stft_pct"],
+  ["ltft", 10, "ltft_pct"],
+  ["afrTarget", 100, "afr_target"],
+  ["rail", 100, "rail_mpa"],
+  ["speed", 1, "speed_kmh"],
+  ["ambient", 10, "outside_c"],
+];
+export const COLUMNS: Column[] = LAYOUT.map(([column]) => column);
 
 export type Session = { id: number; samples: Sample[] };
 
@@ -29,27 +63,22 @@ export type Session = { id: number; samples: Sample[] };
 export function parseDataLog(bytes: Uint8Array): Sample[] {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const out: Sample[] = [];
-  for (let at = 0; at + RECORD <= bytes.length; at += RECORD) {
+  for (let at = 0; at + SLOT <= bytes.length; ) {
     const session = view.getUint16(at, true);
-    // Erased flash, or a lap record from a firmware that had a lap timer.
-    if (session === 0xffff || view.getUint8(at + 2) !== SAMPLE) continue;
-    const readColumn = (i: number, scale: number) => {
-      const v = view.getInt16(at + 8 + 2 * i, true);
-      return v === NONE16 ? null : v / scale;
-    };
-    out.push({
-      session,
-      t: view.getUint32(at + 4, true),
-      rpm: readColumn(0, 1),
-      coolant: readColumn(1, 10),
-      oil: readColumn(2, 10),
-      intake: readColumn(3, 10),
-      afr: readColumn(4, 100),
-      battery: readColumn(5, 100),
-      ethanol: readColumn(6, 10),
-      // Older records hold 0xFFFF here (-1): the throttle came later.
-      throttle: view.getInt16(at + 8 + 2 * 7, true) === -1 ? null : readColumn(7, 10),
-    });
+    const kind = view.getUint8(at + 2);
+    const columns = session !== 0xffff && kind === SAMPLE && at + RECORD <= bytes.length ? LAYOUT.length : 0;
+    // Erased flash, an old record, or a lap record from a firmware that had a lap timer.
+    const v1 = session !== 0xffff && kind === SAMPLE_V1;
+    if (columns || v1) {
+      const sample = { session, t: view.getUint32(at + 4, true) } as Sample;
+      LAYOUT.forEach(([column, scale], i) => {
+        const v = i < (columns || 8) ? view.getInt16(at + 8 + 2 * i, true) : NONE16;
+        // An old record holds 0xFFFF (-1) for the throttle from before it was logged.
+        sample[column] = v === NONE16 || (v1 && column === "throttle" && v === -1) ? null : v / scale;
+      });
+      out.push(sample);
+    }
+    at += columns ? RECORD : SLOT;
   }
   return out.sort((a, b) => a.session - b.session || a.t - b.t);
 }
@@ -80,25 +109,13 @@ export function highest(of: Sample[], column: Column, unit = "", digits = 0): st
   return range ? `${range[1].toFixed(digits)}${unit}` : "--";
 }
 
-const csvCell = (v: number | null) => (v === null ? "" : String(v));
-
 /** The samples as a CSV file's text. */
 export function toCsv(samples: Sample[]): string {
   const rows = samples.map((s) =>
-    [
-      s.session,
-      (s.t / 1000).toFixed(1),
-      csvCell(s.rpm),
-      csvCell(s.coolant),
-      csvCell(s.oil),
-      csvCell(s.intake),
-      csvCell(s.afr),
-      csvCell(s.battery),
-      csvCell(s.ethanol),
-      csvCell(s.throttle),
-    ].join(","),
+    [s.session, (s.t / 1000).toFixed(1), ...COLUMNS.map((column) => s[column] ?? "")].join(","),
   );
-  return `session,time_s,rpm,coolant_c,oil_c,intake_c,afr,battery_v,ethanol_pct,throttle_pct\n${rows.join("\n")}\n`;
+  const header = ["session", "time_s", ...LAYOUT.map(([, , name]) => name)].join(",");
+  return `${header}\n${rows.join("\n")}\n`;
 }
 
 // A session's peaks, what the list of sessions shows. receivedAt: when

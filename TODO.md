@@ -7,9 +7,14 @@
 - [x] Hooks set up: `mise install` runs `prek install` (mise.toml's postinstall)
 - [x] GitHub Actions CI: the prek hooks (clang-format, Biome, bun check, web and host tests under gcc) and the firmware build (UF2 as an artifact)
 - [ ] Ethanol without wiring: run "Scan ECU RAM" with the engine running, noting OFT's E%, then read the candidates in the logs
-- [x] Stability control modes: two Listen CAN runs found 0x0D3 (byte 0 bit 5 TRC off, byte 0 bit 3 VSC sport, byte 3 bit 0 cleared with everything off)
+- [x] Stability control modes: two Listen CAN runs found 0x0D3 (byte 0 bit 5 TRC off, byte 0 bit 3 VSC sport, byte 3 bit 0 cleared with everything off); Listen CAN removed since (in `48b9d51`)
+- [x] Scan ECU RAM: a Cancel button while it runs
 - [ ] Check in the car: each of the 5 modes shows its badge, matching the cluster's lamps
-- [ ] Check in the car: multi-PID polling (log `polling every PID at once`), snappier gauges
+- [ ] Check in the car: the two multi-PID requests (log `polling 6 PIDs a request`), each new reading against what's expected (pedal 0 to 100%, timing that drops on a pull, rail around 4 to 20 MPa, speed against the car's), the limiter flash from 7300 rpm
+- [ ] Check in the car: the gear shown in each gear (and N with the clutch in), the outside temperature against the car's own, the `01A0` bitmap in the log: whether the ECU has the gear (0xA4: then read it instead of working it out) and the odometer (0xA6; `01A6 (giving up)` if not), every screen in landscape on the panel itself (MADCTL MV)
+- [ ] Odometer if 01A6 isn't there: it's the cluster's, not the engine ECU's; find how the cluster gives it (a diagnostic read at its own address, captured from Techstream)
+- [ ] Cruise control set speed: probably in the engine ECU's RAM, not on the bus (the cluster never shows it): RAM scans with the cruise set at two speeds
+- [ ] Knock: not in standard OBD; look for the FA20's knock retard and fine knock learning in the ECU's RAM
 - [ ] Check in the car: Send log to the phone, acknowledged, back to the gauges
 - [ ] Check in the car: the dongle's name read and shown on READY and OFFLINE, reconnecting from OFFLINE without a reboot
 - [ ] Check on the board: half-step encoder (one detent = one row), smooth loader
