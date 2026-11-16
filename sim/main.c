@@ -4,7 +4,7 @@
 // The keyboard stands in for the rotary encoder: arrows turn, space
 // clicks; r shows or hides a READY prompt, as with nothing connected (its
 // Connect clears it; left alone 30s, the screensaver comes on); m steps
-// through the drive modes (normal, TRC off, VSC off).
+// through the drive modes (normal, TRC off, VSC sport, both, VSC off).
 
 #include <SDL.h>
 #include <stdbool.h>
@@ -61,7 +61,8 @@ int main(void) {
                     press = true;
                     break;
                 case SDLK_m:
-                    state_set_drive_mode(&state, (drive_mode_t)((state_drive_mode(&state, SDL_GetTicks()) + 1) % 3),
+                    state_set_drive_mode(&state,
+                                         (drive_mode_t)((state_drive_mode(&state, SDL_GetTicks()) + 1) % DRIVE_MODES),
                                          SDL_GetTicks());
                     break;
                 case SDLK_r:

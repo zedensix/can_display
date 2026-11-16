@@ -4,12 +4,17 @@
 #include <string.h>
 
 const sniff_step_t sniff_steps[SNIFF_STEPS] = {
-    {"VSC and TRC on:\nno OFF lamp lit", SNIFF_ALL_ON}, {"press TRC OFF briefly:\nTRC OFF lamp lit", SNIFF_TRC_OFF},
-    {"press TRC OFF again:\nlamp out", SNIFF_ALL_ON},   {"hold TRC OFF a few\nseconds: VSC OFF lit", SNIFF_ALL_OFF},
+    {"everything on:\nno lamp lit", SNIFF_ALL_ON},
+    {"press TRC OFF briefly:\nTRC OFF lit", SNIFF_TRC_OFF},
+    {"press TRC OFF again:\nlamp out", SNIFF_ALL_ON},
+    {"press VSC SPORT:\nSPORT lit", SNIFF_SPORT},
+    {"press TRC OFF briefly\ntoo: both lit", SNIFF_SPORT_TRC_OFF},
+    {"VSC SPORT and TRC OFF\nagain: lamps out", SNIFF_ALL_ON},
+    {"hold TRC OFF a few\nseconds: VSC OFF lit", SNIFF_ALL_OFF},
     {"press TRC OFF again:\nlamps out", SNIFF_ALL_ON},
 };
 
-static const char *const mode_names[SNIFF_MODES] = {"on", "trc", "off"};
+static const char *const mode_names[SNIFF_MODES] = {"on", "trc", "sport", "sport+trc", "off"};
 
 void sniff_add_frame(sniff_t *s, const can_frame_t *f) {
     if (f->dlc > 8 || s->step < 0 || s->step >= SNIFF_STEPS) {
@@ -86,7 +91,7 @@ void sniff_log_candidates(const sniff_t *s, void (*log)(void *ctx, const char *l
         }
         candidates += e->seen == every_step && candidate_bits(e, bits);
     }
-    char line[112];
+    char line[200];
     snprintf(line, sizeof line, "sniff: %d IDs seen, %d in every step, %d with noise, %d candidates", s->count,
              complete, noisy, candidates);
     log(ctx, line);

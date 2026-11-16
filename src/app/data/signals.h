@@ -32,10 +32,10 @@ typedef struct {
 // while it's delivering, or busy with something of its own.
 typedef enum { WAIT_NONE, WAIT_CHOICE, WAIT_RETRY } wait_t;
 
-// drive_mode_t is the stability control's mode, from the TRC OFF button:
-// everything on, TRC off (a short press), everything off (held a few
-// seconds: VSC off too).
-typedef enum { DRIVE_NORMAL, DRIVE_TRC_OFF, DRIVE_VSC_OFF } drive_mode_t;
+// drive_mode_t is the stability control's mode, from its two buttons:
+// everything on; TRC off (a short press on TRC OFF); VSC SPORT (its own
+// button); both; everything off (TRC OFF held a few seconds: VSC off).
+typedef enum { DRIVE_NORMAL, DRIVE_TRC_OFF, DRIVE_SPORT, DRIVE_SPORT_TRC_OFF, DRIVE_VSC_OFF, DRIVE_MODES } drive_mode_t;
 
 // state_t is everything the UI draws. status is the data source's own
 // report while it isn't delivering (scan, connect, failure): while it

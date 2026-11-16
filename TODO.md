@@ -7,7 +7,7 @@
 - [x] Hooks set up: `mise install` runs `prek install` (mise.toml's postinstall)
 - [x] GitHub Actions CI: the prek hooks (clang-format, Biome, bun check, web and host tests under gcc) and the firmware build (UF2 as an artifact)
 - [ ] Ethanol without wiring: run "Scan ECU RAM" with the engine running, noting OFT's E%, then read the candidates in the logs
-- [ ] VSC / TRC OFF: the first Listen CAN found a single candidate, 0x0D3 (byte 0 bit 5 TRC off, byte 1 bit 3 VSC off, byte 3 bit 0 VSC on); run it a second time to confirm (the dash already reads it: if the badge shows the wrong mode, that's why)
+- [ ] Stability control modes: the first Listen CAN (TRC OFF and everything off only) found 0x0D3 (byte 0 bit 5 TRC off, byte 1 bit 3 VSC off, byte 3 bit 0 VSC on); run the new 8-step one (VSC SPORT and both included) to confirm them and find VSC sport's bit
 - [ ] Check in the car: multi-PID polling (log `polling every PID at once`), snappier gauges
 - [ ] Check in the car: Send log to the phone, acknowledged, back to the gauges
 - [ ] Check in the car: the dongle's name read and shown on READY and OFFLINE, reconnecting from OFFLINE without a reboot
@@ -67,6 +67,6 @@
 - [x] BLE: after Send log, connecting to the dongle waited for nothing: gap_connect 0x56 (BTstack's single connection still the phone's); now it waits for the phone's disconnection; failures name what the code means
 - [ ] Check in the car: Send log, then back to the dongle without 0x56
 - [x] Drive mode read from 0x0D3: the MCP2515 as it streams, the dongle every 3s (a raw monitor of that ID); a track layout with a TRC OFF / VSC OFF badge when off
-- [ ] Check in the car: the badge follows the TRC OFF button (short press, held), the gauges barely slower with the dongle
+- [ ] Check in the car: the badge follows the buttons (TRC OFF short and held; VSC SPORT once its bit is decoded), the gauges barely slower with the dongle
 - [x] CI red since the C moved into folders: `data/` in .gitignore (the log server's) also ignored src/app/data/; anchored at the root
 - [x] Every Bluetooth wait or failure screen: Retry beside Settings (auto-retry held in the settings), a compact layout for long errors

@@ -114,14 +114,14 @@ void test_elm_listen(void) {
     feed_dongle_answer(&e, "OK\r>", 4);
     CHECK(strcmp(last_sent(&d), "ATCM700\r") == 0, "then %s, want ATCM700", last_sent(&d));
     feed_dongle_answer(&e, "OK\r>", 5);
-    CHECK(strstr(s.status, "LISTEN 1/5") && strstr(s.status, "click") && !e.waiting,
+    CHECK(strstr(s.status, "LISTEN 1/8") && strstr(s.status, "click") && !e.waiting,
           "the first step doesn't wait for a click: status %s", s.status);
 
     // 1A0 is a rolling counter; 3B0 the mode alone; 2C0 a counter and,
     // in its next byte, the mode; 4D0 a temperature, a degree more from
     // step 4: it drifts, the steps back to "on" disagree.
-    static const char *const mode_3b0[SNIFF_MODES] = {"AA", "AB", "BB"};
-    static const char *const mode_2c0[SNIFF_MODES] = {"00", "10", "30"};
+    static const char *const mode_3b0[SNIFF_MODES] = {"AA", "AB", "AC", "AD", "BB"};
+    static const char *const mode_2c0[SNIFF_MODES] = {"00", "10", "04", "14", "30"};
     uint32_t t = 10;
     for (int step = 0; step < SNIFF_STEPS; step++) {
         CHECK(elm_listen_click(&e, t), "step %d: the click wasn't taken", step + 1);
@@ -136,9 +136,9 @@ void test_elm_listen(void) {
         }
     }
     CHECK(strcmp(last_sent(&d), "ATZ\r") == 0, "after listening sent %s, want ATZ (session restart)", last_sent(&d));
-    CHECK(strstr(d.logged, "sniff: 3B0 bits 0011: on 00AA trc 00AB off 00BB") != NULL,
+    CHECK(strstr(d.logged, "sniff: 3B0 bits 0017: on 00AA trc 00AB sport 00AC sport+trc 00AD off 00BB") != NULL,
           "3B0 not reported as a candidate:\n%s", d.logged);
-    CHECK(strstr(d.logged, "sniff: 2C0 bits 0030: on 0F00 trc 0F10 off 0F30") != NULL,
+    CHECK(strstr(d.logged, "sniff: 2C0 bits 0034: on 0F00 trc 0F10 sport 0F04 sport+trc 0F14 off 0F30") != NULL,
           "2C0's flag, beside a counter, not reported:\n%s", d.logged);
     CHECK(strstr(d.logged, "sniff: 1A0") == NULL, "1A0, a counter, reported:\n%s", d.logged);
     CHECK(strstr(d.logged, "sniff: 4D0") == NULL, "4D0, drifting, reported:\n%s", d.logged);

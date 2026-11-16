@@ -125,26 +125,28 @@ with the oil temperature. Still worth checking on a tank of another
 blend; and it's this tune's RAM layout, a reflash may move it: rescan
 then.
 
-## Finding the VSC / TRC OFF mode on the bus
+## Finding the stability control's modes on the bus
 
-"Listen CAN" on the settings page looks for the bits that tell the
-stability control's 3 modes apart, through the dongle
-(`src/app/obd/sniff.c`): everything on, TRC OFF (a short press of the TRC
-OFF button), everything off (the button held a few seconds).
+The GT86 has two buttons for it: TRC OFF and VSC SPORT. Together they
+make 5 modes: everything on; TRC off (a short press of TRC OFF); VSC
+sport; both; everything off (TRC OFF held a few seconds: VSC off too).
+"Listen CAN" on the settings page looks for the bits that tell them
+apart, through the dongle (`src/app/obd/sniff.c`).
 
 1. Engine running, parked. Click Listen CAN.
-2. The screen prompts each of 5 steps: everything on, TRC OFF, back on,
-   everything off, back on. Do what it says, check the lamp, then click
-   the knob.
-3. Hands off while it listens, about 30s a step, until the next prompt.
+2. The screen prompts each of 8 steps: everything on, TRC OFF, back on,
+   VSC SPORT, VSC SPORT and TRC OFF, back on, everything off, back on.
+   Do what it says, check the lamps, then click the knob.
+3. Hands off while it listens, about 30s a step, until the next prompt:
+   about 5 minutes in all.
 4. `mise run logs`: a `sniff:` line per candidate ID, with the bits that
    tell the modes apart (`bits`, a mask over its bytes) and its data in
-   each mode (`on`, `trc`, `off`).
+   each mode (`on`, `trc`, `sport`, `sport+trc`, `off`).
 
 The dongle can't print the whole bus over BLE, so it listens to 256 IDs
 at a time, 1.5s each, twice over the bus per step. A bit that changes
 within a step is noise. A candidate is a bit quiet within every step,
-the same in the 3 "on" steps, and different between two modes. It works
+the same in the 4 "on" steps, and different between two modes. It works
 bit by bit, because a flag often shares its frame with a rolling
 counter: a first run, ID by ID, found 15 of its 36 IDs noisy and no
 candidate. The steps back to "on" weed out a value drifting along (a
@@ -152,7 +154,8 @@ temperature), except one that ticks exactly once per step: it alternates
 like a flag. A real flag is a bit or two, the same across a second run.
 Run it twice: the right ID comes back both times.
 
-A first run (2026-11-16, parked, engine running) found 36 IDs, 15 with
+A first run (2026-11-16, parked, engine running), through TRC OFF and
+everything off only (it didn't know VSC SPORT), found 36 IDs, 15 with
 noise, and a single candidate, **0x0D3** (7 bytes):
 
 | Mode | Data |
@@ -165,7 +168,8 @@ Its bits read like the modes: byte 0 bit 5 (0x20) set with TRC off (in
 both off modes), byte 1 bit 3 (0x08) set with VSC off, byte 3 bit 0
 (0x01) set while VSC is on. The last byte changes every frame (a
 checksum or a counter, noise). One run only: a second one must find
-the same bits before anything reads them.
+the same bits, and VSC SPORT's. The dash already reads TRC off and VSC
+off from them (`GT86_ID_DRIVE_MODE`).
 
 ## Adding an aftermarket ethanol source
 

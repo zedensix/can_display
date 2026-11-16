@@ -199,13 +199,20 @@ static const tile_t *tile_for(signal_t signal) {
     return &ui_tiles[0];
 }
 
-// draw_track_grid is the gauges with the stability control off, on track:
-// what matters there big (the oil and the AFR across the screen, the
-// coolant and the intake under them), the battery and the ethanol left
-// out, and a badge saying which mode it's in: TRC OFF amber, VSC OFF red.
+// draw_track_grid is the gauges in a sport mode, on track: what matters
+// there big (the oil and the AFR across the screen, the coolant and the
+// intake under them), the battery and the ethanol left out, and a badge
+// saying which mode: VSC SPORT in the accent, TRC OFF (alone or with it)
+// amber, VSC OFF (everything off) red.
 void draw_track_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, drive_mode_t mode, uint32_t now_ms) {
-    const char *label = mode == DRIVE_VSC_OFF ? "VSC OFF" : "TRC OFF";
-    color_t badge = mode == DRIVE_VSC_OFF ? t->danger : t->warning;
+    static const char *const labels[DRIVE_MODES] = {
+        [DRIVE_TRC_OFF] = "TRC OFF",
+        [DRIVE_SPORT] = "VSC SPORT",
+        [DRIVE_SPORT_TRC_OFF] = "SPORT + TRC OFF",
+        [DRIVE_VSC_OFF] = "VSC OFF",
+    };
+    const char *label = labels[mode] ? labels[mode] : "";
+    color_t badge = mode == DRIVE_VSC_OFF ? t->danger : mode == DRIVE_SPORT ? t->accent : t->warning;
     int badge_w = gfx_text_width(label_font, label) + 28;
     fill_round_rect(c, (c->width - badge_w) / 2, top + 3, badge_w, BADGE_HEIGHT, BADGE_HEIGHT / 2, badge,
                     t->background);

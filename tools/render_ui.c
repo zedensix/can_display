@@ -80,6 +80,10 @@ static void shot_track_vsc(canvas_t *c) {
     shot_track(c, DRIVE_VSC_OFF);
 }
 
+static void shot_track_sport(canvas_t *c) {
+    shot_track(c, DRIVE_SPORT_TRC_OFF);
+}
+
 static void shot_alarms(canvas_t *c) {
     state_t s = state_with_alarms();
     render_screen(c, &s, (screen_t){0});
@@ -213,6 +217,7 @@ static const shot_t shots[] = {
     {"alarms", shot_alarms},
     {"track_trc", shot_track_trc},
     {"track_vsc", shot_track_vsc},
+    {"track_sport", shot_track_sport},
     {"shot_alarms_unlit", shot_alarms_unlit},
     {"oil_critical", shot_oil_critical},
     {"cold", shot_cold},
