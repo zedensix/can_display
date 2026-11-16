@@ -25,13 +25,19 @@ static const char *const init_commands[] = {
 // the dash stays at "--". 0100, 0120 and 0140 are the bitmaps of the
 // PIDs the engine ECU supports. MULTI_POLL asks for every polled PID at
 // once: if its answer holds them all, polling uses it (one round trip
-// over BLE instead of four), with the response count digit like 010C1.
-#define MULTI_POLL "010C24050F"
-static const char *const probe_commands[] = {"ATI", "ATRV", "0100", "0120", "0140", "010C", MULTI_POLL "1"};
+// over BLE instead of five), with the response count digit like 010C1.
+// This dongle (IOS-Vlink) counts frames, not answers: a "1" got it to
+// stop after the first of the answer's frames (log, 2026-11-16). The 15
+// bytes take 3 frames.
+#define MULTI_POLL "010C24050F11"
+#define MULTI_POLL_FRAMES "3"
+static const char *const probe_commands[] = {
+    "ATI", "ATRV", "0100", "0120", "0140", "010C", MULTI_POLL MULTI_POLL_FRAMES};
 #define PROBE_COUNT (int)(sizeof probe_commands / sizeof probe_commands[0])
 
-// RPM comes every other request: the shift light follows it.
-static const uint8_t poll_pids[] = {PID_RPM, PID_LAMBDA, PID_RPM, PID_COOLANT, PID_RPM, PID_IAT};
+// RPM comes every other request: the shift light follows it. The
+// throttle says whether a lean AFR is a deceleration.
+static const uint8_t poll_pids[] = {PID_RPM, PID_LAMBDA, PID_RPM, PID_THROTTLE, PID_RPM, PID_COOLANT, PID_RPM, PID_IAT};
 #define POLL_COUNT (int)(sizeof poll_pids / sizeof poll_pids[0])
 
 // The oil temperature (see obd.h) is asked to the engine ECU directly,
@@ -93,9 +99,9 @@ static void send_next_poll_command(elm_t *e, uint32_t now_ms) {
         send_command(e, "ATRV", ELM_TIMEOUT_MS, now_ms);
         return;
     }
-    char command[12];
+    char command[sizeof e->command];
     if (e->multi_pid) {
-        snprintf(command, sizeof command, "%s%s", MULTI_POLL, e->single_response ? "1" : "");
+        snprintf(command, sizeof command, "%s%s", MULTI_POLL, e->single_response ? MULTI_POLL_FRAMES : "");
     } else {
         snprintf(command, sizeof command, "01%02X%s", poll_pids[e->step], e->single_response ? "1" : "");
         e->step = (e->step + 1) % POLL_COUNT;
@@ -229,25 +235,50 @@ static void handle_ram_scan_answer(elm_t *e, char *lines[], int n, uint32_t now_
 }
 
 // Listening sets the dongle to print raw frames (ATCAF0) through an ID
-// mask of 0x700 (ATCM700), then moves the window (ATCF) and monitors
-// (ATMA) in turn. Any character stops a monitor; the dongle stops by
-// itself, with BUFFER FULL, when BLE can't keep up. At the end, the
-// session starts over (ATZ) rather than undo all that.
+// mask of 0x700 (ATCM700), then, for each of sniff_steps, prompts the
+// driver and waits for a click, then moves the window (ATCF) and monitors
+// (ATMA) in turn, ELM_LISTEN_ROUNDS times over the bus. Any character
+// stops a monitor; the dongle stops by itself, with BUFFER FULL, when BLE
+// can't keep up. At the end, the session starts over (ATZ) rather than
+// undo all that.
 static void start_can_listen(elm_t *e, uint32_t now_ms) {
     e->listen_requested = false;
     e->phase = ELM_LISTEN;
-    e->listen_ms = now_ms;
-    e->window = 0;
     memset(&e->sniff, 0, sizeof e->sniff);
-    e->cb.log(e->cb.ctx, "sniff: listening, hands off");
-    state_set_status(e->state, "LISTEN\nhands off the car");
+    e->cb.log(e->cb.ctx, "sniff: listening");
+    state_set_status(e->state, "LISTEN\nsetting the dongle up");
     send_command(e, "ATCAF0", ELM_TIMEOUT_MS, now_ms);
+}
+
+static void prompt_listen_step(elm_t *e) {
+    e->listen_awaiting_click = true;
+    char status[128];
+    snprintf(status, sizeof status, "LISTEN %d/%d\n%s\nthen click", e->sniff.step + 1, SNIFF_STEPS,
+             sniff_steps[e->sniff.step].prompt);
+    state_set_status(e->state, status);
 }
 
 static void send_listen_window_filter(elm_t *e, uint32_t now_ms) {
     char command[16];
-    snprintf(command, sizeof command, "ATCF%03X", e->window * 0x100);
+    snprintf(command, sizeof command, "ATCF%03X", e->windows % ELM_LISTEN_WINDOWS * 0x100);
     send_command(e, command, ELM_TIMEOUT_MS, now_ms);
+    char status[64];
+    snprintf(status, sizeof status, "LISTEN %d/%d\nhands off\n%d%%", e->sniff.step + 1, SNIFF_STEPS,
+             100 * e->windows / (ELM_LISTEN_WINDOWS * ELM_LISTEN_ROUNDS));
+    state_set_status(e->state, status);
+}
+
+bool elm_listen_click(elm_t *e, uint32_t now_ms) {
+    if (e->phase != ELM_LISTEN || !e->listen_awaiting_click) {
+        return false;
+    }
+    e->listen_awaiting_click = false;
+    e->windows = 0;
+    char line[48];
+    snprintf(line, sizeof line, "sniff: step %d/%d", e->sniff.step + 1, SNIFF_STEPS);
+    e->cb.log(e->cb.ctx, line);
+    send_listen_window_filter(e, now_ms);
+    return true;
 }
 
 static void handle_can_listen_answer(elm_t *e, uint32_t now_ms) {
@@ -255,41 +286,30 @@ static void handle_can_listen_answer(elm_t *e, uint32_t now_ms) {
         send_command(e, "ATCM700", ELM_TIMEOUT_MS, now_ms);
         return;
     }
-    if (strncmp(e->command, "ATCF", 4) == 0 || strcmp(e->command, "ATCM700") == 0) {
-        if (strcmp(e->command, "ATCM700") == 0) {
-            send_listen_window_filter(e, now_ms);
-            return;
-        }
+    if (strcmp(e->command, "ATCM700") == 0) {
+        prompt_listen_step(e);
+        return;
+    }
+    if (strncmp(e->command, "ATCF", 4) == 0) {
         e->monitoring = true;
         e->stop_sent = false;
         e->monitor_ms = now_ms;
         send_command(e, "ATMA", ELM_LISTEN_DWELL_MS + ELM_TIMEOUT_MS, now_ms);
         return;
     }
-    // A monitor ended: next window, or the next stage.
+    // A monitor ended: next window, the next step, or done.
     e->monitoring = false;
-    e->window = (e->window + 1) % ELM_LISTEN_WINDOWS;
-    uint32_t elapsed = now_ms - e->listen_ms;
-    if (elapsed >= ELM_LISTEN_MS) {
-        sniff_log_candidates(&e->sniff, e->cb.log, e->cb.ctx);
-        state_set_status(e->state, "SYNC\nlistening done, see the log");
-        elm_start_session(e, e->state, e->cb, now_ms);
+    if (++e->windows < ELM_LISTEN_WINDOWS * ELM_LISTEN_ROUNDS) {
+        send_listen_window_filter(e, now_ms);
         return;
     }
-    char status[96];
-    if (elapsed < ELM_LISTEN_BASELINE_MS) {
-        snprintf(status, sizeof status, "LISTEN\nhands off the car\n%lus",
-                 (unsigned long)((ELM_LISTEN_BASELINE_MS - elapsed) / 1000));
-    } else {
-        if (!e->sniff.baseline_over) {
-            sniff_end_baseline(&e->sniff);
-            e->cb.log(e->cb.ctx, "sniff: baseline over, presses");
-        }
-        snprintf(status, sizeof status, "LISTEN\npress SPORT on and off,\nagain and again\n%lus",
-                 (unsigned long)((ELM_LISTEN_MS - elapsed) / 1000));
+    if (++e->sniff.step < SNIFF_STEPS) {
+        prompt_listen_step(e);
+        return;
     }
-    state_set_status(e->state, status);
-    send_listen_window_filter(e, now_ms);
+    sniff_log_candidates(&e->sniff, e->cb.log, e->cb.ctx);
+    state_set_status(e->state, "SYNC\nlistening done, see the log");
+    elm_start_session(e, e->state, e->cb, now_ms);
 }
 
 static void send_next_probe(elm_t *e, uint32_t now_ms) {
@@ -312,7 +332,8 @@ static void enable_multi_pid_if_answered(elm_t *e, char *lines[], int n) {
         }
     }
     e->multi_pid = scratch.readings[SIG_RPM].valid && scratch.readings[SIG_COOLANT].valid &&
-                   scratch.readings[SIG_AFR].valid && scratch.readings[SIG_IAT].valid;
+                   scratch.readings[SIG_AFR].valid && scratch.readings[SIG_IAT].valid &&
+                   scratch.readings[SIG_THROTTLE].valid;
     e->cb.log(e->cb.ctx, e->multi_pid ? "elm327: polling every PID at once"
                                       : "elm327: no multi-PID answer, polling one PID at a time");
 }
@@ -369,7 +390,7 @@ static void handle_dongle_answer(elm_t *e, uint32_t now_ms) {
         break;
     case ELM_PROBE:
         log_command_answer(e, e->command, lines, n);
-        if (strcmp(e->command, MULTI_POLL "1") == 0) {
+        if (strcmp(e->command, MULTI_POLL MULTI_POLL_FRAMES) == 0) {
             enable_multi_pid_if_answered(e, lines, n);
         }
         send_next_probe(e, now_ms);

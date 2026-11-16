@@ -879,6 +879,9 @@ bool ble_handle_click(uint32_t now_ms) {
     case SENDING:
         back_to_dongle();
         return true;
+    case RUNNING:
+        // A CAN listen's prompt: the driver has done what it asked.
+        return elm_listen_click(&elm, now_ms);
     default:
         return false;
     }

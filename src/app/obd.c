@@ -41,6 +41,9 @@ signal_t obd_decode_message(const uint8_t *msg, int len, state_t *state, uint32_
             // Lambda, then the sensor's voltage (2 bytes each).
             got = SIG_AFR, size = value_len >= 4 ? 4 : 2;
             state_set_reading(state, got, (float)(v[0] << 8 | v[1]) * 2 / 65536 * GASOLINE_STOICH_AFR, now_ms);
+        } else if (msg[i] == PID_THROTTLE && value_len >= 1) {
+            got = SIG_THROTTLE, size = 1;
+            state_set_reading(state, got, (float)v[0] * 100 / 255, now_ms);
         } else {
             break;
         }

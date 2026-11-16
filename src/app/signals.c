@@ -13,6 +13,9 @@ void state_set_reading(state_t *s, signal_t sig, float value, uint32_t now_ms) {
     r->value = value;
     r->valid = true;
     r->updated_ms = now_ms;
+    if (sig == SIG_THROTTLE && value <= r->min + THROTTLE_CLOSED_MARGIN) {
+        s->throttle_closed_ms = now_ms;
+    }
 }
 
 void state_set_status(state_t *s, const char *status) {
@@ -21,4 +24,9 @@ void state_set_status(state_t *s, const char *status) {
 
 bool reading_is_stale(const reading_t *r, uint32_t now_ms, uint32_t max_age_ms) {
     return !r->valid || now_ms - r->updated_ms > max_age_ms;
+}
+
+bool state_off_throttle(const state_t *s, uint32_t now_ms, uint32_t max_age_ms) {
+    return !reading_is_stale(&s->readings[SIG_THROTTLE], now_ms, max_age_ms) &&
+           now_ms - s->throttle_closed_ms <= THROTTLE_REOPEN_HOLD_MS;
 }

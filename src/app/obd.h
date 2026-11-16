@@ -24,6 +24,9 @@ typedef struct {
 #define PID_RPM 0x0C
 #define PID_IAT 0x0F
 #define PID_LAMBDA 0x24
+// Listed as supported by this car's engine ECU (0100 bitmap BE3FA813,
+// 2026-11-14); its closed and wide-open values aren't known yet.
+#define PID_THROTTLE 0x11
 
 // GASOLINE_STOICH_AFR turns lambda into a gasoline AFR.
 #define GASOLINE_STOICH_AFR 14.7f

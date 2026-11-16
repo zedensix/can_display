@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "sniff.h"
 #include "ui.h"
 
 // The panel's size, as in src/firmware/board.h.
@@ -25,15 +26,15 @@ static const uint32_t now = 100000;
 // state_while_driving is a session so far (the extremes) and its latest readings.
 static state_t state_while_driving(void) {
     state_t s = {0};
-    const float low[SIG_COUNT] = {[SIG_RPM] = 820,       [SIG_COOLANT] = 84, [SIG_IAT] = 22,    [SIG_OIL] = 88,
-                                  [SIG_BATTERY] = 13.9f, [SIG_AFR] = 11.8f,  [SIG_ETHANOL] = 67};
-    const float high[SIG_COUNT] = {[SIG_RPM] = 7350,      [SIG_COOLANT] = 96, [SIG_IAT] = 41,    [SIG_OIL] = 112,
-                                   [SIG_BATTERY] = 14.4f, [SIG_AFR] = 15.9f,  [SIG_ETHANOL] = 69};
-    const float v[SIG_COUNT] = {[SIG_RPM] = 6400,      [SIG_COOLANT] = 91, [SIG_IAT] = 31,    [SIG_OIL] = 104,
-                                [SIG_BATTERY] = 14.2f, [SIG_AFR] = 14.7f,  [SIG_ETHANOL] = 68};
+    const float low[SIG_COUNT] = {[SIG_RPM] = 820,       [SIG_COOLANT] = 84, [SIG_IAT] = 22,     [SIG_OIL] = 88,
+                                  [SIG_BATTERY] = 13.9f, [SIG_AFR] = 11.8f,  [SIG_ETHANOL] = 67, [SIG_THROTTLE] = 14};
+    const float high[SIG_COUNT] = {[SIG_RPM] = 7350,      [SIG_COOLANT] = 96, [SIG_IAT] = 41,     [SIG_OIL] = 112,
+                                   [SIG_BATTERY] = 14.4f, [SIG_AFR] = 15.9f,  [SIG_ETHANOL] = 69, [SIG_THROTTLE] = 92};
+    const float v[SIG_COUNT] = {[SIG_RPM] = 6400,      [SIG_COOLANT] = 91, [SIG_IAT] = 31,     [SIG_OIL] = 104,
+                                [SIG_BATTERY] = 14.2f, [SIG_AFR] = 14.7f,  [SIG_ETHANOL] = 68, [SIG_THROTTLE] = 45};
     for (int i = 0; i < SIG_COUNT; i++) {
-        state_set_reading(&s, (signal_t)i, low[i], now);
-        state_set_reading(&s, (signal_t)i, high[i], now);
+        state_set_reading(&s, (signal_t)i, low[i], now - 60000);
+        state_set_reading(&s, (signal_t)i, high[i], now - 60000);
         state_set_reading(&s, (signal_t)i, v[i], now);
     }
     return s;
@@ -135,6 +136,13 @@ static void shot_scan(canvas_t *c) {
     render_status_screen(c, "DEEP SCAN\n37 KB of ECU RAM\n3 candidates");
 }
 
+// A CAN listen's longest prompt, as elm327.c words it.
+static void shot_listen(canvas_t *c) {
+    char text[128];
+    snprintf(text, sizeof text, "LISTEN 4/%d\n%s\nthen click", SNIFF_STEPS, sniff_steps[3].prompt);
+    render_status_screen(c, text);
+}
+
 static void shot_settings(canvas_t *c) {
     state_t s = {0};
     render_screen(c, &s, (screen_t){.page = PAGE_SETTINGS, .cursor = ROW_SHIFT_LIGHT, .editing = true});
@@ -174,6 +182,7 @@ static const shot_t shots[] = {
     {"offline", shot_offline},
     {"connecting", shot_connecting},
     {"scan", shot_scan},
+    {"listen", shot_listen},
     {"failed", shot_failed},
     {"settings", shot_settings},
     {"settings_can", shot_settings_can},

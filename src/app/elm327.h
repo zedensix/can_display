@@ -15,7 +15,7 @@
 //
 // The session resets and configures the dongle (echo off, CAN headers
 // on, ISO 15765-4 11bit 500kbps), logs its raw answers to a few probes,
-// then polls RPM, AFR, coolant and intake temperatures (all in one request if the
+// then polls RPM, AFR, throttle, coolant and intake temperatures (all in one request if the
 // ECU answers that), plus the battery voltage about once a second (ATRV,
 // answered by the dongle itself) and the oil temperature every few
 // seconds. With headers on, each reply line is a CAN frame; multi-frame
@@ -38,16 +38,16 @@
 #define ELM_SCAN_START 0xFFF80000u
 #define ELM_SCAN_MAX (256u * 1024)
 #define ELM_SCAN_CHUNK 60
-#define ELM_SCAN_LOGGED 40
+#define ELM_SCAN_LOGGED 120
 
 // Listening to the CAN bus (elm_request_can_listen) for sniff_t: the bus is far
 // busier than BLE can carry, so the dongle listens to one window of 256
-// IDs at a time (ATCF/ATCM), ELM_LISTEN_DWELL_MS each, round and round:
-// ELM_LISTEN_BASELINE_MS hands off, then presses until ELM_LISTEN_MS.
+// IDs at a time (ATCF/ATCM), ELM_LISTEN_DWELL_MS each, ELM_LISTEN_ROUNDS
+// times over the bus per step (about 15s a round): twice, so each ID is
+// seen more than once in a step, its noise with it.
 #define ELM_LISTEN_WINDOWS 8
 #define ELM_LISTEN_DWELL_MS 1500
-#define ELM_LISTEN_BASELINE_MS 45000
-#define ELM_LISTEN_MS 105000
+#define ELM_LISTEN_ROUNDS 2
 
 typedef struct {
     // write sends one command, "\r" included.
@@ -102,10 +102,12 @@ typedef struct {
     uint32_t scan_addr;
     int scan_candidates;
     // listen_requested starts listening to the bus at the next poll
-    // (elm_request_can_listen); monitoring is while the dongle prints frames.
-    bool listen_requested, monitoring, stop_sent;
-    uint32_t listen_ms, monitor_ms;
-    int window;
+    // (elm_request_can_listen); listen_awaiting_click is while a step's
+    // prompt waits for the driver (elm_listen_click); monitoring is while
+    // the dongle prints frames; windows counts a step's monitors.
+    bool listen_requested, listen_awaiting_click, monitoring, stop_sent;
+    uint32_t monitor_ms;
+    int windows;
     sniff_t sniff;
 } elm_t;
 
@@ -119,9 +121,14 @@ void elm_check_timers(elm_t *e, uint32_t now_ms);
 void elm_request_ram_scan(elm_t *e);
 
 // elm_request_can_listen asks for a sniff of the CAN bus (see sniff_t and
-// ELM_LISTEN_*): it starts at the next poll, tells the driver what to do
-// as the status, logs the candidates, then restarts the session.
+// ELM_LISTEN_*): it starts at the next poll, prompts the driver for each
+// of sniff_steps as the status, listens once they click
+// (elm_listen_click), logs the candidates, then restarts the session.
 void elm_request_can_listen(elm_t *e);
+
+// elm_listen_click tells a listen's prompt the driver has done what it
+// asks. It returns whether a prompt was waiting for it.
+bool elm_listen_click(elm_t *e, uint32_t now_ms);
 
 #define ELM_MAX_LINES 16
 

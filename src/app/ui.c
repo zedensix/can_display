@@ -96,9 +96,12 @@ static float scale_fraction(const range_t *r, float v) {
 }
 
 // format_tile_value is what tile shows for reading: its text, color and gauge
-// fraction, or "--" once stale (fraction -1: nothing lit).
-static void format_tile_value(const tile_t *tile, reading_t reading, uint32_t now_ms, const theme_t *t, char text[24],
+// fraction, or "--" once stale (fraction -1: nothing lit). Off the
+// throttle the AFR is no mixture to judge (the fuel is cut while
+// decelerating, it reads lean): no band color, no alarm, white.
+static void format_tile_value(const tile_t *tile, const state_t *s, uint32_t now_ms, const theme_t *t, char text[24],
                               color_t *color, float *fraction) {
+    reading_t reading = s->readings[tile->signal];
     if (reading_is_stale(&reading, now_ms, tile->stale_ms)) {
         snprintf(text, 24, "--");
         *color = t->stale;
@@ -108,7 +111,8 @@ static void format_tile_value(const tile_t *tile, reading_t reading, uint32_t no
     char number[16];
     snprintf(number, sizeof number, tile->format, (double)reading.value);
     snprintf(text, 24, "%s%s", number, tile->unit);
-    *color = band_color(&tile->range, reading.value, t);
+    bool unjudged = tile->signal == SIG_AFR && state_off_throttle(s, now_ms, FAST_STALE_MS);
+    *color = unjudged ? t->label : band_color(&tile->range, reading.value, t);
     *fraction = scale_fraction(&tile->range, reading.value);
 }
 
@@ -200,12 +204,12 @@ static void draw_text_fitting(canvas_t *c, int cx, int y, int max_width, const c
 
 #define BAR_SEGMENTS 12
 
-static void draw_tile(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int y, int w, int h, reading_t r,
+static void draw_tile(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int y, int w, int h, const state_t *s,
                       uint32_t now_ms) {
     char text[24];
     color_t color;
     float fraction;
-    format_tile_value(tile, r, now_ms, t, text, &color, &fraction);
+    format_tile_value(tile, s, now_ms, t, text, &color, &fraction);
     bool alarm = color == t->danger && alarm_blink_lit(now_ms);
     if (alarm) {
         gfx_fill_rect(c, x, y, w, h, t->alarm);
@@ -236,12 +240,13 @@ static void draw_tile(canvas_t *c, const theme_t *t, const tile_t *tile, int x, 
 // tachometer: segments around the value, blown up as much as fits
 // inside, up to 3 times (chunky, but readable from the seat, without a
 // bigger font taking flash).
-static void draw_tile_dial(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int y, int w, int h, reading_t r,
-                           uint32_t now_ms) {
+static void draw_tile_dial(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int y, int w, int h,
+                           const state_t *s, uint32_t now_ms) {
+    reading_t r = s->readings[tile->signal];
     char text[24];
     color_t color;
     float fraction;
-    format_tile_value(tile, r, now_ms, t, text, &color, &fraction);
+    format_tile_value(tile, s, now_ms, t, text, &color, &fraction);
     bool alarm = color == t->danger && alarm_blink_lit(now_ms);
     if (alarm) {
         gfx_fill_rect(c, x, y, w, h, t->alarm);
@@ -281,13 +286,13 @@ static void draw_tile_dial(canvas_t *c, const theme_t *t, const tile_t *tile, in
 }
 
 // draw_grid draws every tile, from top down.
-static void draw_grid(canvas_t *c, const theme_t *t, const reading_t *readings, int top, uint32_t now_ms) {
+static void draw_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, uint32_t now_ms) {
     int rows = (ui_tile_count + GRID_COLUMNS - 1) / GRID_COLUMNS;
     int cell_w = c->width / GRID_COLUMNS, cell_h = (c->height - top) / rows;
     for (int i = 0; i < ui_tile_count; i++) {
         int col = i % GRID_COLUMNS, row = i / GRID_COLUMNS;
         draw_tile(c, t, &ui_tiles[i], col * cell_w + GRID_GAP, top + row * cell_h + GRID_GAP, cell_w - 2 * GRID_GAP,
-                  cell_h - 2 * GRID_GAP, readings[ui_tiles[i].signal], now_ms);
+                  cell_h - 2 * GRID_GAP, s, now_ms);
     }
 }
 
@@ -567,9 +572,9 @@ void ui_render(canvas_t *c, const state_t *state, const screen_t *screen, const 
     if (screen->view > 0 && screen->view <= ui_tile_count) {
         const tile_t *tile = &ui_tiles[screen->view - 1];
         draw_tile_dial(c, t, tile, GRID_GAP, top + GRID_GAP, c->width - 2 * GRID_GAP, c->height - top - 2 * GRID_GAP,
-                       state->readings[tile->signal], now_ms);
+                       state, now_ms);
     } else {
-        draw_grid(c, t, state->readings, top, now_ms);
+        draw_grid(c, t, state, top, now_ms);
     }
 }
 

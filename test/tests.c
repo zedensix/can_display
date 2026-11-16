@@ -43,6 +43,9 @@ static void test_obd_decode(void) {
     can_frame_t lambda = {OBD_RESPONSE_ECU1, 8, {0x06, 0x41, 0x24, 0x80, 0x00, 0x00, 0x00}};
     CHECK(obd_decode_frame(&lambda, &s, 1) && nearly_equal(s.readings[SIG_AFR].value, 14.7f), "afr = %f, want 14.7",
           (double)s.readings[SIG_AFR].value);
+    can_frame_t throttle = {OBD_RESPONSE_ECU1, 8, {0x03, 0x41, 0x11, 0x33}};
+    CHECK(obd_decode_frame(&throttle, &s, 1) && nearly_equal(s.readings[SIG_THROTTLE].value, 20),
+          "throttle = %f, want 20", (double)s.readings[SIG_THROTTLE].value);
     can_frame_t other_ecu = {0x7E9, 8, {0x03, 0x41, 0x05, 0x7B}};
     CHECK(!obd_decode_frame(&other_ecu, &s, 1), "a frame from 0x7E9 was decoded");
     can_frame_t multi = {OBD_RESPONSE_ECU1, 8, {0x10, 0x14, 0x49, 0x02}};
@@ -282,10 +285,11 @@ static void test_elm_scan(void) {
 }
 
 // multi_answer answers MULTI_POLL: RPM 1726, lambda 1.0 (AFR 14.7) and
-// its sensor's voltage, coolant 83°C, intake 31°C, 13 bytes over two
-// frames.
-static const char *multi_answer = "7E8100D410C1AF82480\r"
-                                  "7E821006666057B0F47\r>";
+// its sensor's voltage, coolant 83°C, intake 31°C, throttle 20%, 15
+// bytes over three frames.
+static const char *multi_answer = "7E8100F410C1AF82480\r"
+                                  "7E821006666057B0F47\r"
+                                  "7E8221133AAAAAAAAAA\r>";
 
 static void test_elm_multi_pid(void) {
     fake_dongle_t d = {0};
@@ -296,18 +300,19 @@ static void test_elm_multi_pid(void) {
     for (int i = 0; i < 7 + 6; i++) {
         feed_dongle_answer(&e, "OK\r>", 2);
     }
-    CHECK(strcmp(last_sent(&d), "010C24050F1\r") == 0, "last probe %s, want the multi-PID one", last_sent(&d));
+    CHECK(strcmp(last_sent(&d), "010C24050F113\r") == 0, "last probe %s, want the multi-PID one", last_sent(&d));
     feed_dongle_answer(&e, multi_answer, 3);
     CHECK(e.multi_pid, "a full multi-PID answer didn't turn multi-PID polling on:\n%s", d.logged);
     feed_dongle_answer(&e, "12.4V\r>", 4); // ATRV, the first poll
-    CHECK(strcmp(last_sent(&d), "010C24050F1\r") == 0, "polled %s, want every PID at once", last_sent(&d));
+    CHECK(strcmp(last_sent(&d), "010C24050F113\r") == 0, "polled %s, want every PID at once", last_sent(&d));
     feed_dongle_answer(&e, multi_answer, 5);
     CHECK(nearly_equal(s.readings[SIG_RPM].value, 1726) && nearly_equal(s.readings[SIG_AFR].value, 14.7f) &&
-              nearly_equal(s.readings[SIG_COOLANT].value, 83) && nearly_equal(s.readings[SIG_IAT].value, 31),
+              nearly_equal(s.readings[SIG_COOLANT].value, 83) && nearly_equal(s.readings[SIG_IAT].value, 31) &&
+              nearly_equal(s.readings[SIG_THROTTLE].value, 20),
           "multi-PID answer gave rpm %f afr %f coolant %f intake %f", (double)s.readings[SIG_RPM].value,
           (double)s.readings[SIG_AFR].value, (double)s.readings[SIG_COOLANT].value, (double)s.readings[SIG_IAT].value);
     feed_dongle_answer(&e, "?\r>", 6); // a dongle without the count digit
-    CHECK(strcmp(last_sent(&d), "010C24050F\r") == 0, "after ? sent %s, want 010C24050F", last_sent(&d));
+    CHECK(strcmp(last_sent(&d), "010C24050F11\r") == 0, "after ? sent %s, want 010C24050F11", last_sent(&d));
 }
 
 // answer_listen_window answers one window of a listen: the ATCF, then the
@@ -337,26 +342,34 @@ static void test_elm_listen(void) {
     feed_dongle_answer(&e, "OK\r>", 4);
     CHECK(strcmp(last_sent(&d), "ATCM700\r") == 0, "then %s, want ATCM700", last_sent(&d));
     feed_dongle_answer(&e, "OK\r>", 5);
-    CHECK(strcmp(last_sent(&d), "ATCF000\r") == 0, "then %s, want ATCF000", last_sent(&d));
-    feed_dongle_answer(&e, "OK\r>", 6);
-    CHECK(strcmp(last_sent(&d), "ATMA\r") == 0 && e.monitoring, "then %s, want ATMA", last_sent(&d));
-    elm_check_timers(&e, 6 + ELM_LISTEN_DWELL_MS);
-    CHECK(strcmp(last_sent(&d), "\r") == 0, "the dwell over, sent %s, want a stop", last_sent(&d));
-    feed_dongle_answer(&e, "STOPPED\r>", 6 + ELM_LISTEN_DWELL_MS);
-    CHECK(strcmp(last_sent(&d), "ATCF100\r") == 0, "next window %s, want ATCF100", last_sent(&d));
+    CHECK(strstr(s.status, "LISTEN 1/5") && strstr(s.status, "click") && !e.waiting,
+          "the first step doesn't wait for a click: status %s", s.status);
 
-    // 1A0 counts all along; 3B0 only changes with the presses.
-    uint32_t t = 10 + ELM_LISTEN_DWELL_MS;
-    for (int i = 0; t < ELM_LISTEN_MS + 3; i++) {
-        char frames[64];
-        bool pressed = t >= ELM_LISTEN_BASELINE_MS && i % 2;
-        snprintf(frames, sizeof frames, "1A0%02X\r3B000%s\rNO DATA\r", i & 0xFF, pressed ? "AB" : "AA");
-        answer_listen_window(&e, &t, frames);
+    // 1A0 is a rolling counter; 3B0 the mode alone; 2C0 a counter and,
+    // in its next byte, the mode; 4D0 a temperature, a degree more from
+    // step 4: it drifts, the steps back to "on" disagree.
+    static const char *const mode_3b0[SNIFF_MODES] = {"AA", "AB", "BB"};
+    static const char *const mode_2c0[SNIFF_MODES] = {"00", "10", "30"};
+    uint32_t t = 10;
+    for (int step = 0; step < SNIFF_STEPS; step++) {
+        CHECK(elm_listen_click(&e, t), "step %d: the click wasn't taken", step + 1);
+        CHECK(strcmp(last_sent(&d), "ATCF000\r") == 0, "step %d began with %s, want ATCF000", step + 1, last_sent(&d));
+        sniff_mode_t mode = sniff_steps[step].mode;
+        for (int w = 0; w < ELM_LISTEN_WINDOWS * ELM_LISTEN_ROUNDS; w++) {
+            CHECK(w == 0 || !elm_listen_click(&e, t), "a click was taken while listening");
+            char frames[96];
+            snprintf(frames, sizeof frames, "1A0%02X\r3B000%s\r2C0%02X%s\r4D0%02X\rNO DATA\r", w & 0x0F, mode_3b0[mode],
+                     w & 0x0F, mode_2c0[mode], 0x50 + (step >= 3));
+            answer_listen_window(&e, &t, frames);
+        }
     }
     CHECK(strcmp(last_sent(&d), "ATZ\r") == 0, "after listening sent %s, want ATZ (session restart)", last_sent(&d));
-    CHECK(strstr(d.logged, "sniff: 3B0 x") != NULL && strstr(d.logged, "00AA -> 00AB") != NULL,
+    CHECK(strstr(d.logged, "sniff: 3B0 bits 0011: on 00AA trc 00AB off 00BB") != NULL,
           "3B0 not reported as a candidate:\n%s", d.logged);
-    CHECK(strstr(d.logged, "sniff: 1A0 x") == NULL, "1A0, changing in the baseline, reported:\n%s", d.logged);
+    CHECK(strstr(d.logged, "sniff: 2C0 bits 0030: on 0F00 trc 0F10 off 0F30") != NULL,
+          "2C0's flag, beside a counter, not reported:\n%s", d.logged);
+    CHECK(strstr(d.logged, "sniff: 1A0") == NULL, "1A0, a counter, reported:\n%s", d.logged);
+    CHECK(strstr(d.logged, "sniff: 4D0") == NULL, "4D0, drifting, reported:\n%s", d.logged);
 }
 
 static void test_isotp(void) {
@@ -580,6 +593,27 @@ static void test_extremes(void) {
           "afr %f, min %f, max %f", (double)r.value, (double)r.min, (double)r.max);
 }
 
+// A lean AFR off the throttle is a fuel cut, not an alarm: closed is
+// the session's lowest throttle plus a margin, and stays closed a moment
+// after the foot comes back, while the AFR catches up.
+static void test_off_throttle(void) {
+    state_t s = {0};
+    CHECK(!state_off_throttle(&s, 0, 2000), "no throttle reading counted as off the throttle");
+    state_set_reading(&s, SIG_THROTTLE, 15, 0); // idling
+    CHECK(state_off_throttle(&s, 0, 2000), "idling isn't off the throttle");
+    state_set_reading(&s, SIG_THROTTLE, 60, 5000);
+    CHECK(state_off_throttle(&s, 5000, 2000) == false, "60%% counted as off the throttle 5s after idling");
+    state_set_reading(&s, SIG_THROTTLE, 13, 6000); // lifting off, below the idle opening
+    CHECK(state_off_throttle(&s, 6000, 2000), "lifting off isn't off the throttle");
+    state_set_reading(&s, SIG_THROTTLE, 40, 6500);
+    CHECK(state_off_throttle(&s, 6500, 2000), "back on the throttle 0.5s ago, the AFR's lag isn't covered");
+    state_set_reading(&s, SIG_THROTTLE, 40, 6000 + THROTTLE_REOPEN_HOLD_MS + 1);
+    CHECK(!state_off_throttle(&s, 6000 + THROTTLE_REOPEN_HOLD_MS + 1, 2000), "still off the throttle after the hold");
+    CHECK(!state_off_throttle(&s, 20000, 2000), "a stale throttle counted as off the throttle");
+    state_set_reading(&s, SIG_THROTTLE, 13 + THROTTLE_CLOSED_MARGIN, 30000);
+    CHECK(state_off_throttle(&s, 30000, 2000), "the margin above the closed throttle isn't closed");
+}
+
 static void test_datalog(void) {
     static fake_flash_t f;
     memset(f.data, 0xFF, sizeof f.data);
@@ -649,6 +683,7 @@ int main(void) {
     test_screen();
     test_sensors();
     test_extremes();
+    test_off_throttle();
     test_datalog();
     test_wrap();
     if (failures) {

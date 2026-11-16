@@ -3,14 +3,20 @@
 #include <stdio.h>
 #include <string.h>
 
-static bool same_frame_data(uint8_t dlc_a, const uint8_t *a, uint8_t dlc_b, const uint8_t *b) {
-    return dlc_a == dlc_b && memcmp(a, b, dlc_a) == 0;
-}
+const sniff_step_t sniff_steps[SNIFF_STEPS] = {
+    {"VSC and TRC on:\nno OFF lamp lit", SNIFF_ALL_ON}, {"press TRC OFF briefly:\nTRC OFF lamp lit", SNIFF_TRC_OFF},
+    {"press TRC OFF again:\nlamp out", SNIFF_ALL_ON},   {"hold TRC OFF a few\nseconds: VSC OFF lit", SNIFF_ALL_OFF},
+    {"press TRC OFF again:\nlamps out", SNIFF_ALL_ON},
+};
+
+static const char *const mode_names[SNIFF_MODES] = {"on", "trc", "off"};
 
 void sniff_add_frame(sniff_t *s, const can_frame_t *f) {
-    if (f->dlc > 8) {
+    if (f->dlc > 8 || s->step < 0 || s->step >= SNIFF_STEPS) {
         return;
     }
+    uint8_t data[8] = {0};
+    memcpy(data, f->data, f->dlc);
     sniff_id_t *e = NULL;
     for (int i = 0; i < s->count && !e; i++) {
         if (s->ids[i].id == f->id) {
@@ -22,63 +28,88 @@ void sniff_add_frame(sniff_t *s, const can_frame_t *f) {
             return;
         }
         e = &s->ids[s->count++];
-        *e = (sniff_id_t){.id = (uint16_t)f->id, .dlc = f->dlc, .before_dlc = f->dlc};
-        memcpy(e->data, f->data, f->dlc);
-        memcpy(e->before, f->data, f->dlc);
-        return;
+        *e = (sniff_id_t){.id = (uint16_t)f->id};
     }
-    if (same_frame_data(e->dlc, e->data, f->dlc, f->data)) {
-        return;
-    }
-    if (!s->baseline_over) {
-        e->noisy = true;
-    } else if (!e->noisy) {
-        if (e->changes == 0) {
-            e->after_dlc = f->dlc;
-            memcpy(e->after, f->data, f->dlc);
-        }
-        if (e->changes < UINT8_MAX) {
-            e->changes++;
+    uint8_t bit = (uint8_t)(1u << s->step);
+    if (e->seen & bit) {
+        for (int i = 0; i < 8; i++) {
+            e->noise[i] |= e->data[s->step][i] ^ data[i];
         }
     }
+    e->seen |= bit;
     e->dlc = f->dlc;
-    memcpy(e->data, f->data, f->dlc);
+    memcpy(e->data[s->step], data, 8);
 }
 
-void sniff_end_baseline(sniff_t *s) {
-    s->baseline_over = true;
-    for (int i = 0; i < s->count; i++) {
-        sniff_id_t *e = &s->ids[i];
-        e->before_dlc = e->dlc;
-        memcpy(e->before, e->data, e->dlc);
+// candidate_bits sets bits to e's bits that tell the modes apart: quiet
+// within each step, the same in every step of a mode, different between
+// two modes. It returns whether there's any.
+static bool candidate_bits(const sniff_id_t *e, uint8_t bits[8]) {
+    bool any = false;
+    for (int b = 0; b < 8; b++) {
+        uint8_t across = 0, within = 0;
+        for (int i = 0; i < SNIFF_STEPS; i++) {
+            for (int j = i + 1; j < SNIFF_STEPS; j++) {
+                uint8_t diff = e->data[i][b] ^ e->data[j][b];
+                if (sniff_steps[i].mode == sniff_steps[j].mode) {
+                    within |= diff;
+                } else {
+                    across |= diff;
+                }
+            }
+        }
+        bits[b] = across & (uint8_t)~within & (uint8_t)~e->noise[b];
+        any |= bits[b] != 0;
     }
+    return any;
 }
 
 static void bytes_to_hex(char *out, const uint8_t *data, int len) {
+    out[0] = 0;
     for (int i = 0; i < len; i++) {
         snprintf(out + 2 * i, 3, "%02X", data[i]);
     }
 }
 
 void sniff_log_candidates(const sniff_t *s, void (*log)(void *ctx, const char *line), void *ctx) {
-    int noisy = 0, candidates = 0;
+    const uint8_t every_step = (1u << SNIFF_STEPS) - 1;
+    int complete = 0, noisy = 0, candidates = 0;
+    uint8_t bits[8];
     for (int i = 0; i < s->count; i++) {
-        noisy += s->ids[i].noisy;
-        candidates += !s->ids[i].noisy && s->ids[i].changes > 0;
+        const sniff_id_t *e = &s->ids[i];
+        complete += e->seen == every_step;
+        for (int b = 0; b < 8; b++) {
+            if (e->noise[b]) {
+                noisy++;
+                break;
+            }
+        }
+        candidates += e->seen == every_step && candidate_bits(e, bits);
     }
-    char line[96];
-    snprintf(line, sizeof line, "sniff: %d IDs seen, %d noisy, %d candidates", s->count, noisy, candidates);
+    char line[112];
+    snprintf(line, sizeof line, "sniff: %d IDs seen, %d in every step, %d with noise, %d candidates", s->count,
+             complete, noisy, candidates);
     log(ctx, line);
     int logged = 0;
     for (int i = 0; i < s->count && logged < SNIFF_REPORTED; i++) {
         const sniff_id_t *e = &s->ids[i];
-        if (e->noisy || e->changes == 0) {
+        if (e->seen != every_step || !candidate_bits(e, bits)) {
             continue;
         }
-        char before[17] = "", after[17] = "";
-        bytes_to_hex(before, e->before, e->before_dlc);
-        bytes_to_hex(after, e->after, e->after_dlc);
-        snprintf(line, sizeof line, "sniff: %03X x%u: %s -> %s", e->id, e->changes, before, after);
+        char mask[17];
+        bytes_to_hex(mask, bits, e->dlc);
+        int len = snprintf(line, sizeof line, "sniff: %03X bits %s:", e->id, mask);
+        // Each mode's data from its first step.
+        for (int m = 0; m < SNIFF_MODES; m++) {
+            for (int k = 0; k < SNIFF_STEPS; k++) {
+                if (sniff_steps[k].mode == (sniff_mode_t)m) {
+                    char data[17];
+                    bytes_to_hex(data, e->data[k], e->dlc);
+                    len += snprintf(line + len, sizeof line - (size_t)len, " %s %s", mode_names[m], data);
+                    break;
+                }
+            }
+        }
         log(ctx, line);
         logged++;
     }

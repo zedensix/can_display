@@ -117,22 +117,32 @@ candidates with what OFT or another logger shows at the same time, then
 across two tanks with different blends: the right address follows the
 blend.
 
-## Finding a button's ID (sport mode)
+## Finding the VSC / TRC OFF mode on the bus
 
-"Listen CAN" on the settings page finds the CAN ID behind a button by
-elimination, through the dongle (`src/app/sniff.c`):
+"Listen CAN" on the settings page looks for the bits that tell the
+stability control's 3 modes apart, through the dongle
+(`src/app/sniff.c`): everything on, TRC OFF (a short press of the TRC
+OFF button), everything off (the button held a few seconds).
 
-1. Ignition on, engine running. Click Listen CAN.
-2. 45s hands off: every ID whose data changes then is noise.
-3. Then, as the screen says, press the button (VSC Sport / TRC OFF) on
-   and off over and over until the countdown ends.
-4. `mise run logs`: `sniff:` lines list each candidate ID, how many
-   times it changed, and its data before and after.
+1. Engine running, parked. Click Listen CAN.
+2. The screen prompts each of 5 steps: everything on, TRC OFF, back on,
+   everything off, back on. Do what it says, check the lamp, then click
+   the knob.
+3. Hands off while it listens, about 30s a step, until the next prompt.
+4. `mise run logs`: a `sniff:` line per candidate ID, with the bits that
+   tell the modes apart (`bits`, a mask over its bytes) and its data in
+   each mode (`on`, `trc`, `off`).
 
 The dongle can't print the whole bus over BLE, so it listens to 256 IDs
-at a time, 1.5s each, round and round: a candidate is an ID seen
-changing between two visits. A real flag shows a byte or a bit flipping
-between two values. Run it twice: the right ID comes back both times.
+at a time, 1.5s each, twice over the bus per step. A bit that changes
+within a step is noise. A candidate is a bit quiet within every step,
+the same in the 3 "on" steps, and different between two modes. It works
+bit by bit, because a flag often shares its frame with a rolling
+counter: a first run, ID by ID, found 15 of its 36 IDs noisy and no
+candidate. The steps back to "on" weed out a value drifting along (a
+temperature), except one that ticks exactly once per step: it alternates
+like a flag. A real flag is a bit or two, the same across a second run.
+Run it twice: the right ID comes back both times.
 
 ## Adding an aftermarket ethanol source
 

@@ -10,7 +10,9 @@
 // 1MHz is conservative on purpose: plenty for dashboard-rate data, and it
 // survives cheap level shifters and long jumper wires.
 #define CAN_BAUD 1000000
-#define AFR_INTERVAL_MS 250
+// The AFR and the throttle need requests: they aren't broadcast. One
+// at a time, in turn: TX0 holds a single frame.
+#define REQUEST_INTERVAL_MS 125
 
 enum {
     INSTR_RESET = 0xC0,
@@ -33,7 +35,8 @@ enum {
 
 static state_t *state;
 static bool ready;
-static uint32_t afr_ms;
+static uint32_t request_ms;
+static bool request_throttle;
 
 static void spi_transfer(const uint8_t *out, uint8_t *in, size_t len) {
     gpio_put(CAN_CS, 0);
@@ -72,9 +75,9 @@ void mcp2515_source_init(state_t *s) {
     // a bit is 8 of them: sync 1, propagation 2, phase 1 3, phase 2 2,
     // sampled at 75%. SJW 1, no prescaler. A 16MHz crystal takes 0x00,
     // 0xF0, 0x86 instead.
-    write_register(REG_CNF1, 0x00); // SJW 1, BRP 0
-    write_register(REG_CNF2, 0x91); // phase 2 set in CNF3, phase 1 3, propagation 2
-    write_register(REG_CNF3, 0x01); // phase 2 2
+    write_register(REG_CNF1, 0x00);     // SJW 1, BRP 0
+    write_register(REG_CNF2, 0x91);     // phase 2 set in CNF3, phase 1 3, propagation 2
+    write_register(REG_CNF3, 0x01);     // phase 2 2
     write_register(REG_RXB0CTRL, 0x64); // any frame, roll over into RXB1
     write_register(REG_RXB1CTRL, 0x60); // any frame
     write_register(REG_CANCTRL, 0x00);  // normal mode
@@ -129,10 +132,10 @@ void mcp2515_poll_bus(uint32_t now_ms) {
     if (in[1] & 0x02) {
         read_rx_buffer(INSTR_READ_RX1, now_ms);
     }
-    // The AFR needs a request: it isn't broadcast.
-    if (now_ms - afr_ms >= AFR_INTERVAL_MS) {
-        afr_ms = now_ms;
-        can_frame_t request = obd_build_request(PID_LAMBDA);
+    if (now_ms - request_ms >= REQUEST_INTERVAL_MS) {
+        request_ms = now_ms;
+        can_frame_t request = obd_build_request(request_throttle ? PID_THROTTLE : PID_LAMBDA);
+        request_throttle = !request_throttle;
         send_obd_request(&request);
     }
 }
