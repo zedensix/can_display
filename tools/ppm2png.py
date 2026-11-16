@@ -12,10 +12,20 @@ import zlib
 def read_ppm(path):
     with open(path, "rb") as f:
         data = f.read()
-    magic, width, height, maxval, pixels = data.split(maxsplit=4)
+    # The header's 4 fields, then exactly one whitespace byte: the pixels
+    # may start with bytes that are whitespace too (13, 32...).
+    fields, pos = [], 0
+    while len(fields) < 4:
+        while data[pos : pos + 1].isspace():
+            pos += 1
+        start = pos
+        while not data[pos : pos + 1].isspace():
+            pos += 1
+        fields.append(data[start:pos])
+    magic, width, height, maxval = fields
     if magic != b"P6" or maxval != b"255":
         raise ValueError(f"{path}: not an 8-bit P6 PPM")
-    return int(width), int(height), pixels
+    return int(width), int(height), data[pos + 1 :]
 
 
 def png_chunk(kind, body):

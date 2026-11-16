@@ -26,19 +26,19 @@
   grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   align-items: start;
 }
+.card .views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  justify-content: center;
+  align-items: flex-end;
+}
 .card .body > .views {
   position: sticky;
   top: var(--sticky-top, 120px);
   z-index: 1;
   background: #fffdf8;
   padding-bottom: 6px;
-}
-/* Above the table (narrow screens), they share the screen with it. */
-@media (max-width: 760px) {
-  .card .part {
-    width: auto !important;
-    max-height: 24vh;
-  }
 }
 .card {
   border: 1px solid rgb(127 127 127 / 0.35);
@@ -55,13 +55,6 @@
   font-size: 13px;
   color: #78716c;
 }
-.card .views {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-  justify-content: center;
-  align-items: flex-end;
-}
 .card figure {
   margin: 0;
   max-width: 100%;
@@ -75,6 +68,14 @@
   display: block;
   margin: 0 auto;
   max-width: 100%;
+}
+/* Above the table (narrow screens), they share the screen with it. */
+@media (max-width: 760px) {
+  .card .part {
+    /* biome-ignore lint/complexity/noImportantStyles: over the drawing's own inline width, its scale */
+    width: auto !important;
+    max-height: 24vh;
+  }
 }
 .part .hover-only {
   display: none;
@@ -92,11 +93,21 @@
   stroke: #ea580c;
   stroke-width: 0.7;
 }
+.part .dim {
+  stroke: #c2410c;
+  stroke-width: 0.25;
+  fill: none;
+}
 .part g.hl .dim {
   stroke-width: 0.45;
 }
 .part g.hl .dim-value {
   font-size: 3.2px;
+}
+.card td {
+  padding: 4px 4px;
+  border-top: 1px solid rgb(127 127 127 / 0.2);
+  vertical-align: top;
 }
 .card tr:hover td {
   background: #fff7ed;
@@ -106,11 +117,6 @@
   font-size: 2.6px;
   fill: #1c1917;
 }
-.part .dim {
-  stroke: #c2410c;
-  stroke-width: 0.25;
-  fill: none;
-}
 .part text.dim-value {
   fill: #c2410c;
   font-weight: 700;
@@ -119,11 +125,6 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 13.5px;
-}
-.card td {
-  padding: 4px 4px;
-  border-top: 1px solid rgb(127 127 127 / 0.2);
-  vertical-align: top;
 }
 .card td.value {
   text-align: right;

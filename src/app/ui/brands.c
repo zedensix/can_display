@@ -5,7 +5,9 @@
 
 #include "ui_internal.h"
 
-#if __has_include("brands_data.h")
+// BRANDS_NONE leaves them out anyway: the UI pictures in git stay the same
+// whoever renders them.
+#if __has_include("brands_data.h") && !defined(BRANDS_NONE)
 #include "brands_data.h"
 #else
 // ISO C has no empty array: one entry, which brand_count leaves out.

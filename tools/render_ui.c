@@ -237,25 +237,57 @@ static int save_ppm(const char *dir, const char *name, const unsigned char *data
     return fclose(f) != 0;
 }
 
+// The README's showcase: these screens side by side, twice their size
+// (each pixel a 2x2 block: crisp, not smoothed), on the log page's dark.
+static const char *const showcase_names[] = {"grid", "oil", "alarms", "ready", "settings", "showcar"};
+#define SHOWCASE_COUNT (int)(sizeof showcase_names / sizeof showcase_names[0])
+#define SHOWCASE_SCALE 2
+#define SHOWCASE_GAP 32
+#define SHOWCASE_W (SHOWCASE_COUNT * (W * SHOWCASE_SCALE + SHOWCASE_GAP) + SHOWCASE_GAP)
+#define SHOWCASE_H (H * SHOWCASE_SCALE + 2 * SHOWCASE_GAP)
+static unsigned char showcase[SHOWCASE_H][SHOWCASE_W][3];
+static unsigned char shot[SHOTS][H][W][3];
+
+static void compose_showcase(void) {
+    for (int y = 0; y < SHOWCASE_H; y++) {
+        for (int x = 0; x < SHOWCASE_W; x++) {
+            memcpy(showcase[y][x], (unsigned char[3]){13, 5, 3}, 3);
+        }
+    }
+    for (int i = 0; i < SHOWCASE_COUNT; i++) {
+        int k = 0;
+        while (k < SHOTS && strcmp(shots[k].name, showcase_names[i]) != 0) {
+            k++;
+        }
+        int left = SHOWCASE_GAP + i * (W * SHOWCASE_SCALE + SHOWCASE_GAP);
+        for (int y = 0; y < H * SHOWCASE_SCALE && k < SHOTS; y++) {
+            for (int x = 0; x < W * SHOWCASE_SCALE; x++) {
+                memcpy(showcase[SHOWCASE_GAP + y][left + x], shot[k][y / SHOWCASE_SCALE][x / SHOWCASE_SCALE], 3);
+            }
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     if (argc != 2) {
         fprintf(stderr, "usage: %s <output dir>\n", argv[0]);
         return 2;
     }
     memset(sheet, 0x40, sizeof sheet);
-    static unsigned char shot[H][W][3];
     for (int k = 0; k < SHOTS; k++) {
         canvas_t c = {pixels, W, H, 0, H};
         shots[k].draw(&c);
         for (int y = 0; y < H; y++) {
             for (int x = 0; x < W; x++) {
-                rgb565_to_rgb888(pixels[y * W + x], shot[y][x]);
-                memcpy(sheet[k / SHEET_COLUMNS * (H + GAP) + y][k % SHEET_COLUMNS * (W + GAP) + x], shot[y][x], 3);
+                rgb565_to_rgb888(pixels[y * W + x], shot[k][y][x]);
+                memcpy(sheet[k / SHEET_COLUMNS * (H + GAP) + y][k % SHEET_COLUMNS * (W + GAP) + x], shot[k][y][x], 3);
             }
         }
-        if (save_ppm(argv[1], shots[k].name, &shot[0][0][0], W, H)) {
+        if (save_ppm(argv[1], shots[k].name, &shot[k][0][0][0], W, H)) {
             return 1;
         }
     }
-    return save_ppm(argv[1], "sheet", &sheet[0][0][0], SHEET_W, SHEET_H);
+    compose_showcase();
+    return save_ppm(argv[1], "sheet", &sheet[0][0][0], SHEET_W, SHEET_H) ||
+           save_ppm(argv[1], "showcase", &showcase[0][0][0], SHOWCASE_W, SHOWCASE_H);
 }

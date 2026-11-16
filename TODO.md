@@ -3,9 +3,9 @@
 - [ ] Switch to the wired mode with the MCP2515
 - [x] Wiring diagram in HTML (`docs/wiring.html`): a color modules version, a blueprint version, two links to switch between them
 - [x] Diagram captures (color and blueprint) in `docs/resources/`, made by `mise run wiring`, shown in `docs/wiring.md`
-- [x] Code quality: prek hooks (clang-format for the C, Biome for the TS/CSS/JSON, tsc, host tests)
+- [x] Code quality: prek hooks (clang-format for the C, Biome for the TS/Svelte/CSS/JSON, bun check for the types, web and host tests)
 - [x] Hooks set up: `mise install` runs `prek install` (mise.toml's postinstall)
-- [x] GitHub Actions CI: the prek hooks (clang-format, Biome, tsc, host tests under gcc) and the firmware build (UF2 as an artifact)
+- [x] GitHub Actions CI: the prek hooks (clang-format, Biome, bun check, web and host tests under gcc) and the firmware build (UF2 as an artifact)
 - [ ] Ethanol without wiring: run "Scan ECU RAM" with the engine running, noting OFT's E%, then read the candidates in the logs
 - [ ] VSC / TRC OFF: the first Listen CAN found a single candidate, 0x0D3 (byte 0 bit 5 TRC off, byte 1 bit 3 VSC off, byte 3 bit 0 VSC on); run it a second time to confirm before using it
 - [ ] Check in the car: multi-PID polling (log `polling every PID at once`), snappier gauges
@@ -58,3 +58,9 @@
 - [x] Buttons: an icon (Bluetooth, gear, back) and a capitalized label; padding inside the BLE | CAN pill
 - [x] Buttons, switches and the selected settings row as anti-aliased pills, round like the spinner
 - [ ] Check on the board: the CONNECT / SETTINGS choice, the screensaver's frame rate
+- [x] README showcase: the screens (a 2x strip, mise run ui), the log site (mise run web-pictures, made-up drives), the wiring, the enclosure
+- [ ] README: photos of the dash in the car
+- [x] Log site: the list paged, searched (name or number), filtered by day; sessions renamed (Drizzle migration)
+- [x] Data log: the throttle in the record's free bytes (no cost in flash or history), charted and in the CSV
+- [ ] Data log: real start and end times need a clock: the dash has none (see the choice: an RTC module or the phone's time)
+- [x] Types checked by `bun check --no-script` instead of tsc (10x faster); prek runs only on tracked files: Biome run over everything before a commit

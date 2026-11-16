@@ -108,8 +108,8 @@ static void draw_oil_overheat_screen(canvas_t *c, const theme_t *t, float oil, u
     }
     draw_text_centered(c, &font_bold24, c->width / 2, 158 + 13 * scale, value, text, scale);
     // The fonts are ASCII only: no accents.
-    draw_text_fitting(c, c->width / 2, 266, c->width - 16, "CALME-TOI", text);
-    draw_text_fitting(c, c->width / 2, 304, c->width - 16, "CA CHAUFFE SA MERE", text);
+    draw_text_fitting(c, c->width / 2, 266, c->width - 16, "TOO HOT", text);
+    draw_text_fitting(c, c->width / 2, 304, c->width - 16, "LIFT OFF", text);
 }
 
 static bool oil_is_overheating(const state_t *state, uint32_t now_ms) {

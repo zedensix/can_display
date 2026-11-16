@@ -88,9 +88,9 @@ void datalog_sample(datalog_t *log, const state_t *s, uint32_t now_ms) {
     static const struct {
         signal_t sig;
         float scale;
-    } columns[7] = {{SIG_RPM, 1},   {SIG_COOLANT, 10},  {SIG_OIL, 10},    {SIG_IAT, 10},
-                    {SIG_AFR, 100}, {SIG_BATTERY, 100}, {SIG_ETHANOL, 10}};
-    for (int i = 0; i < 7; i++) {
+    } columns[] = {{SIG_RPM, 1},   {SIG_COOLANT, 10},  {SIG_OIL, 10},     {SIG_IAT, 10},
+                   {SIG_AFR, 100}, {SIG_BATTERY, 100}, {SIG_ETHANOL, 10}, {SIG_THROTTLE, 10}};
+    for (size_t i = 0; i < sizeof columns / sizeof columns[0]; i++) {
         write_u16_le(r + 8 + 2 * i, (uint16_t)reading_scaled_i16(s, columns[i].sig, columns[i].scale, now_ms));
     }
     append_record(log, r);

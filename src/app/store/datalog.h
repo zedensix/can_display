@@ -15,10 +15,13 @@
 //   0  u16 session (0xFFFF: erased flash, no record)
 //   2  u8  kind: DATALOG_SAMPLE
 //   4  u32 milliseconds since boot
-//   8  i16 x 7: RPM, coolant x10, oil x10, intake x10 (degrees C),
-//      AFR x100, battery x100 (V), ethanol x10 (%); -32768: no reading
-// Bytes 3 and 22 to 31 held lap times and GPS positions, a feature
-// dropped since: 0xFF.
+//   8  i16 x 8: RPM, coolant x10, oil x10, intake x10 (degrees C),
+//      AFR x100, battery x100 (V), ethanol x10 (%), throttle x10 (%);
+//      -32768: no reading. The throttle came later: older records hold
+//      0xFFFF there (-1), no reading either.
+// Bytes 3 and 24 to 31 held lap times and GPS positions, a feature
+// dropped since: 0xFF. Room for 4 more readings, the record's size and
+// the ring's length (about 100 minutes of driving) unchanged.
 
 #define DATALOG_RECORD 32
 #define DATALOG_SAMPLE_MS 200

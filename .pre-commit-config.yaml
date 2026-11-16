@@ -35,11 +35,13 @@ repos:
         entry: bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true
         language: system
         types_or: [ts, javascript, svelte, css, json]
-      - id: tsc
-        name: tsc
-        entry: bunx tsc -p tsconfig.json
+      # Types, with Bun's own checker (tsc's errors, on every core).
+      # --no-script: a "check" script in package.json would run instead.
+      - id: bun-check
+        name: bun check
+        entry: bun check --no-script
         language: system
-        files: ^(web|tools|faceplate)/.*\.ts$
+        files: ^(web|tools|faceplate)/.*\.(ts|svelte)$|^tsconfig\.json$
         pass_filenames: false
       # The web page's log store and parser (bun test).
       - id: web-tests

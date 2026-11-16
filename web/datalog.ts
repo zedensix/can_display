@@ -17,10 +17,11 @@ export type Sample = {
   afr: number | null;
   battery: number | null;
   ethanol: number | null;
+  throttle: number | null;
 };
 
-export type Column = "rpm" | "coolant" | "oil" | "intake" | "afr" | "battery" | "ethanol";
-export const COLUMNS: Column[] = ["rpm", "coolant", "oil", "intake", "afr", "battery", "ethanol"];
+export type Column = "rpm" | "coolant" | "oil" | "intake" | "afr" | "battery" | "ethanol" | "throttle";
+export const COLUMNS: Column[] = ["rpm", "coolant", "oil", "intake", "afr", "battery", "ethanol", "throttle"];
 
 export type Session = { id: number; samples: Sample[] };
 
@@ -46,6 +47,8 @@ export function parseDataLog(bytes: Uint8Array): Sample[] {
       afr: readColumn(4, 100),
       battery: readColumn(5, 100),
       ethanol: readColumn(6, 10),
+      // Older records hold 0xFFFF here (-1): the throttle came later.
+      throttle: view.getInt16(at + 8 + 2 * 7, true) === -1 ? null : readColumn(7, 10),
     });
   }
   return out.sort((a, b) => a.session - b.session || a.t - b.t);
@@ -92,9 +95,10 @@ export function toCsv(samples: Sample[]): string {
       csvCell(s.afr),
       csvCell(s.battery),
       csvCell(s.ethanol),
+      csvCell(s.throttle),
     ].join(","),
   );
-  return `session,time_s,rpm,coolant_c,oil_c,intake_c,afr,battery_v,ethanol_pct\n${rows.join("\n")}\n`;
+  return `session,time_s,rpm,coolant_c,oil_c,intake_c,afr,battery_v,ethanol_pct,throttle_pct\n${rows.join("\n")}\n`;
 }
 
 // A session's peaks, what the list of sessions shows. receivedAt: when
@@ -102,6 +106,7 @@ export function toCsv(samples: Sample[]): string {
 // downloaded.
 export type SessionSummary = {
   id: number;
+  name: string | null;
   receivedAt: number | null;
   samples: number;
   minutes: number;
@@ -119,6 +124,7 @@ export function summarize(session: Session, receivedAt: number | null = null): S
   const afr = lowestAndHighest(session.samples, "afr");
   return {
     id: session.id,
+    name: null,
     receivedAt,
     samples: session.samples.length,
     minutes: minutesDriven(session.samples),
@@ -130,3 +136,14 @@ export function summarize(session: Session, receivedAt: number | null = null): S
     afrMax: afr?.[1] ?? null,
   };
 }
+
+/** A page of stored sessions, and how many match the filters in all. */
+export type SessionPage = { total: number; items: SessionSummary[] };
+
+/** The list's filters: a search (a session's name, or its number), a time range (ms since the epoch), a page from 1. */
+export type SessionQuery = { q?: string; from?: number; to?: number; page: number; size: number };
+
+/** A stored session's own fields, and its samples. */
+export type StoredSession = { id: number; name: string | null; receivedAt: number; samples: Sample[] };
+
+export const MAX_NAME = 80;

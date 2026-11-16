@@ -11,6 +11,7 @@
     color,
     points,
     span,
+    minRange = 0,
     cursor = $bindable(null),
   }: {
     label: string;
@@ -19,6 +20,8 @@
     color: string;
     points: Point[];
     span: number;
+    // The smallest range the chart spans: a steady signal's noise stays small.
+    minRange?: number;
     cursor?: number | null;
   } = $props();
 
@@ -31,9 +34,11 @@
   // Not Math.min(...values): a long session has more samples than a call takes arguments.
   const low = $derived(values.reduce((a, b) => Math.min(a, b), values[0] ?? 0));
   const high = $derived(values.reduce((a, b) => Math.max(a, b), values[0] ?? 1));
-  const pad = $derived((high - low) * 0.08 || 1);
+  const range = $derived(Math.max(high - low, minRange));
+  const bottom = $derived((low + high) / 2 - range / 2 - range * 0.08);
+  const top = $derived((low + high) / 2 + range / 2 + range * 0.08);
   const x = (minutes: number) => (span ? (minutes / span) * W : 0);
-  const y = (v: number) => H - ((v - (low - pad)) / (high - low + 2 * pad)) * H;
+  const y = (v: number) => H - ((v - bottom) / (top - bottom || 1)) * H;
 
   const drawn = $derived.by(() => {
     if (points.length <= MAX_POINTS) return points;

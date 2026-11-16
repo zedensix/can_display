@@ -27,8 +27,15 @@
   class="block rounded-2xl border border-frame bg-panel p-4 transition {href ? 'hover:border-accent' : ''}"
 >
   <header class="flex items-baseline justify-between gap-3">
-    <h2 class="font-display text-2xl font-bold tracking-wider text-accent">SESSION {summary.id}</h2>
-    <span class="text-sm text-dim">
+    <div class="min-w-0">
+      <h2 class="truncate font-display text-2xl font-bold tracking-wider text-accent">
+        {summary.name ?? `SESSION ${summary.id}`}
+      </h2>
+      {#if summary.name}
+        <p class="text-xs tracking-widest text-dim uppercase">Session {summary.id}</p>
+      {/if}
+    </div>
+    <span class="shrink-0 text-sm text-dim">
       {summary.minutes} min{summary.receivedAt ? ` · ${new Date(summary.receivedAt).toLocaleDateString()}` : ""}
     </span>
   </header>

@@ -109,13 +109,16 @@ void test_datalog(void) {
     CHECK(log.pos == 0 && log.session == 0, "empty flash: pos %u session %u", (unsigned)log.pos, log.session);
     state_set_reading(&s, SIG_RPM, 3000, 0);
     state_set_reading(&s, SIG_AFR, 14.7f, 0);
+    state_set_reading(&s, SIG_THROTTLE, 42.5f, 0);
     for (uint32_t t = 0; t < 11 * DATALOG_SAMPLE_MS; t += DATALOG_SAMPLE_MS) {
-        s.readings[SIG_RPM].updated_ms = s.readings[SIG_AFR].updated_ms = t;
+        s.readings[SIG_RPM].updated_ms = s.readings[SIG_AFR].updated_ms = s.readings[SIG_THROTTLE].updated_ms = t;
         datalog_sample(&log, &s, t);
     }
     datalog_flush(&log);
     // 11 records: 8 in the first page, 3 flushed in the second.
     CHECK(f.data[8] == (3000 & 0xFF) && f.data[9] == 3000 >> 8, "the first sample's RPM isn't in flash");
+    CHECK(f.data[22] == (425 & 0xFF) && f.data[23] == 425 >> 8, "the throttle (x10) isn't at bytes 22-23");
+    CHECK(f.data[24] == 0xFF && f.data[31] == 0xFF, "bytes 24 to 31, free, aren't left erased");
     CHECK(f.data[10 * 32 + 2] == DATALOG_SAMPLE && f.data[10 * 32 + 4] == (10 * DATALOG_SAMPLE_MS & 0xFF),
           "the 11th sample isn't in flash");
     CHECK(f.data[8 + 2 * 1] == 0x00 && f.data[8 + 2 * 1 + 1] == 0x80, "a coolant never read isn't -32768");

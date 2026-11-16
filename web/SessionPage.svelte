@@ -1,22 +1,27 @@
-<!-- A stored session: its peaks, a chart per signal with a shared cursor,
-     CSV, and forgetting it. -->
+<!-- A stored session: its name (renamed in place), its peaks, a chart per
+     signal with a shared cursor, CSV, and forgetting it. -->
 <script lang="ts">
-  import { deleteSession, sessionSamples } from "./api";
+  import { deleteSession, getSession, renameSession } from "./api";
   import Chart from "./Chart.svelte";
-  import { type Column, minutesDriven, type Sample, summarize, toCsv } from "./datalog";
+  import { type Column, MAX_NAME, minutesDriven, type Sample, summarize, toCsv } from "./datalog";
   import Stat from "./Stat.svelte";
 
   let { id }: { id: number } = $props();
 
   let samples: Sample[] = $state([]);
+  let name: string | null = $state(null);
+  let renaming = $state(false);
   let error = $state("");
   let loading = $state(true);
   let cursor: number | null = $state(null);
 
   $effect(() => {
     loading = true;
-    sessionSamples(id)
-      .then((list) => (samples = list))
+    getSession(id)
+      .then((session) => {
+        samples = session.samples;
+        name = session.name;
+      })
       .catch((e) => (error = e instanceof Error ? e.message : String(e)))
       .finally(() => (loading = false));
   });
@@ -25,14 +30,15 @@
   const t0 = $derived(samples[0]?.t ?? 0);
   const span = $derived(samples.length ? (samples[samples.length - 1].t - t0) / 60000 : 0);
 
-  const CHARTS: { column: Column; label: string; unit: string; digits: number; color: string }[] = [
-    { column: "rpm", label: "RPM", unit: "", digits: 0, color: "var(--accent)" },
-    { column: "oil", label: "Oil", unit: "°C", digits: 0, color: "#ef4444" },
-    { column: "coolant", label: "Coolant", unit: "°C", digits: 0, color: "#3b82f6" },
-    { column: "intake", label: "Intake", unit: "°C", digits: 0, color: "#06b6d4" },
-    { column: "afr", label: "AFR", unit: "", digits: 1, color: "#a855f7" },
-    { column: "battery", label: "Battery", unit: "V", digits: 1, color: "#eab308" },
-    { column: "ethanol", label: "Ethanol", unit: "%", digits: 0, color: "var(--good)" },
+  const CHARTS: { column: Column; label: string; unit: string; digits: number; color: string; minRange: number }[] = [
+    { column: "rpm", label: "RPM", unit: "", digits: 0, color: "var(--accent)", minRange: 1000 },
+    { column: "oil", label: "Oil", unit: "°C", digits: 0, color: "#ef4444", minRange: 10 },
+    { column: "coolant", label: "Coolant", unit: "°C", digits: 0, color: "#3b82f6", minRange: 10 },
+    { column: "intake", label: "Intake", unit: "°C", digits: 0, color: "#06b6d4", minRange: 10 },
+    { column: "afr", label: "AFR", unit: "", digits: 1, color: "#a855f7", minRange: 2 },
+    { column: "battery", label: "Battery", unit: "V", digits: 1, color: "#eab308", minRange: 1 },
+    { column: "ethanol", label: "Ethanol", unit: "%", digits: 0, color: "var(--good)", minRange: 10 },
+    { column: "throttle", label: "Throttle", unit: "%", digits: 0, color: "#94a3b8", minRange: 20 },
   ];
   // A chart per signal the session has readings of.
   const charts = $derived(
@@ -50,6 +56,23 @@
     URL.revokeObjectURL(link.href);
   }
 
+  // Enter or leaving the field saves; Escape doesn't (the blur that follows
+  // finds renaming already over).
+  async function saveName(input: HTMLInputElement) {
+    if (!renaming) return;
+    renaming = false;
+    try {
+      name = await renameSession(id, input.value);
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  function renameKeys(e: KeyboardEvent & { currentTarget: HTMLInputElement }) {
+    if (e.key === "Enter") saveName(e.currentTarget);
+    if (e.key === "Escape") renaming = false;
+  }
+
   async function forget() {
     if (!confirm(`Delete session ${id} from the server? The dash may still have it.`)) return;
     try {
@@ -64,7 +87,30 @@
 <section class="mt-6">
   <a href="#/logs" class="text-sm text-dim hover:text-accent">← Every session</a>
   <div class="mt-2 flex flex-wrap items-baseline justify-between gap-3">
-    <h2 class="font-display text-3xl font-bold tracking-wider text-accent">SESSION {id}</h2>
+    {#if renaming}
+      <input
+        value={name ?? ""}
+        maxlength={MAX_NAME}
+        placeholder="Session {id}"
+        aria-label="The session's name"
+        onkeydown={renameKeys}
+        onblur={(e) => saveName(e.currentTarget)}
+        {@attach (input) => input.focus()}
+        class="min-w-0 grow rounded-xl border border-accent bg-panel px-3 py-1 font-display text-3xl font-bold tracking-wider text-accent focus:outline-none"
+      />
+    {:else}
+      <button
+        type="button"
+        title="Rename"
+        onclick={() => (renaming = true)}
+        class="group flex min-w-0 items-baseline gap-3 text-left"
+      >
+        <h2 class="truncate font-display text-3xl font-bold tracking-wider text-accent">{name ?? `SESSION ${id}`}</h2>
+        <span class="shrink-0 text-xs tracking-widest text-dim uppercase group-hover:text-accent">
+          {name ? `Session ${id} · ` : ""}Rename
+        </span>
+      </button>
+    {/if}
     <div class="flex gap-2">
       <button
         type="button"

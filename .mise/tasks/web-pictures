@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Capture the log page (a session's charts, the sessions) from made-up drives into docs/resources/ for the README"
+set -euo pipefail
+
+bun install --frozen-lockfile >/dev/null
+# Downloads Playwright's Chromium the first time only.
+bunx playwright install chromium
+bun tools/capture_web.ts
