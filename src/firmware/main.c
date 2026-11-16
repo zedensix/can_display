@@ -12,12 +12,10 @@
 #include "ble.h"
 #include "board.h"
 #include "display.h"
-#include "hardware/adc.h"
 #include "hardware/watchdog.h"
 #include "knob.h"
 #include "mcp2515.h"
 #include "pico/stdlib.h"
-#include "sensors.h"
 #include "simdata.h"
 #include "store.h"
 #include "ui.h"
@@ -192,18 +190,6 @@ static bool render_and_push_rows(int32_t boot_elapsed, const screen_t *screen, c
     return true;
 }
 
-#if !SIM
-// read_ethanol_sensor averages a burst of samples: the RP2040's ADC is noisy.
-static void read_ethanol_sensor(uint32_t now) {
-    uint32_t sum = 0;
-    for (int i = 0; i < 16; i++) {
-        sum += adc_read();
-    }
-    float at_pin = sensors_raw_to_volts((uint16_t)(sum / 16), ADC_VREF);
-    state_set_reading(&state, SIG_ETHANOL, sensors_ethanol_percent(divider_input_volts(ETHANOL_DIVIDER, at_pin)), now);
-}
-#endif
-
 int main(void) {
     stdio_init_all();
     bool froze = watchdog_enable_caused_reboot();
@@ -222,9 +208,6 @@ int main(void) {
     display_set_flip(cfg.flip);
     display_set_brightness(cfg.brightness);
     knob_init();
-    adc_init();
-    adc_gpio_init(ETHANOL_PIN);
-    adc_select_input(ETHANOL_ADC_INPUT);
 
     source = cfg.source;
     log_line("boot: data source %s", source == SOURCE_CAN ? "CAN (MCP2515)" : "BLE dongle");
@@ -257,10 +240,6 @@ int main(void) {
         store_dump_log_on_request();
 #if SIM
         simdata_update(&state, start);
-#else
-        if (cfg.ethanol_sensor) {
-            read_ethanol_sensor(start);
-        }
 #endif
 
         bool press, long_press;

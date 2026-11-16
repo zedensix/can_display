@@ -34,13 +34,11 @@ The simulator needs SDL2 (`brew install sdl2`).
 - Raspberry Pi Pico W / WH (RP2040)
 - ST7789 V2.2 2.0" 240x320 SPI TFT display
 - A KY-040 rotary encoder: turn to change the gauge view, click for the
-  settings (brightness, shift light, auto-connect, flip, ethanol sensor,
+  settings (brightness, shift light, data source, auto-connect, flip,
   ECU RAM scan, CAN listen, disconnect, send log), hold 1s to reboot
 - Car data, one of:
   - an ELM327 BLE OBD dongle (written for a Vgate iCar Pro 2S): no wiring
   - an MCP2515 SPI CAN module on the OBD-II port's CAN H/L (pins 6/14)
-- Optionally an analog (0.5-4.5V) flex-fuel sensor for ethanol %, read
-  through a resistor divider on the Pico's ADC
 
 The dash logs every gauge to its flash while the engine
 runs; "Send log" in the settings hands it to a phone through the page in
@@ -61,7 +59,7 @@ Full pin mapping and power: [`docs/wiring.md`](docs/wiring.md).
 | Oil temp        | Toyota Mode 21 PID 01 (dongle), or broadcast `0x360` (CAN) | Mode 21 checked on this car against another gauge; `0x360` **unverified** |
 | AFR             | OBD PID 0x24 (wide-range O2 sensor 1)               | The ECU lists the PID as supported; values **not cross-checked**, and forum reports say the factory sensor can't show richer than ~12.2:1 |
 | Battery voltage | The dongle's `ATRV`                                 | Read on hardware (dongle only)                                                                                                                                 |
-| Ethanol %       | Pico ADC, on the flex-fuel sensor's signal         | Curve matches the tune's scaling (25%/V, -12.5%); needs the signal wire tapped and "Ethanol sensor" on. Reading it from the ECU's RAM instead is in progress (see the reverse-engineering doc) |
+| Ethanol %       | The engine ECU's RAM at 0xFFF87C7C (dongle)         | Address found by scans and matched against OFT on this car; specific to this tune, a reflash may move it |
 
 The CAN IDs and formulas come from community reverse-engineering, not
 factory documentation: **don't trust them blindly**. See

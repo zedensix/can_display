@@ -6,7 +6,7 @@
 - [x] Qualité de code : hooks prek (clang-format pour le C, Biome pour le TS/CSS/JSON, tsc, tests hôte)
 - [ ] Activer les hooks : `prek install` (une fois, dans ce clone)
 - [ ] Éthanol sans câblage : lancer « Scan ECU RAM » moteur tournant en notant l'E% d'OFT, puis lire les candidats dans les logs
-- [ ] VSC / TRC OFF : lancer « Listen CAN » à l'arrêt moteur tournant, suivre les 5 étapes (clic après chacune), puis lire les candidats dans les logs ; deux fois, le bon ID revient les deux fois
+- [ ] VSC / TRC OFF : 1er Listen CAN = un seul candidat, 0x0D3 (octet 0 bit 5 TRC off, octet 1 bit 3 VSC off, octet 3 bit 0 VSC actif) ; refaire un 2e passage pour confirmer avant de s'en servir
 - [ ] Vérifier dans la caisse : polling multi-PID (log `polling every PID at once`), jauges plus réactives
 - [ ] Vérifier dans la caisse : Send log vers le téléphone, accusé de réception et retour aux jauges
 - [ ] Vérifier dans la caisse : nom du dongle lu et affiché sur READY et OFFLINE, reconnexion depuis OFFLINE sans reboot
@@ -33,9 +33,12 @@
 - [x] Encodeur : pastilles du connecteur arrachées, 4 fils soudés sur ses pattes (C vers GND, A GP2, B GP3, la patte du bouton à côté de R1 vers GP4 ; pas de pont : la carte relie déjà C à l'autre patte du bouton, un pont le court-circuite), colle chaude dessus ; A sur GP3 et B sur GP2 pour le bon sens ; enlever R2 et R3 (le + en l'air relie A et B par 20K : un cran sur deux perdu)
 - [ ] Façade : fixation dans la voiture (où elle va, comment elle tient)
 - [x] AFR pied levé : papillon (PID 0x11) lu avec le reste, l'AFR (pauvre à la coupure d'injection en décélération) s'affiche en blanc sans alerte tant que le papillon est fermé (min de la session + 5 %) et 1 s après sa réouverture
-- [ ] Vérifier dans la caisse : AFR blanc sans clignoter au lever de pied, rouge s'il est pauvre pied au plancher ; log `polling every PID at once` avec `010C24050F113`
+- [ ] Vérifier dans la caisse : AFR blanc sans clignoter au lever de pied, rouge s'il est pauvre pied au plancher
+- [x] Multi-PID actif sur la voiture : `010C24050F113` répond en 3 trames, `polling every PID at once` (papillon 14 à 17 % au ralenti)
 - [x] Multi-PID jamais actif : le dongle IOS-Vlink compte des trames, pas des réponses, le « 1 » le coupait après la 1re trame ; le chiffre vaut maintenant 3 (les 3 trames de la réponse)
 - [x] Scan RAM : 120 candidats loggés au lieu de 40 (79 et 58 trouvés, la fin de la RAM manquait)
 - [x] Listen CAN par bit au lieu de par ID : 1er essai, 15 IDs bruyants sur 36 et 0 candidat (le drapeau partage sa trame avec un compteur)
 - [x] Listen CAN guidé : 5 étapes (tout actif, TRC OFF, actif, tout coupé, actif), chacune annoncée à l'écran et écoutée après un clic du potard ; candidats = bits stables dans chaque étape, identiques dans les étapes « actif », différents entre modes
-- [ ] Éthanol : FFF87C7C seule adresse dans les 2 scans (66,7 puis 65,7 %), à comparer avec l'E% d'OFT, puis au plein suivant
+- [x] Éthanol lu dans la RAM de l'ECU moteur : FFF87C7C (float, seule adresse dans les 3 scans, colle avec OFT), demandée toutes les 3 s avec l'huile, tuile éthanol
+- [ ] Éthanol : vérifier au plein suivant (autre mélange) que la tuile suit OFT
+- [x] Option « Ethanol sensor » retirée (entrée ADC, diviseur, réglage) : l'éthanol vient de la RAM de l'ECU

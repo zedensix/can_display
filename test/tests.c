@@ -46,6 +46,11 @@ static void test_obd_decode(void) {
     can_frame_t throttle = {OBD_RESPONSE_ECU1, 8, {0x03, 0x41, 0x11, 0x33}};
     CHECK(obd_decode_frame(&throttle, &s, 1) && nearly_equal(s.readings[SIG_THROTTLE].value, 20),
           "throttle = %f, want 20", (double)s.readings[SIG_THROTTLE].value);
+    can_frame_t ethanol = {OBD_RESPONSE_ECU1, 8, {0x05, 0x63, 0x42, 0x85, 0x80, 0x00}};
+    CHECK(obd_decode_frame(&ethanol, &s, 1) && nearly_equal(s.readings[SIG_ETHANOL].value, 66.75f),
+          "ethanol = %f, want 66.75", (double)s.readings[SIG_ETHANOL].value);
+    can_frame_t garbage = {OBD_RESPONSE_ECU1, 8, {0x05, 0x63, 0x7F, 0xC0, 0x00, 0x00}}; // NaN
+    CHECK(!obd_decode_frame(&garbage, &s, 2) && s.readings[SIG_ETHANOL].updated_ms == 1, "a NaN ethanol %% was taken");
     can_frame_t other_ecu = {0x7E9, 8, {0x03, 0x41, 0x05, 0x7B}};
     CHECK(!obd_decode_frame(&other_ecu, &s, 1), "a frame from 0x7E9 was decoded");
     can_frame_t multi = {OBD_RESPONSE_ECU1, 8, {0x10, 0x14, 0x49, 0x02}};
@@ -177,17 +182,21 @@ static void test_elm_oil(void) {
         feed_dongle_answer(&e, "OK\r>", 2);
     }
     feed_dongle_answer(&e, "12.4V\r>", 3); // ATRV, the first poll
-    feed_dongle_answer(&e, "NO DATA\r>", ELM_OIL_INTERVAL_MS + 3);
-    CHECK(strcmp(last_sent(&d), "ATSH7E0\r") == 0, "after %dms sent %s, want the oil sequence's ATSH7E0",
-          ELM_OIL_INTERVAL_MS, last_sent(&d));
-    feed_dongle_answer(&e, "OK\r>", ELM_OIL_INTERVAL_MS + 4);
+    feed_dongle_answer(&e, "NO DATA\r>", ELM_ENGINE_INTERVAL_MS + 3);
+    CHECK(strcmp(last_sent(&d), "ATSH7E0\r") == 0, "after %dms sent %s, want the engine ECU sequence's ATSH7E0",
+          ELM_ENGINE_INTERVAL_MS, last_sent(&d));
+    feed_dongle_answer(&e, "OK\r>", ELM_ENGINE_INTERVAL_MS + 4);
     CHECK(strcmp(last_sent(&d), "2101\r") == 0, "then %s, want 2101", last_sent(&d));
-    feed_dongle_answer(&e, oil_answer, ELM_OIL_INTERVAL_MS + 5);
+    feed_dongle_answer(&e, oil_answer, ELM_ENGINE_INTERVAL_MS + 5);
     CHECK(nearly_equal(s.readings[SIG_OIL].value, 90), "oil %f, want 90", (double)s.readings[SIG_OIL].value);
+    CHECK(strcmp(last_sent(&d), ETHANOL_RAM_READ "\r") == 0, "then %s, want the ethanol's RAM read", last_sent(&d));
+    feed_dongle_answer(&e, "7E8056342858000\r>", ELM_ENGINE_INTERVAL_MS + 6); // 66.75 as a big-endian float
+    CHECK(nearly_equal(s.readings[SIG_ETHANOL].value, 66.75f), "ethanol %f, want 66.75",
+          (double)s.readings[SIG_ETHANOL].value);
     CHECK(strcmp(last_sent(&d), "ATSH7DF\r") == 0, "then %s, want the header back to ATSH7DF", last_sent(&d));
 
-    for (int miss = 0; miss < ELM_OIL_MAX_MISSES; miss++) {
-        uint32_t t = (uint32_t)(miss + 2) * (ELM_OIL_INTERVAL_MS + 10);
+    for (int miss = 0; miss < ELM_ENGINE_MAX_MISSES; miss++) {
+        uint32_t t = (uint32_t)(miss + 2) * (ELM_ENGINE_INTERVAL_MS + 10);
         feed_dongle_answer(&e, "OK\r>", t);
         while (strcmp(last_sent(&d), "ATSH7E0\r") != 0) {
             feed_dongle_answer(&e, "NO DATA\r>", t);
@@ -197,13 +206,14 @@ static void test_elm_oil(void) {
     }
     int before = d.sent_count;
     for (int i = 0; i < 20; i++) {
-        feed_dongle_answer(&e, "OK\r>", 100000 + (uint32_t)i * ELM_OIL_INTERVAL_MS);
+        feed_dongle_answer(&e, "OK\r>", 100000 + (uint32_t)i * ELM_ENGINE_INTERVAL_MS);
     }
     bool asked = false;
     for (int i = before; i < d.sent_count; i++) {
         asked = asked || strcmp(d.sent[i], "2101\r") == 0;
     }
-    CHECK(!asked, "2101 still asked after %d answers without the oil temperature", ELM_OIL_MAX_MISSES);
+    CHECK(!asked, "2101 still asked after %d answers without the oil temperature", ELM_ENGINE_MAX_MISSES);
+    CHECK(strcmp(last_sent(&d), "ATSH7E0\r") != 0, "the header still switched with both reads given up");
 }
 
 // With the car off at boot nothing answers: 2101 must still be asked,
@@ -217,7 +227,7 @@ static void test_elm_oil_car_off(void) {
     for (int i = 0; i < 7 + 7; i++) {
         feed_dongle_answer(&e, "OK\r>", 2);
     }
-    for (uint32_t t = 3; t < 10 * ELM_OIL_INTERVAL_MS; t += 100) {
+    for (uint32_t t = 3; t < 10 * ELM_ENGINE_INTERVAL_MS; t += 100) {
         feed_dongle_answer(
             &e,
             strcmp(last_sent(&d), "ATSH7E0\r") == 0 || strcmp(last_sent(&d), "ATSH7DF\r") == 0 ? "OK\r>" : "NO DATA\r>",
@@ -227,7 +237,7 @@ static void test_elm_oil_car_off(void) {
     for (int i = 0; i < d.sent_count; i++) {
         asked += strcmp(d.sent[i], "2101\r") == 0;
     }
-    CHECK(asked > ELM_OIL_MAX_MISSES, "2101 asked %d times with the car off, want it kept", asked);
+    CHECK(asked > ELM_ENGINE_MAX_MISSES, "2101 asked %d times with the car off, want it kept", asked);
 }
 
 // format_ram_scan_answer prints a positive answer to a RAM scan read as the ELM
@@ -468,12 +478,7 @@ static void test_flashlog(void) {
 }
 
 static void test_settings(void) {
-    settings_t cfg = {.source = SOURCE_CAN,
-                      .brightness = 40,
-                      .auto_connect = true,
-                      .flip = true,
-                      .ethanol_sensor = true,
-                      .shift_rpm = 7100};
+    settings_t cfg = {.source = SOURCE_CAN, .brightness = 40, .auto_connect = true, .flip = true, .shift_rpm = 7100};
     uint8_t buf[SETTINGS_SIZE];
     settings_encode(cfg, buf);
     CHECK(settings_equal(settings_decode(buf), cfg), "settings didn't round-trip");
@@ -547,9 +552,6 @@ static void test_screen(void) {
     screen_apply_turn(&s, 1, 6, &cfg);
     screen_apply_click(&s, &cfg);
     CHECK(cfg.flip, "a click on flip didn't turn it on");
-    screen_apply_turn(&s, 1, 6, &cfg);
-    screen_apply_click(&s, &cfg);
-    CHECK(cfg.ethanol_sensor, "a click on the ethanol sensor didn't turn it on");
     static const struct {
         int row;
         action_t action;
@@ -571,13 +573,6 @@ static void test_screen(void) {
 }
 
 static void test_sensors(void) {
-    float at_pin = ETHANOL_SENSOR_MAX_VOLTS * divider_ratio(ETHANOL_DIVIDER);
-    CHECK(at_pin < 3.3f, "the divider lets %fV through at the sensor's max, over the RP2040's 3.3V", (double)at_pin);
-    CHECK(nearly_equal(divider_input_volts(ETHANOL_DIVIDER, at_pin), ETHANOL_SENSOR_MAX_VOLTS),
-          "divider_input_volts isn't the inverse");
-    CHECK(nearly_equal(sensors_ethanol_percent(2.5f), 50), "2.5V gave %f%%, want 50",
-          (double)sensors_ethanol_percent(2.5f));
-    CHECK(sensors_ethanol_percent(0) == 0 && sensors_ethanol_percent(5) == 100, "ethanol %% isn't clamped");
     CHECK(sensors_is_whole_ecu_adc_step(1234 * ECU_ADC_STEP_VOLTS), "a whole number of ADC steps is off the grid");
     CHECK(!sensors_is_whole_ecu_adc_step(1234.5f * ECU_ADC_STEP_VOLTS), "half an ADC step is on the grid");
 }

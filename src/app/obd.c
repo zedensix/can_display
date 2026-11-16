@@ -1,5 +1,7 @@
 #include "obd.h"
 
+#include <string.h>
+
 can_frame_t obd_build_request(uint8_t pid) {
     return (can_frame_t){.id = OBD_REQUEST_ID, .dlc = 8, .data = {0x02, 0x01, pid}};
 }
@@ -17,6 +19,17 @@ signal_t obd_decode_message(const uint8_t *msg, int len, state_t *state, uint32_
         }
         state_set_reading(state, SIG_OIL, (float)msg[2 + OIL_RESPONSE_INDEX] - 40, now_ms);
         return SIG_OIL;
+    }
+    // The only memory read polled is the ethanol % (ETHANOL_RAM_READ).
+    if (len == 5 && msg[0] == 0x63) {
+        uint32_t bits = (uint32_t)msg[1] << 24 | (uint32_t)msg[2] << 16 | (uint32_t)msg[3] << 8 | msg[4];
+        float pct;
+        memcpy(&pct, &bits, sizeof pct);
+        if (!(pct >= 0 && pct <= 100)) {
+            return SIG_COUNT;
+        }
+        state_set_reading(state, SIG_ETHANOL, pct, now_ms);
+        return SIG_ETHANOL;
     }
     if (len < 3 || msg[0] != 0x41) {
         return SIG_COUNT;

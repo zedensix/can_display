@@ -25,7 +25,7 @@ typedef struct {
 #define PID_IAT 0x0F
 #define PID_LAMBDA 0x24
 // Listed as supported by this car's engine ECU (0100 bitmap BE3FA813,
-// 2026-11-14); its closed and wide-open values aren't known yet.
+// 2026-11-14); it read 14 to 17% idling (2026-11-16), wide open isn't known.
 #define PID_THROTTLE 0x11
 
 // GASOLINE_STOICH_AFR turns lambda into a gasoline AFR.
@@ -38,6 +38,14 @@ typedef struct {
 // (2026-11-14).
 #define OBD_ENGINE_ECU 0x7E0
 #define OIL_RESPONSE_INDEX 28
+
+// The ethanol % has no PID either: the flex-fuel tune keeps it in the
+// engine ECU's RAM, a big-endian float at 0xFFF87C7C, read with UDS
+// ReadMemoryByAddress (23, 4 address bytes, 1 size byte) asked to
+// 0x7E0, answered 63 then the 4 bytes. Found by three RAM scans of one
+// tank, matched against OFT on this car (2026-11-16). It's this tune's
+// RAM layout: a reflash may move it.
+#define ETHANOL_RAM_READ "2314FFF87C7C04"
 
 // obd_build_request is the Mode 01 single-frame request for pid.
 can_frame_t obd_build_request(uint8_t pid);

@@ -22,13 +22,5 @@
 #define KNOB_DT 3
 #define KNOB_BUTTON 4
 
-// ADC0, fed through the divider in docs/wiring.md.
-#define ETHANOL_PIN 26
-#define ETHANOL_ADC_INPUT 0
-
-// ADC_VREF is the RP2040 ADC reference (the 3.3V rail on a stock Pico W).
-// Tune it against a multimeter: it typically reads a few tens of mV off.
-#define ADC_VREF 3.3f
-
 #define PANEL_WIDTH 240
 #define PANEL_HEIGHT 320

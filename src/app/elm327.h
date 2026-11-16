@@ -17,8 +17,8 @@
 // on, ISO 15765-4 11bit 500kbps), logs its raw answers to a few probes,
 // then polls RPM, AFR, throttle, coolant and intake temperatures (all in one request if the
 // ECU answers that), plus the battery voltage about once a second (ATRV,
-// answered by the dongle itself) and the oil temperature every few
-// seconds. With headers on, each reply line is a CAN frame; multi-frame
+// answered by the dongle itself) and the oil temperature and the
+// ethanol % every few seconds. With headers on, each reply line is a CAN frame; multi-frame
 // answers are reassembled (isotp_add_frame).
 
 #define ELM_TIMEOUT_MS 2000
@@ -28,8 +28,12 @@
 // session fails: over BLE a notification gets lost now and then.
 #define ELM_RETRIES 2
 #define ELM_BATTERY_INTERVAL_MS 1000
-#define ELM_OIL_INTERVAL_MS 3000
-#define ELM_OIL_MAX_MISSES 3
+// The engine ECU's own reads (the oil temperature, the ethanol %) go
+// every ELM_ENGINE_INTERVAL_MS; each one is dropped after
+// ELM_ENGINE_MAX_MISSES answers without its value.
+#define ELM_ENGINE_INTERVAL_MS 3000
+#define ELM_ENGINE_MAX_MISSES 3
+#define ELM_ENGINE_READS 2
 
 // The RAM scan reads ELM_SCAN_CHUNK bytes at a time (whole floats, and
 // the answer fits isotp_t), from ELM_SCAN_START until the ECU refuses an
@@ -87,8 +91,8 @@ typedef struct {
     // the dongle rejects it.
     bool single_response;
     uint32_t battery_ms;
-    uint32_t oil_ms;
-    int oil_step, oil_misses;
+    uint32_t engine_ms;
+    int engine_step, engine_misses[ELM_ENGINE_READS];
     // ecu_ms is when the engine ECU last answered (or polling started):
     // a long silence means the car is off. ecu_answered is whether it
     // answered at all this session.

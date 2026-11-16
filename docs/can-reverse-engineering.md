@@ -18,7 +18,7 @@ especially before making driving decisions based on it.
 | Oil temp | Decoded from `0x360` byte 2, `value - 40`°C. Unverified on this car. |
 | AFR | Polled via OBD-II Mode 01 PID 0x24 (standard, not reverse-engineered) from the factory wideband sensor. Whether this ECU actually answers it hasn't been confirmed — see the dedicated section below. |
 | Battery voltage | **Not found** in any factory-bus reverse-engineering doc so far. Needs new reverse-engineering work (see below). |
-| Ethanol % | Not on CAN at all — read from a locally-wired analog sensor instead. See `docs/wiring.md` and `src/app/sensors`. |
+| Ethanol % | Not on CAN nor a PID: read from the engine ECU's RAM (below). |
 
 ## How to check (or find) an ID
 
@@ -117,6 +117,14 @@ candidates with what OFT or another logger shows at the same time, then
 across two tanks with different blends: the right address follows the
 blend.
 
+Three scans on one tank (2026-11-15 and 16, engine running) found a
+single address every time: **0xFFF87C7C**, at 66.66, 65.72 and 66.79 %
+(the third scan also had 66.785 at 0xFFF8D410, a copy), and it matched
+OFT's reading. The dash polls it (`ETHANOL_RAM_READ` in `src/app/obd.h`)
+with the oil temperature. Still worth checking on a tank of another
+blend; and it's this tune's RAM layout, a reflash may move it: rescan
+then.
+
 ## Finding the VSC / TRC OFF mode on the bus
 
 "Listen CAN" on the settings page looks for the bits that tell the
@@ -144,9 +152,23 @@ temperature), except one that ticks exactly once per step: it alternates
 like a flag. A real flag is a bit or two, the same across a second run.
 Run it twice: the right ID comes back both times.
 
+A first run (2026-11-16, parked, engine running) found 36 IDs, 15 with
+noise, and a single candidate, **0x0D3** (7 bytes):
+
+| Mode | Data |
+| --- | --- |
+| on | `00 06 C0 0F 00 00 E8` |
+| TRC OFF | `20 06 C0 0F 00 00 31` |
+| everything off | `20 0E C0 0E 00 00 8D` |
+
+Its bits read like the modes: byte 0 bit 5 (0x20) set with TRC off (in
+both off modes), byte 1 bit 3 (0x08) set with VSC off, byte 3 bit 0
+(0x01) set while VSC is on. The last byte changes every frame (a
+checksum or a counter, noise). One run only: a second one must find
+the same bits before anything reads them.
+
 ## Adding an aftermarket ethanol source
 
 Same idea, if you'd rather get ethanol % over CAN from an aftermarket
-controller than through the local analog sensor this project currently
-reads (`src/app/sensors.c`): find the controller's documented frame
-layout and register a decoder the same way.
+controller than from the ECU's RAM: find the controller's documented
+frame layout and register a decoder the same way.

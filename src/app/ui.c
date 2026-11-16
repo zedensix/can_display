@@ -39,10 +39,10 @@ const theme_t theme_dark = {
 #define AFR_RANGE {10, 18, 12, 16, 11, 17, -1}
 #define ETHANOL_RANGE {0, 100, -1, 101, -1, 101, -1}
 
-// Most signals update several times a second. The oil temperature comes
-// every 3s through the dongle (ELM_OIL_INTERVAL_MS).
+// Most signals update several times a second. The oil temperature and
+// the ethanol % come every 3s through the dongle (ELM_ENGINE_INTERVAL_MS).
 #define FAST_STALE_MS 2000
-#define OIL_STALE_MS 10000
+#define SLOW_STALE_MS 10000
 
 // From OIL_CRITICAL, the oil temperature takes the whole screen, on every
 // page: the tile alone, red from OIL_RANGE's 120, is easy to miss, and
@@ -52,12 +52,12 @@ const theme_t theme_dark = {
 // No RPM tile: the car's own tachometer is right there. RPM still drives
 // the shift light.
 const tile_t ui_tiles[] = {
-    {"OIL TEMP", "%.0f", DEGREE "C", SIG_OIL, OIL_RANGE, OIL_STALE_MS},
+    {"OIL TEMP", "%.0f", DEGREE "C", SIG_OIL, OIL_RANGE, SLOW_STALE_MS},
     {"COOLANT", "%.0f", DEGREE "C", SIG_COOLANT, COOLANT_RANGE, FAST_STALE_MS},
     {"AFR", "%.1f", "", SIG_AFR, AFR_RANGE, FAST_STALE_MS},
     {"INTAKE", "%.0f", DEGREE "C", SIG_IAT, IAT_RANGE, FAST_STALE_MS},
     {"BATTERY", "%.1f", "V", SIG_BATTERY, BATTERY_RANGE, FAST_STALE_MS},
-    {"ETHANOL", "%.0f", "%", SIG_ETHANOL, ETHANOL_RANGE, FAST_STALE_MS},
+    {"ETHANOL", "%.0f", "%", SIG_ETHANOL, ETHANOL_RANGE, SLOW_STALE_MS},
 };
 const int ui_tile_count = sizeof ui_tiles / sizeof ui_tiles[0];
 const int ui_view_count = sizeof ui_tiles / sizeof ui_tiles[0];
@@ -442,7 +442,6 @@ static void draw_settings_page(canvas_t *c, const theme_t *t, const screen_t *sc
         [ROW_SOURCE] = {"Data source", cfg->source == SOURCE_BLE ? "BLE" : "CAN"},
         [ROW_AUTO_CONNECT] = {"Auto-connect", cfg->auto_connect ? "ON" : "OFF"},
         [ROW_FLIP] = {"Flip screen", cfg->flip ? "ON" : "OFF"},
-        [ROW_ETHANOL_SENSOR] = {"Ethanol sensor", cfg->ethanol_sensor ? "ON" : "OFF"},
         [ROW_SEND_LOG] = {"Send log", ""},
         [ROW_SCAN] = {"Scan ECU RAM", ""},
         [ROW_LISTEN] = {"Listen CAN", ""},
@@ -535,7 +534,7 @@ static void draw_oil_overheat_screen(canvas_t *c, const theme_t *t, float oil, u
 
 static bool oil_is_overheating(const state_t *state, uint32_t now_ms) {
     const reading_t *oil = &state->readings[SIG_OIL];
-    return !reading_is_stale(oil, now_ms, OIL_STALE_MS) && oil->value >= OIL_CRITICAL;
+    return !reading_is_stale(oil, now_ms, SLOW_STALE_MS) && oil->value >= OIL_CRITICAL;
 }
 
 bool ui_shows_status_screen(const state_t *state, const screen_t *screen, uint32_t now_ms) {

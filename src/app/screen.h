@@ -27,7 +27,6 @@ enum {
     ROW_SOURCE,
     ROW_AUTO_CONNECT,
     ROW_FLIP,
-    ROW_ETHANOL_SENSOR,
     ROW_SEND_LOG,
     ROW_SCAN,
     ROW_LISTEN,

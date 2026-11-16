@@ -72,7 +72,7 @@ static int16_t reading_scaled_i16(const state_t *s, signal_t sig, float scale, u
     const reading_t *r = &s->readings[sig];
     // As the gauges: past their staleness, no reading (the oil comes
     // every 3s).
-    if (reading_is_stale(r, now_ms, sig == SIG_OIL ? 10000 : 2000)) {
+    if (reading_is_stale(r, now_ms, sig == SIG_OIL || sig == SIG_ETHANOL ? 10000 : 2000)) {
         return NONE16;
     }
     float v = r->value * scale;
