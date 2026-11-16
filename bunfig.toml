@@ -1,3 +1,4 @@
-# Tailwind for the HTML Bun.serve bundles (web/server.ts).
+# Tailwind and Svelte for the HTML Bun.serve bundles (web/server.ts,
+# tools/wiring/server.ts).
 [serve.static]
-plugins = ["bun-plugin-tailwind"]
+plugins = ["bun-plugin-tailwind", "bun-plugin-svelte"]

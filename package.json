@@ -5,17 +5,22 @@
   "scripts": {
     "dev": "bun --hot web/server.ts",
     "start": "bun web/server.ts",
-    "wiring": "bun tools/wiring_server.ts",
-    "dev:wiring": "bun --hot tools/wiring_server.ts"
+    "wiring": "bun tools/wiring/server.ts",
+    "dev:wiring": "bun --hot tools/wiring/server.ts",
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "bun-plugin-svelte": "0.0.6",
     "bun-plugin-tailwind": "0.1.2",
+    "drizzle-orm": "0.45.4",
+    "svelte": "5.57.3",
     "tailwindcss": "4.3.3"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
     "@types/bun": "1.4.4",
     "@types/web-bluetooth": "0.0.22",
+    "drizzle-kit": "0.31.11",
     "openscad-wasm": "0.0.4",
     "playwright": "1.64.1",
     "scad-js": "0.6.9"

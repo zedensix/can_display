@@ -2,8 +2,8 @@
 // tray) to faceplate/stl/<part>.stl, pictures of them to
 // faceplate/renders/*.png, the assembly with every module in place to
 // faceplate/renders/assembly.scad, and the dimensions they're built from
-// to faceplate/data/dimensions.js, which the
-// wiring page's Dimensions tab shows (a script, so it loads from file://).
+// to faceplate/data/dimensions.json, which the wiring page's Dimensions
+// tab shows.
 //
 // The STLs come from OpenSCAD compiled to WebAssembly (openscad-wasm),
 // in-process. The pictures need the native openscad, which mise installs
@@ -80,10 +80,7 @@ const dimensions = {
     pilots: Object.fromEntries(Object.entries(config.boards).map(([name, board]) => [name, tray.pilotOf(board)])),
   },
 };
-await Bun.write(
-  join("faceplate", "data", "dimensions.js"),
-  `// Written by tools/render_faceplate.ts (mise run faceplate): don't edit.\nwindow.FACEPLATE = ${JSON.stringify(dimensions, null, 2)};\n`,
-);
+await Bun.write(join("faceplate", "data", "dimensions.json"), `${JSON.stringify(dimensions, null, 2)}\n`);
 
 // The assembly as OpenSCAD source, to turn around in its window (`mise run assembly`).
 await Bun.write(

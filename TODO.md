@@ -45,4 +45,13 @@
 - [x] "Ethanol sensor" option dropped (ADC input, divider, setting): the ethanol comes from the ECU's RAM
 - [x] MIT license (except the font, GPLv3 with the font exception, and Toyota's 86 logo)
 - [x] Settings page redesigned: one screen without scrolling, DISPLAY / CONNECTION / TOOLS groups, a BACK button, values as controls (segment bar, switches, BLE | CAN choice, chevrons)
-- [ ] Split the code files over about 300 lines: `docs/wiring.html` (1363), `src/firmware/ble.c` (895), `src/app/ui.c` (711), `test/tests.c` (690), `src/app/elm327.c` (601), `faceplate/model/faceplate.ts` (348), `src/firmware/main.c` (303)
+- [x] Code files under about 300 lines: `ble.c`, `ui.c`, `elm327.c` and the tests split by role, the faceplate's layout checks apart (`main.c` stays at 303)
+- [x] Web pages in Svelte (no SvelteKit), bundled by Bun: the log download page, and the wiring page (from `docs/wiring.html`, now `bun run wiring`'s page, its captures unchanged to the pixel)
+- [x] Biome lints and formats the Svelte components
+- [x] Settings page: a little padding on each row
+- [x] C sources in subfolders by category (data, obd, store, ui; ble, hardware), includes as paths from src/app or src/firmware
+- [x] Log site: the server keeps every session (SQLite through Drizzle, migrations applied at start, each sample once), a viewer (a session's charts with a shared cursor), light/dark/system theme; login left to the https reverse proxy
+- [ ] Log site: deploy it with a volume on /data, behind the proxy's login
+- [x] READY and OFFLINE screens: the knob picks CONNECT or SETTINGS
+- [x] Screensaver: after 30s with nothing connected and no input, an animated show car screen (LED scanners, the logo turning with a shine, GT86 breathing)
+- [ ] Check on the board: the CONNECT / SETTINGS choice, the screensaver's frame rate

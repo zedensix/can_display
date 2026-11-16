@@ -1,7 +1,15 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["web/**", "tools/**/*.ts", "faceplate/**/*.ts", "*.json"]
+    "includes": [
+      "web/**",
+      "!web/drizzle",
+      "tools/**/*.ts",
+      "tools/**/*.svelte",
+      "tools/**/*.css",
+      "faceplate/**/*.ts",
+      "*.json"
+    ]
   },
   "formatter": {
     "indentStyle": "space",
@@ -12,5 +20,8 @@
     "parser": {
       "tailwindDirectives": true
     }
+  },
+  "html": {
+    "experimentalFullSupportEnabled": true
   }
 }

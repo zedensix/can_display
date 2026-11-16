@@ -1,0 +1,208 @@
+/* The Dimensions tab: each module's card, its drawings beside its table. */
+
+.legend {
+  position: sticky;
+  top: var(--nav-height, 65px);
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: center;
+  margin: -16px -16px 16px;
+  padding: 12px 16px;
+  background: #f4f1ea;
+  border-bottom: 1px solid rgb(127 127 127 / 0.3);
+}
+.cards {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(720px, 100%), 1fr));
+}
+/* Drawings beside the table when there's room, else above it; either way
+   they stay on screen while the table scrolls. */
+.card .body {
+  display: grid;
+  gap: 8px 20px;
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  align-items: start;
+}
+.card .body > .views {
+  position: sticky;
+  top: var(--sticky-top, 120px);
+  z-index: 1;
+  background: #fffdf8;
+  padding-bottom: 6px;
+}
+/* Above the table (narrow screens), they share the screen with it. */
+@media (max-width: 760px) {
+  .card .part {
+    width: auto !important;
+    max-height: 24vh;
+  }
+}
+.card {
+  border: 1px solid rgb(127 127 127 / 0.35);
+  border-radius: 12px;
+  padding: 14px;
+  background: #fffdf8;
+}
+.card h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.card .sub {
+  margin: 2px 0 10px;
+  font-size: 13px;
+  color: #78716c;
+}
+.card .views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  justify-content: center;
+  align-items: flex-end;
+}
+.card figure {
+  margin: 0;
+  max-width: 100%;
+}
+.card figcaption {
+  font-size: 12px;
+  color: #78716c;
+  text-align: center;
+}
+.card .part {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+}
+.part .hover-only {
+  display: none;
+}
+.part .hover-only.hl {
+  display: inline;
+}
+.part > * {
+  transition: opacity 0.12s;
+}
+.part.focus > :not(.hl) {
+  opacity: 0.18;
+}
+.part .hl:is(rect, circle, polygon) {
+  stroke: #ea580c;
+  stroke-width: 0.7;
+}
+.part g.hl .dim {
+  stroke-width: 0.45;
+}
+.part g.hl .dim-value {
+  font-size: 3.2px;
+}
+.card tr:hover td {
+  background: #fff7ed;
+}
+.part text {
+  font-family: system-ui, sans-serif;
+  font-size: 2.6px;
+  fill: #1c1917;
+}
+.part .dim {
+  stroke: #c2410c;
+  stroke-width: 0.25;
+  fill: none;
+}
+.part text.dim-value {
+  fill: #c2410c;
+  font-weight: 700;
+}
+.card table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.card td {
+  padding: 4px 4px;
+  border-top: 1px solid rgb(127 127 127 / 0.2);
+  vertical-align: top;
+}
+.card td.value {
+  text-align: right;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.card td .key {
+  display: block;
+  font:
+    11.5px ui-monospace,
+    Menlo,
+    monospace;
+  color: #78716c;
+  word-break: break-all;
+}
+.card td:last-child {
+  width: 1%;
+}
+.chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.chip.checked {
+  background: #dcfce7;
+  color: #166534;
+}
+.chip.guess {
+  background: #fef3c7;
+  color: #92400e;
+}
+.card input {
+  width: 62px;
+  padding: 3px 6px;
+  font: inherit;
+  font-weight: 700;
+  text-align: right;
+  border: 1px solid rgb(127 127 127 / 0.45);
+  border-radius: 6px;
+  background: #fff;
+}
+.card input.invalid {
+  border-color: #dc2626;
+  background: #fef2f2;
+}
+.card input:disabled {
+  border-color: transparent;
+  background: transparent;
+  color: inherit;
+}
+.card tr.edited td {
+  background: #fff7ed;
+}
+button.chip {
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+.legend .save {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+#save-status.error {
+  color: #b91c1c;
+  font-weight: 600;
+}
+.pictures {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: 10px;
+}
+.pictures img {
+  width: 100%;
+  border-radius: 8px;
+  background: #fff;
+}

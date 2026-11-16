@@ -6,8 +6,8 @@ project(can_display C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 pico_sdk_init()
 
-file(GLOB APP_SOURCES src/app/*.c)
-file(GLOB FIRMWARE_SOURCES src/firmware/*.c)
+file(GLOB_RECURSE APP_SOURCES src/app/*.c)
+file(GLOB_RECURSE FIRMWARE_SOURCES src/firmware/*.c)
 # Warnings are errors in this project's code only: the SDK's own sources
 # are compiled into the same targets.
 set_source_files_properties(${APP_SOURCES} ${FIRMWARE_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wall;-Wextra;-Werror")
@@ -20,7 +20,7 @@ function(add_firmware name)
         pico_stdlib pico_flash
         hardware_dma hardware_flash hardware_pwm hardware_spi hardware_watchdog
         pico_cyw43_arch_poll pico_btstack_ble pico_btstack_cyw43)
-    pico_btstack_make_gatt_header(${name} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src/firmware/dash.gatt")
+    pico_btstack_make_gatt_header(${name} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src/firmware/ble/dash.gatt")
     pico_enable_stdio_usb(${name} 1)
     pico_enable_stdio_uart(${name} 0)
     pico_add_extra_outputs(${name})

@@ -21,7 +21,7 @@ mise run flash-sim   # same, with fake data instead of the car, to test the disp
 mise run logs        # read the log the Pico kept in flash (boots, BLE steps, dongle answers, crashes)
 mise run logo        # regenerate the boot splash from 86.png
 mise run ui          # render every screen into ui/*.png (ui/sheet.png: all side by side)
-mise run wiring      # capture the wiring diagram (docs/wiring.html) for docs/wiring.md
+mise run wiring      # capture the wiring diagram for docs/wiring.md
 bun run wiring       # the wiring diagram in the browser, and the modules' dimensions to enter before printing
 mise run faceplate   # render the printed parts (faceplate with display + encoder, tray with the boards): STLs and pictures, see faceplate/README.md
 mise install         # the tools, and the code quality hooks on every commit (clang-format, biome, tsc, tests)
@@ -42,10 +42,14 @@ The simulator needs SDL2 (`brew install sdl2`).
 
 The dash logs every gauge to its flash while the engine
 runs; "Send log" in the settings hands it to a phone through the page in
-`web/` (Chrome on Android), which shows each session's peaks and saves
-a CSV. Bun serves it (`bun run dev` locally); the `Dockerfile` self-hosts
-it on port 3000, behind an https reverse proxy: Web Bluetooth refuses
-plain http.
+`web/` (Chrome on Android), which sends it to its server: the server
+keeps every session (SQLite, each sample once however many times it's
+sent), the page lists them and charts each one (RPM, temperatures, AFR,
+battery, ethanol, a cursor across them all), in a light, dark or the
+device's theme, and saves CSVs. Bun serves it (`bun run dev` locally);
+the `Dockerfile` self-hosts it on port 3000, the logs in its `/data`
+volume, behind an https reverse proxy: Web Bluetooth refuses plain
+http, and the proxy is what asks who's there (the server has no login).
 
 Full pin mapping and power: [`docs/wiring.md`](docs/wiring.md).
 
@@ -85,11 +89,11 @@ how to verify them on your own car.
   watchdog reboots a frozen board, a panic is written to the flash log
   before rebooting, and a hard fault is reported at the next boot.
 - **Thresholds** (what counts as normal, warning, danger for each
-  gauge) live in one place, the ranges at the top of `src/app/ui.c`.
+  gauge) live in one place, the ranges at the top of `src/app/ui/ui.c`.
 
 ## License
 
-MIT (`LICENSE`), except the font data in `src/app/fonts.c`: FreeSans
+MIT (`LICENSE`), except the font data in `src/app/ui/fonts.c`: FreeSans
 Bold from GNU FreeFont, GPLv3 with the font exception. The 86 logo
-(`86.png`, `src/app/logo.c`) is Toyota's trademark, not covered by the
+(`86.png`, `src/app/ui/logo.c`) is Toyota's trademark, not covered by the
 MIT license.

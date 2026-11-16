@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "sniff.h"
-#include "ui.h"
+#include "obd/sniff.h"
+#include "ui/ui.h"
 
 // The panel's size, as in src/firmware/board.h.
 #define W 240
@@ -115,12 +115,29 @@ static void render_status_screen(canvas_t *c, const char *text) {
     render_screen(c, &s, (screen_t){0});
 }
 
+// A prompt waiting for the driver's choice, the knob on choice.
+static void render_choice_screen(canvas_t *c, const char *text, choice_t choice) {
+    state_t s = {.wait = WAIT_CHOICE};
+    snprintf(s.status, sizeof s.status, "%s", text);
+    render_screen(c, &s, (screen_t){.choice = choice});
+}
+
 static void shot_ready(canvas_t *c) {
-    render_status_screen(c, "READY\npress to connect to\nIOS-Vlink\n(last used)");
+    render_choice_screen(c, "READY\nIOS-Vlink\n(last used)", CHOICE_CONNECT);
 }
 
 static void shot_offline(canvas_t *c) {
-    render_status_screen(c, "OFFLINE\npress to connect to\nIOS-Vlink");
+    render_choice_screen(c, "OFFLINE\nIOS-Vlink", CHOICE_SETTINGS);
+}
+
+// The screensaver, the shine across the logo and later, between two shines.
+static void shot_showcar(canvas_t *c) {
+    render_screen(c, &(state_t){.wait = WAIT_CHOICE}, (screen_t){.idle = true});
+}
+
+static void shot_showcar_later(canvas_t *c) {
+    state_t s = {.wait = WAIT_CHOICE};
+    ui_render(c, &s, &(screen_t){.idle = true}, &cfg, now + 2600);
 }
 
 static void shot_connecting(canvas_t *c) {
@@ -184,6 +201,8 @@ static const shot_t shots[] = {
     {"scan", shot_scan},
     {"listen", shot_listen},
     {"failed", shot_failed},
+    {"showcar", shot_showcar},
+    {"showcar_later", shot_showcar_later},
     {"settings", shot_settings},
     {"settings_can", shot_settings_can},
     {"shot_boot_spin", shot_boot_spin},

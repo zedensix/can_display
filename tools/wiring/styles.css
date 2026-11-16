@@ -1,0 +1,111 @@
+/* The wiring page: the paper, the nav, the diagram and its notes. */
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  font:
+    15px / 1.5 system-ui,
+    sans-serif;
+  background: #f4f1ea;
+  color: #1c1917;
+}
+body.blueprint {
+  background: #123d73;
+  color: #e6f0ff;
+}
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px;
+  background: inherit;
+  border-bottom: 1px solid rgb(127 127 127 / 0.3);
+}
+nav a,
+nav button {
+  padding: 8px 16px;
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 600;
+  color: inherit;
+  border: 1px solid rgb(127 127 127 / 0.5);
+}
+nav button {
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+nav a.active,
+nav button.active {
+  background: #ff5a1e;
+  border-color: #ff5a1e;
+  color: #fff;
+}
+body.blueprint nav a.active,
+body.blueprint nav button.active {
+  background: #e6f0ff;
+  border-color: #e6f0ff;
+  color: #123d73;
+}
+nav h1 {
+  margin: 0 auto 0 0;
+  font-size: 18px;
+  align-self: center;
+  letter-spacing: 1px;
+}
+main {
+  padding: 16px;
+}
+svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+#diagram {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+#diagram.dragging {
+  cursor: grabbing;
+}
+#diagram .module {
+  cursor: pointer;
+}
+nav .hint {
+  align-self: center;
+  font-size: 13px;
+  opacity: 0.7;
+}
+#encoder-legs {
+  height: 540px;
+  margin-top: 16px;
+  border: 1px solid rgb(127 127 127 / 0.35);
+  border-radius: 10px;
+}
+.notes {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  margin-top: 16px;
+}
+.note {
+  border: 1px solid rgb(127 127 127 / 0.35);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.note b {
+  display: block;
+  margin-bottom: 4px;
+}
+body.blueprint .note {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 13px;
+  border-color: #7fa6dc;
+}

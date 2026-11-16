@@ -8,7 +8,8 @@
 import type { ScadObject } from "scad-js";
 import { cylinder, union } from "scad-js";
 import type { Config } from "./config";
-import { box, ENCODER_PINS, type Faceplate, PITCH } from "./faceplate";
+import type { Faceplate } from "./faceplate";
+import { box, ENCODER_PINS, PITCH } from "./geometry";
 import { DUPONT_LENGTH, HEADER_PINS, HEADER_PLASTIC, PICO_PINS, PICO_ROWS_APART } from "./tray";
 
 /** A row of square header pins along X (or Y), centered on (x, y), from z0 to z1. */

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Convert 86.png into the boot splash, src/app/logo.c"
+#MISE description="Convert 86.png into the boot splash, src/app/ui/logo.c"
 set -euo pipefail
 
 mkdir -p build
@@ -10,4 +10,4 @@ python3 tools/logo.py 86.png build/logo.bin
   echo
   (cd build && xxd -i -n logo_bin logo.bin) |
     sed 's/^unsigned char/const unsigned char/; s/^unsigned int/const unsigned int/'
-} >src/app/logo.c
+} >src/app/ui/logo.c

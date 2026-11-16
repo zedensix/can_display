@@ -2,13 +2,14 @@
 // window. It draws through the same src/app code into the same RGB565
 // canvas, so it's a pixel-exact preview: UI changes are developed here.
 // The keyboard stands in for the rotary encoder: arrows turn, space
-// clicks.
+// clicks; r shows or hides a READY prompt, as with nothing connected (its
+// Connect clears it; left alone 30s, the screensaver comes on).
 
 #include <SDL.h>
 #include <stdbool.h>
 
-#include "simdata.h"
-#include "ui.h"
+#include "data/simdata.h"
+#include "ui/ui.h"
 
 #define PANEL_WIDTH 240
 #define PANEL_HEIGHT 320
@@ -39,6 +40,8 @@ int main(void) {
     uint32_t start = SDL_GetTicks();
 
     for (bool running = true; running;) {
+        int turn = 0;
+        bool press = false;
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
@@ -47,20 +50,32 @@ int main(void) {
                 switch (event.key.keysym.sym) {
                 case SDLK_DOWN:
                 case SDLK_RIGHT:
-                    screen_apply_turn(&screen, 1, ui_view_count, &cfg);
+                    turn++;
                     break;
                 case SDLK_UP:
                 case SDLK_LEFT:
-                    screen_apply_turn(&screen, -1, ui_view_count, &cfg);
+                    turn--;
                     break;
                 case SDLK_SPACE:
-                    screen_apply_click(&screen, &cfg);
+                    press = true;
+                    break;
+                case SDLK_r:
+                    state_set_status(&state, state.status[0] ? "" : "READY\nIOS-Vlink\n(last used)");
+                    state.wait = state.status[0] ? WAIT_CHOICE : WAIT_NONE;
                     break;
                 }
             }
         }
 
         uint32_t now = SDL_GetTicks();
+        if (screen_apply_input(&screen, &state, turn, press, ui_view_count, &cfg, now)) {
+            if (screen.page == PAGE_GAUGES && state.wait == WAIT_CHOICE) {
+                state_set_status(&state, ""); // Connect: as if it worked
+                state.wait = WAIT_NONE;
+            } else {
+                screen_apply_click(&screen, &cfg);
+            }
+        }
         simdata_update(&state, now);
         if (!ui_render_boot(&canvas, now - start, now)) {
             ui_render(&canvas, &state, &screen, &cfg, now);

@@ -2,7 +2,7 @@
 
 This matches the pin constants in `src/firmware/board.h`.
 Change either the wiring or the constants if yours differs: they just
-need to agree. `wiring.html` draws it in a browser, in color or as a
+need to agree. The wiring page draws it in a browser, in color or as a
 blueprint. It draws each module with its header in its real order, from
 the side you wire it from: the Pico from below, the modules from their
 back; a click turns any of them over, and a button switches between the
@@ -68,7 +68,7 @@ gauges: settings page (turn to pick a row, click to change it, Back to
 leave); while the screen says "press to connect" or "press to retry",
 the click goes to the connection instead. Hold 1s: reboot. If turning
 goes the wrong way, swap A and B (CLK and DT). `STEPS_PER_DETENT` in
-`src/firmware/knob.c` is 2, for a half-step encoder (the one on this
+`src/firmware/hardware/knob.c` is 2, for a half-step encoder (the one on this
 car); if one click moves two rows, it's a full-step one: set it to 4.
 
 Keep GP15 free: the pico-sdk drives it briefly at boot for the RP2040 USB
@@ -122,7 +122,7 @@ verified yet.
   the dongle, a few refreshes per second at best.
 - No pairing: these dongles take any BLE client without a PIN. The
   Pico connects to the first device that looks like one; set
-  `ELM_ADDRESS` in `src/firmware/ble.c` to lock it to yours.
+  `ELM_ADDRESS` in `src/firmware/ble/ble.c` to lock it to yours.
 - Until data flows, the panel shows a status screen: scanning (with
   the last device it ignored), connecting to (name and MAC), reading
   services, init. The flash log (`mise run logs`) also lists the
@@ -130,7 +130,7 @@ verified yet.
 - If the scan never stops on your dongle, its name and services match
   nothing known: read them with a phone BLE scanner (nRF Connect), then
   set `ELM_ADDRESS` or add its service to `profiles` (both in
-  `src/firmware/ble.c`). The scan gives up after 30s.
+  `src/firmware/ble/ble.c`). The scan gives up after 30s.
 - The connection starts with a click on the encoder ("press to
   connect"), or at power-on with Auto-connect on in the settings. Any
   error (dongle unplugged, car off) shows on the panel and waits for a
@@ -192,7 +192,7 @@ The firmware assumes an **8MHz crystal** on the MCP2515 board (the one
 on the blue MCP2515 + TJA1050 board used here: read the marking on the
 can-shaped crystal) and **500kbps**, which matches the GT86's factory
 high-speed CAN bus: the CNF1, CNF2 and CNF3 values that
-`mcp2515_source_init` writes in `src/firmware/mcp2515.c` (0x00, 0x91,
+`mcp2515_source_init` writes in `src/firmware/hardware/mcp2515.c` (0x00, 0x91,
 0x01: 8 time quanta of 250ns, sampled at 75%), not tried on this car
 yet. A 16MHz crystal takes 0x00, 0xF0 and 0x86.
 

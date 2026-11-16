@@ -1,7 +1,7 @@
 # Code quality on every commit, run by prek (installed by `mise install`;
 # `prek run --all-files` to check everything, as the CI does). Generated sources
 # (fonts, logo) are left as generated.
-exclude: ^src/app/(fonts|logo)\.c$
+exclude: ^src/app/ui/(fonts|logo)\.c$
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -28,17 +28,25 @@ repos:
 
   - repo: local
     hooks:
-      # TypeScript, CSS, JSON: lint and format (biome.json).
+      # TypeScript, Svelte, CSS, JSON: lint and format (biome.json; its
+      # Svelte support is the experimental full HTML one).
       - id: biome
         name: biome
         entry: bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true
         language: system
-        types_or: [ts, javascript, css, json]
+        types_or: [ts, javascript, svelte, css, json]
       - id: tsc
         name: tsc
         entry: bunx tsc -p tsconfig.json
         language: system
         files: ^(web|tools|faceplate)/.*\.ts$
+        pass_filenames: false
+      # The web page's log store and parser (bun test).
+      - id: web-tests
+        name: web tests
+        entry: bun test web
+        language: system
+        files: ^web/
         pass_filenames: false
       - id: tests
         name: host tests

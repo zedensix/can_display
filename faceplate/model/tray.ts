@@ -16,7 +16,8 @@
 import type { ScadObject } from "scad-js";
 import { cylinder, difference, union } from "scad-js";
 import type { Config } from "./config";
-import { box, type Faceplate, PITCH } from "./faceplate";
+import type { Faceplate } from "./faceplate";
+import { box, PITCH } from "./geometry";
 
 type Board = Config["boards"][keyof Config["boards"]];
 

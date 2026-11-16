@@ -1,20 +1,49 @@
 /* Classes are only looked for in web/, not in the firmware's sources. */
 @import "tailwindcss" source("./");
 
-/* The dash's own palette (src/app/ui.c): black, red-orange, green for good. */
-@theme {
-  --color-ink: #000000;
-  --color-panel: #0d0503;
-  --color-frame: #3a1208;
-  --color-accent: #ff5a1e;
-  --color-hot: #ff2a10;
-  --color-good: #3ce05a;
-  --color-dim: #b98a76;
+/* Dark is a class on <html> (theme.ts), set from the device or the toggle. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* The dash's own palette (src/app/ui/ui.c): black, red-orange, green for
+   good; and its daylight version. */
+:root {
+  --ink: #f7f2ed;
+  --panel: #ffffff;
+  --frame: #ead7cc;
+  --fg: #1c1917;
+  --dim: #7c665c;
+  --accent: #e2501b;
+  --hot: #f0300f;
+  --good: #16a34a;
+  --glow: rgb(255 90 30 / 0.14);
+}
+.dark {
+  --ink: #000000;
+  --panel: #0d0503;
+  --frame: #3a1208;
+  --fg: #ffffff;
+  --dim: #b98a76;
+  --accent: #ff5a1e;
+  --hot: #ff2a10;
+  --good: #3ce05a;
+  --glow: rgb(255 90 30 / 0.18);
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-panel: var(--panel);
+  --color-frame: var(--frame);
+  --color-fg: var(--fg);
+  --color-dim: var(--dim);
+  --color-accent: var(--accent);
+  --color-hot: var(--hot);
+  --color-good: var(--good);
   --font-display: "Rajdhani", ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
-  background: radial-gradient(120% 60% at 50% -10%, rgb(255 90 30 / 0.18), transparent 60%), var(--color-ink);
+  background: radial-gradient(120% 60% at 50% -10%, var(--glow), transparent 60%), var(--ink);
+  color: var(--fg);
 }
 
 /* The progress bar's sheen, while bytes come in. */
