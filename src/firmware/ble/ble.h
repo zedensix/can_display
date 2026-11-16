@@ -33,6 +33,10 @@ void ble_poll_radio(uint32_t now_ms);
 // one was waiting.
 bool ble_handle_click(uint32_t now_ms);
 
+// ble_hold_retries holds the automatic retry after a failure while hold
+// (the settings page is open: the driver may be switching to CAN).
+void ble_hold_retries(bool hold);
+
 // ble_in_standby is true once the car is off: the engine ECU stayed silent
 // for CAR_OFF_MS. The dongle is let go so it can sleep, the radio is off,
 // and a click wakes everything up (a reboot that connects).

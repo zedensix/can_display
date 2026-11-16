@@ -40,6 +40,9 @@ bool give_click_to_prompt(uint32_t now);
 // remember_connected_dongle keeps the dongle just connected to in the settings, as
 // the one the connect prompt offers first.
 void remember_connected_dongle(settings_t *cfg);
+// hold_retries holds the data source's automatic retry after a failure
+// while hold: the driver's in the settings, maybe switching sources.
+void hold_retries(bool hold);
 // run_settings_action carries out a click on an action row of the settings page.
 void run_settings_action(action_t action);
 void __attribute__((noreturn)) reboot_board(bool connect);

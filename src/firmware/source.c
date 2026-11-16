@@ -75,6 +75,12 @@ source_t source_running(void) {
     return source;
 }
 
+void hold_retries(bool hold) {
+    if (ble_active()) {
+        ble_hold_retries(hold);
+    }
+}
+
 void run_settings_action(action_t action) {
     if (!ble_active()) {
         return;

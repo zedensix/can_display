@@ -90,6 +90,8 @@ static const char *const icon_rows[][13] = {
                         ".X.X.X..", "X..X..X.", "...X.X..", "...XX...", "...X...."},
     [ICON_GEAR] = {"....XXX....", ".XX.XXX.XX.", ".XXXXXXXXX.", "..XXX.XXX..", "XXXX...XXXX", "XXX.....XXX",
                    "XXXX...XXXX", "..XXX.XXX..", ".XXXXXXXXX.", ".XX.XXX.XX.", "....XXX...."},
+    [ICON_RETRY] = {"....XXXX..X.", "..XXX..XXXX.", ".XX......XX.", ".X......XXX.", "XX..........", "X...........",
+                    "X...........", "XX.........X", ".X........XX", ".XX......XX.", "..XXX..XXX..", "....XXXX...."},
     [ICON_BACK] = {"...X.......", "..XX.......", ".XXXXXXXXXX", "XXXXXXXXXXX", ".XXXXXXXXXX", "..XX.......",
                    "...X......."},
 };

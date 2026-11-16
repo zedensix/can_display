@@ -105,43 +105,68 @@ void draw_spinner(canvas_t *c, const theme_t *t, int cx, int cy, uint32_t now_ms
 
 #define CHOICE_HEIGHT 26
 
-// draw_choice_buttons draws Connect and Settings along the bottom, the
-// one a click does filled.
-static void draw_choice_buttons(canvas_t *c, const theme_t *t, choice_t choice) {
+// draw_choice_buttons draws the data source's button (Connect, or Retry)
+// and Settings along the bottom, the one a click does filled.
+static void draw_choice_buttons(canvas_t *c, const theme_t *t, wait_t wait, choice_t choice) {
     int gap = 8, w = (c->width - 2 * STATUS_MARGIN - gap) / 2, y = c->height - CHOICE_HEIGHT - 8;
-    draw_button(c, t, STATUS_MARGIN, y, w, CHOICE_HEIGHT, ICON_BLUETOOTH, "Connect", choice == CHOICE_CONNECT);
+    bool retry = wait == WAIT_RETRY;
+    draw_button(c, t, STATUS_MARGIN, y, w, CHOICE_HEIGHT, retry ? ICON_RETRY : ICON_BLUETOOTH,
+                retry ? "Retry" : "Connect", choice == CHOICE_CONNECT);
     draw_button(c, t, STATUS_MARGIN + w + gap, y, w, CHOICE_HEIGHT, ICON_GEAR, "Settings", choice == CHOICE_SETTINGS);
 }
 
 // draw_status_screen is the source's report while it isn't delivering: the
 // logo in a spinner (so a slow step doesn't look frozen), the first
-// paragraph as a title, the rest centered and wrapped under it. Waiting
-// for a choice, Connect and Settings along the bottom.
-void draw_status_screen(canvas_t *c, const theme_t *t, const state_t *state, const screen_t *screen, uint32_t now_ms) {
-    draw_spinner(c, t, c->width / 2, RING_Y, now_ms, 0);
-    draw_logo(c, c->width / 2, RING_Y, 2, t->accent);
-    bool choosing = state->wait == WAIT_CHOICE;
-    if (choosing) {
-        draw_choice_buttons(c, t, screen->choice);
-    }
+// paragraph as a title, the rest centered and wrapped under it. Nothing
+// connected, Connect (or Retry) and Settings along the bottom.
+#define STATUS_MAX_LINES 14
+// The compact layout's logo, above the text, when the text needs the room.
+#define COMPACT_LOGO_Y 44
+#define COMPACT_TEXT_Y 110
 
-    int y = RING_Y + RING_OUT + 34, bottom = choosing ? c->height - CHOICE_HEIGHT - 12 : c->height;
-    bool first = true;
+void draw_status_screen(canvas_t *c, const theme_t *t, const state_t *state, const screen_t *screen, uint32_t now_ms) {
+    bool choosing = state->wait != WAIT_NONE;
+    int bottom = choosing ? c->height - CHOICE_HEIGHT - 12 : c->height;
+
+    // Every line first, the title's then the rest's, to know how high they stand.
+    char lines[STATUS_MAX_LINES][64];
+    bool title[STATUS_MAX_LINES];
+    int n = 0, height = 0;
     char paragraph[192];
     snprintf(paragraph, sizeof paragraph, "%s", state->status);
-    for (char *p = paragraph; p && y < bottom; first = false) {
+    for (char *p = paragraph; p && n < STATUS_MAX_LINES;) {
         char *next = strchr(p, '\n');
         if (next) {
             *next++ = 0;
         }
-        const font_t *font = first ? &font_bold12 : label_font;
-        char lines[8][64];
-        int n = ui_wrap_text(font, p, c->width - 2 * STATUS_MARGIN, lines, 8);
-        for (int i = 0; i < n; i++) {
-            draw_text_centered(c, font, c->width / 2, y, lines[i], first ? t->accent : t->label, 1);
-            y += STATUS_LINE_HEIGHT + (first ? 6 : 0);
+        bool first = n == 0;
+        int added = ui_wrap_text(first ? &font_bold12 : label_font, p, c->width - 2 * STATUS_MARGIN, &lines[n],
+                                 STATUS_MAX_LINES - n);
+        for (int i = n; i < n + added; i++) {
+            title[i] = first;
+            height += STATUS_LINE_HEIGHT + (first ? 6 : 0);
         }
+        n += added;
         p = next;
+    }
+
+    // The logo in its spinner, the text under it; a long text (an error
+    // over the buttons) gets the room instead, under a small logo.
+    int y = RING_Y + RING_OUT + 34;
+    if (y + height - STATUS_LINE_HEIGHT > bottom) {
+        draw_logo(c, c->width / 2, COMPACT_LOGO_Y, 3, t->accent);
+        y = COMPACT_TEXT_Y;
+    } else {
+        draw_spinner(c, t, c->width / 2, RING_Y, now_ms, 0);
+        draw_logo(c, c->width / 2, RING_Y, 2, t->accent);
+    }
+    if (choosing) {
+        draw_choice_buttons(c, t, state->wait, screen->choice);
+    }
+    for (int i = 0; i < n && y <= bottom; i++) {
+        draw_text_centered(c, title[i] ? &font_bold12 : label_font, c->width / 2, y, lines[i],
+                           title[i] ? t->accent : t->label, 1);
+        y += STATUS_LINE_HEIGHT + (title[i] ? 6 : 0);
     }
 }
 

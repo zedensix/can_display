@@ -119,6 +119,7 @@ int main(void) {
             !((screen.page == PAGE_GAUGES || in_standby()) && give_click_to_prompt(start))) {
             screen_apply_click(&screen, &cfg);
         }
+        hold_retries(screen.page == PAGE_SETTINGS);
         remember_connected_dongle(&cfg);
         run_settings_action(screen.action);
         screen.action = ACTION_NONE;

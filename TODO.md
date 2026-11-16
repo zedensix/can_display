@@ -68,3 +68,5 @@
 - [ ] Check in the car: Send log, then back to the dongle without 0x56
 - [x] Drive mode read from 0x0D3: the MCP2515 as it streams, the dongle every 3s (a raw monitor of that ID); a track layout with a TRC OFF / VSC OFF badge when off
 - [ ] Check in the car: the badge follows the TRC OFF button (short press, held), the gauges barely slower with the dongle
+- [x] CI red since the C moved into folders: `data/` in .gitignore (the log server's) also ignored src/app/data/; anchored at the root
+- [x] Every Bluetooth wait or failure screen: Retry beside Settings (auto-retry held in the settings), a compact layout for long errors

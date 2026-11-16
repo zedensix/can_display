@@ -82,7 +82,7 @@ bool screen_apply_input(screen_t *s, const state_t *state, int detents, bool pre
             return false;
         }
     }
-    bool choosing = s->page == PAGE_GAUGES && state->wait == WAIT_CHOICE;
+    bool choosing = s->page == PAGE_GAUGES && state->wait != WAIT_NONE;
     if (choosing && detents) {
         s->choice = detents > 0 ? CHOICE_SETTINGS : CHOICE_CONNECT;
     } else {

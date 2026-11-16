@@ -18,9 +18,9 @@
 // to the gauges and set action. Back returns to the gauges. With the CAN
 // source, the rows that need the dongle (screen_row_needs_ble) do nothing.
 //
-// With nothing connected and the data source waiting for the driver to
-// choose (READY, OFFLINE: state_t.wait), turning on the gauges picks
-// Connect or Settings instead, and a click does it. Nothing connected and
+// With nothing connected (state_t.wait: READY, OFFLINE, on the way to the
+// dongle, a failure), turning on the gauges picks between Connect (or
+// Retry) and Settings instead, and a click does it. Nothing connected and
 // no input for SCREEN_IDLE_MS, the screensaver comes on; the next input
 // only wakes it.
 
@@ -55,7 +55,8 @@ typedef enum {
     ACTION_DISCONNECT,
 } action_t;
 
-// choice_t is what a click does while the data source waits for a choice.
+// choice_t is what a click does while nothing's connected: CHOICE_CONNECT
+// is Connect or Retry, the data source's own.
 typedef enum { CHOICE_CONNECT, CHOICE_SETTINGS } choice_t;
 
 #define SCREEN_IDLE_MS 30000

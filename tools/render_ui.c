@@ -160,14 +160,17 @@ static void shot_showcar_later(canvas_t *c) {
 }
 
 static void shot_connecting(canvas_t *c) {
-    render_status_screen(c, "LINKING\n41:42:86:9A:C0:33");
+    state_t s = {.wait = WAIT_RETRY};
+    snprintf(s.status, sizeof s.status, "%s", "LINKING\n41:42:86:9A:C0:33");
+    render_screen(c, &s, (screen_t){0});
 }
 
 static void shot_failed(canvas_t *c) {
-    render_status_screen(
-        c, "NO LINK\nBLE connect failed:\nservice discovery shot_failed (ATT 0x1f, 0 services)\npress to retry");
+    state_t s = {.wait = WAIT_RETRY};
+    snprintf(s.status, sizeof s.status, "%s",
+             "NO LINK\nBLE connect failed:\ncan't connect: the radio still holds another connection (0x56)");
+    render_screen(c, &s, (screen_t){.choice = CHOICE_SETTINGS});
 }
-
 static void shot_scan(canvas_t *c) {
     render_status_screen(c, "DEEP SCAN\n37 KB of ECU RAM\n3 candidates");
 }

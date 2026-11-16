@@ -6,6 +6,6 @@
 node_modules/
 .playwright-mcp/
 .claude/skills
-data/
-logos/
+/data/
+/logos/
 src/app/ui/brands_data.h

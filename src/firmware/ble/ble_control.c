@@ -64,10 +64,16 @@ bool ble_handle_click(uint32_t now_ms) {
             set_phase(STARTING, "IGNITION\nstarting Bluetooth");
         }
         return true;
+    case STARTING:
+    case SCANNING:
+    case CONNECTING:
+    case DISCOVERING_SERVICES:
+    case DISCOVERING_CHARACTERISTICS:
+    case READING_NAME:
+    case ENABLING_NOTIFICATIONS:
     case FAILED:
-        if (!auto_connect) {
-            reboot_to_connect();
-        }
+        // Retry: a clean start, connecting right away.
+        reboot_to_connect();
         return true;
     case OFFLINE:
         if (!offline_from.set) {

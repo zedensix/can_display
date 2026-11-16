@@ -26,13 +26,32 @@ char picked_name[32];
 
 elm_t elm;
 bool disconnecting;
+static bool hold_retries;
 
 // set_phase moves to p and shows status, or keeps the current one when
 // status is NULL.
 void set_phase(phase_t p, const char *status) {
     phase = p;
     phase_since = now;
-    state->wait = p == PROMPT || p == OFFLINE ? WAIT_CHOICE : p == FAILED && !auto_connect ? WAIT_CLICK : WAIT_NONE;
+    switch (p) {
+    case PROMPT:
+    case OFFLINE:
+        state->wait = WAIT_CHOICE;
+        break;
+    case STARTING:
+    case SCANNING:
+    case CONNECTING:
+    case DISCOVERING_SERVICES:
+    case DISCOVERING_CHARACTERISTICS:
+    case READING_NAME:
+    case ENABLING_NOTIFICATIONS:
+    case FAILED:
+        state->wait = WAIT_RETRY;
+        break;
+    default:
+        state->wait = WAIT_NONE;
+        break;
+    }
     if (status) {
         state_set_status(state, status);
     }
@@ -41,8 +60,7 @@ void set_phase(phase_t p, const char *status) {
 void fail_connection(const char *step, const char *error) {
     log_line("fatal: %s: %s", step, error);
     char status[192];
-    snprintf(status, sizeof status, "NO LINK\n%s failed:\n%s\n%s", step, error,
-             auto_connect ? "retrying..." : "press to retry");
+    snprintf(status, sizeof status, "NO LINK\n%s failed:\n%s%s", step, error, auto_connect ? "\nretrying..." : "");
     set_phase(FAILED, status);
     if (stack_up) {
         gap_stop_scan();
@@ -227,7 +245,8 @@ static void check_phase_timeouts(void) {
         }
         break;
     case FAILED:
-        if (auto_connect && elapsed > AUTO_RETRY_MS) {
+        // Not while the driver's in the settings: they may be switching to CAN.
+        if (auto_connect && !hold_retries && elapsed > AUTO_RETRY_MS) {
             reboot_to_connect();
         }
         break;
@@ -259,4 +278,8 @@ void ble_poll_radio(uint32_t now_ms) {
         }
     }
     check_phase_timeouts();
+}
+
+void ble_hold_retries(bool hold) {
+    hold_retries = hold;
 }

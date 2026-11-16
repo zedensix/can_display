@@ -28,7 +28,7 @@ void draw_outline(canvas_t *c, int x, int y, int w, int h, color_t color);
 // bg, the color under them, like the spinner's ring.
 void fill_round_rect(canvas_t *c, int x, int y, int w, int h, int r, color_t color, color_t bg);
 void outline_round_rect(canvas_t *c, int x, int y, int w, int h, int r, color_t color, color_t bg);
-typedef enum { ICON_BLUETOOTH, ICON_GEAR, ICON_BACK } icon_t;
+typedef enum { ICON_BLUETOOTH, ICON_GEAR, ICON_BACK, ICON_RETRY } icon_t;
 // draw_button draws a pill button, its icon and label centered: filled
 // when chosen (the knob's on it), else outlined.
 void draw_button(canvas_t *c, const theme_t *t, int x, int y, int w, int h, icon_t icon, const char *label,

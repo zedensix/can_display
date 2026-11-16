@@ -155,6 +155,15 @@ void test_choice_and_idle(void) {
     CHECK(!screen_apply_input(&s, &state, 0, true, 6, &cfg, 50000) && !s.idle && s.page == PAGE_GAUGES,
           "waking the screensaver did more than wake it");
 
+    // On the way to the dongle, or failed: Retry beside Settings, the same way.
+    state.wait = WAIT_RETRY;
+    screen_t retry = {0};
+    CHECK(screen_apply_input(&retry, &state, 0, true, 6, &cfg, 60000),
+          "a click on Retry wasn't left for the data source");
+    screen_apply_input(&retry, &state, 1, false, 6, &cfg, 60010);
+    CHECK(!screen_apply_input(&retry, &state, 0, true, 6, &cfg, 60020) && retry.page == PAGE_SETTINGS,
+          "Settings beside Retry didn't open them");
+
     state.wait = WAIT_NONE;
     screen_apply_input(&s, &state, 0, false, 6, &cfg, 200000);
     CHECK(!s.idle, "the screensaver came on with the data source delivering");
