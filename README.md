@@ -86,3 +86,10 @@ how to verify them on your own car.
   before rebooting, and a hard fault is reported at the next boot.
 - **Thresholds** (what counts as normal, warning, danger for each
   gauge) live in one place, the ranges at the top of `src/app/ui.c`.
+
+## License
+
+MIT (`LICENSE`), except the font data in `src/app/fonts.c`: FreeSans
+Bold from GNU FreeFont, GPLv3 with the font exception. The 86 logo
+(`86.png`, `src/app/logo.c`) is Toyota's trademark, not covered by the
+MIT license.

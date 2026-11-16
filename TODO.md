@@ -42,3 +42,4 @@
 - [x] Éthanol lu dans la RAM de l'ECU moteur : FFF87C7C (float, seule adresse dans les 3 scans, colle avec OFT), demandée toutes les 3 s avec l'huile, tuile éthanol
 - [ ] Éthanol : vérifier au plein suivant (autre mélange) que la tuile suit OFT
 - [x] Option « Ethanol sensor » retirée (entrée ADC, diviseur, réglage) : l'éthanol vient de la RAM de l'ECU
+- [x] Licence MIT (sauf la police, GPLv3 avec exception, et le logo 86 de Toyota)
