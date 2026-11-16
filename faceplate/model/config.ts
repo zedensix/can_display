@@ -18,12 +18,12 @@ const defaults = {
     glassWidth: 35.7, // the panel glued on the board (glass and backlight), across
     glassLength: 48, // the panel, top to bottom, without its ribbon
     glassThickness: 2.6, // the panel, glass and backlight, from the board's face
-    glassFromPcbTop: 4.5, // from the board's top edge (away from the header) to the panel's top edge
-    ribbonAllowance: 0.5, // extra room above the panel, where its ribbon folds around to the board: the end away from the soldered header
+    glassFromPcbTop: 4.5, // from the board's top edge (the header's end, at the plate's outer edge) to the panel's top edge
+    ribbonAllowance: 0.5, // extra room above the panel, where its ribbon folds around to the board
     activeWidth: 30.6, // the lit area (240 pixels), across, centered on the panel
     activeLength: 40.8, // the lit area (320 pixels), top to bottom
     activeFromGlassTop: 2.5, // from the panel's top edge to the lit area's top edge
-    solderRowWidth: 20, // the solder joints on the board's face, across, centered, at each end (the pin header's and the pads above the panel)
+    solderRowWidth: 20, // the solder joints on the board's face, across, centered, at each end (the pin header's above the panel, the pads below it)
     solderHeight: 1, // how far those joints stand off the board's face: the plate is relieved under them
   },
   screw: {
@@ -125,6 +125,21 @@ const defaults = {
     earWidthAtEnd: 10,
     earSlotWidth: 5, // a slot open at the ear's end, for the screw
     earSlotDepth: 7,
+  },
+  // A temporary mount on an air vent's horizontal slats, for testing on
+  // the road (ventmount.ts): a clamp on one slat, from a bar across the
+  // tray's back held by the 2 top tray screws (M3x14 instead of M3x10), and
+  // 2 feet on the bottom posts (M3x30) against what's under the vent.
+  // Guesses: measure the vent.
+  vent: {
+    standoff: 20, // from the tray's back to the vent's face: past the converter (14)
+    slatThickness: 2, // the slat the clamp takes, top to bottom
+    slatDepth: 12, // that slat, front to back, up to the vertical vanes behind it: the clamp's legs stop 1 mm short
+    slatGap: 8, // between two slats: each leg goes in one, above and below the slat
+    legThickness: 3, // each leg, top to bottom
+    legWidth: 12, // each leg, across
+    wheelDiameter: 14, // the thumbwheel on the clamp's screw, between the tray and the vent
+    feetLength: 20, // from the tray's back to what the dash's bottom rests on, under the vent (the radio's face)
   },
   clearance: 0.3, // play around each pocket and hole, each side
 };

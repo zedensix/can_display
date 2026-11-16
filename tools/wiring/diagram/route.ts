@@ -65,7 +65,8 @@ export function routeWires(view: WiringView, faces: Record<string, Face>): Wire[
   const channels = { left: [PICO.x - 24, 300 + 24], right: [PICO.x + PICO.w + 24, 900 - 24] };
   type Lane = { wire: Wire; crossing: boolean };
   const lanes: Record<Side, Lane[]> = { left: [], right: [] };
-  // Each wire asks for a lane on the Pico's side, and one on the module's when it crosses over.
+  // Each wire asks for a lane on the Pico's side, and one on the module's when it crosses over:
+  // the outermost, clear of the wires' names near the Pico.
   for (const w of wires) {
     if (w.from.y !== w.to[1] || w.pinSide !== w.moduleSide) lanes[w.pinSide].push({ wire: w, crossing: false });
     if (w.pinSide !== w.moduleSide) lanes[w.moduleSide].push({ wire: w, crossing: true });
@@ -74,7 +75,7 @@ export function routeWires(view: WiringView, faces: Record<string, Face>): Wire[
     const [near, far] = channels[side];
     const list = lanes[side].sort(
       (a, b) =>
-        (a.crossing ? -1 : 0) - (b.crossing ? -1 : 0) || (a.crossing || b.crossing ? 0 : a.wire.from.y - b.wire.from.y),
+        (a.crossing ? 1 : 0) - (b.crossing ? 1 : 0) || (a.crossing || b.crossing ? 0 : a.wire.from.y - b.wire.from.y),
     );
     list.forEach((entry, i) => {
       const x = near + ((far - near) * (i + 0.5)) / list.length;

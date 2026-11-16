@@ -24,8 +24,12 @@
       "The Vgate iCar Pro 2S plugs into the OBD port; the Pico W talks to it over BLE. One client at a time: a phone connected to it hides it.",
     ],
     [
+      "MCP2515: a divider on SO",
+      "VCC on VBUS (5V): its TJA1050 transceiver needs it, so its SO swings to 5V. Never straight into GP12: 1kΩ from SO to GP12, 2kΩ (or 2.2kΩ) from GP12 to GND, 3.3V at the pin. SCK, SI and CS go straight: a 5V MCP2515 reads the Pico's 3.3V. Without resistors: swap the TJA1050 (the 8-pin chip by the screw terminal) for an SN65HVD230, same pinout, and power the board from 3V3.",
+    ],
+    [
       "MCP2515 (wired CAN)",
-      "VCC on VBUS (5V). Its SO swings to 5V: level shift it before GP12. Remove jumper J1 (120Ω termination). 8MHz crystal, 500kbps. On the OBD cable: CAN-H pin 6 green, CAN-L pin 14 green/white (the seller's chart: check with a multimeter); never pin 16, red, the battery's 12V.",
+      "Remove jumper J1 (120Ω termination). 8MHz crystal, 500kbps. On the OBD cable: CAN-H pin 6 green, CAN-L pin 14 green/white (the seller's chart: check with a multimeter); never pin 16, red, the battery's 12V.",
     ],
     [
       "Flashing in the car",

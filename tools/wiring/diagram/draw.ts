@@ -84,7 +84,7 @@ function drawWireLabel(svg: Element, theme: Theme, w: Wire) {
   if (!w.wire) return;
   const first: [number, number][] = [w.points[0], w.points[1]];
   const last = w.points.slice(-2);
-  const [[x0, y0], [x1]] = Math.abs(first[1][0] - first[0][0]) >= 60 ? first : last;
+  const [[x0, y0], [x1]] = Math.abs(first[1][0] - first[0][0]) >= 80 ? first : last;
   const label = svgText(svg, theme, (x0 + x1) / 2, y0 - 6, w.wire, {
     size: 10,
     weight: 600,

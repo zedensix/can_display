@@ -169,10 +169,10 @@ export const MODULES: Module[] = [
     pinTop: 465,
     // Front: chips up, header at the bottom, INT SCK SI SO CS GND VCC from the left.
     pins: [
-      { label: "VCC", pico: 40, net: "v5", wire: "VBUS 5V" },
+      { label: "VCC", pico: 40, net: "v5", wire: "5V" },
       { label: "GND", pico: 18, net: "gnd" },
       { label: "CS", pico: 17, net: "spi1", wire: "GP13" },
-      { label: "SO", pico: 16, net: "spi1", wire: "GP12 ⚠ 3.3V" },
+      { label: "SO", pico: 16, net: "spi1", wire: "GP12 ⚠ divider" },
       { label: "SI", pico: 15, net: "spi1", wire: "GP11" },
       { label: "SCK", pico: 14, net: "spi1", wire: "GP10" },
       { label: "INT", note: "unused" },

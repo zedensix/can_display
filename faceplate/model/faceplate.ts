@@ -43,7 +43,7 @@ export class Faceplate {
     this.thickness = plate.frontSkin + display.glassThickness + display.pcbThickness;
     this.glassTop = -display.glassFromPcbTop;
     this.activeTop = this.glassTop - display.activeFromGlassTop;
-    // The ribbon folds around the panel's top edge, away from the soldered header at the bottom.
+    // The ribbon folds around the panel's top edge.
     this.glassPocketBottom = this.glassTop - display.glassLength - clearance;
     this.glassPocketTop = this.glassTop + display.ribbonAllowance + clearance;
     this.shaftY = -display.pcbLength - encoder.belowDisplay;
@@ -138,7 +138,7 @@ export class Faceplate {
         plate.frontSkin + display.glassThickness,
         this.thickness + 1,
       ),
-      // Pads at both ends of the board: the header's below the panel, the other row above it.
+      // Pads at both ends of the board: the header's above the panel, at the plate's outer edge, the other row below it.
       ...[
         [-display.pcbLength - clearance, this.glassPocketBottom + 0.01],
         [this.glassPocketTop - 0.01, clearance],

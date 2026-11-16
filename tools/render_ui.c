@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "obd/mcp_check.h"
 #include "obd/sniff.h"
 #include "ui/ui.h"
 
@@ -175,6 +176,19 @@ static void shot_failed(canvas_t *c) {
              "NO LINK\nBLE connect failed:\ncan't connect: the radio still holds another connection (0x56)");
     render_screen(c, &s, (screen_t){.choice = CHOICE_SETTINGS});
 }
+// The MCP2515's self test: its longest failure, and a silent bus.
+static void shot_can_failed(canvas_t *c) {
+    state_t s = {.wait = WAIT_RETRY};
+    snprintf(s.status, sizeof s.status, "%s", mcp_check_spi(0x00, false));
+    render_screen(c, &s, (screen_t){0});
+}
+
+static void shot_can_silent(canvas_t *c) {
+    state_t s = {.wait = WAIT_RETRY};
+    snprintf(s.status, sizeof s.status, "%s", mcp_bus_status(BUS_SILENT));
+    render_screen(c, &s, (screen_t){0});
+}
+
 static void shot_scan(canvas_t *c) {
     render_status_screen(c, "DEEP SCAN\n37 KB of ECU RAM\n3 candidates");
 }
@@ -230,6 +244,8 @@ static const shot_t shots[] = {
     {"scan", shot_scan},
     {"listen", shot_listen},
     {"failed", shot_failed},
+    {"can_failed", shot_can_failed},
+    {"can_silent", shot_can_silent},
     {"showcar", shot_showcar},
     {"showcar_later", shot_showcar_later},
     {"settings", shot_settings},

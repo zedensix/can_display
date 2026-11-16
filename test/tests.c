@@ -29,6 +29,7 @@ int main(void) {
     test_drive_mode();
     test_elm_drive_mode();
     test_choice_and_idle();
+    test_mcp_check();
     if (failures) {
         printf("%d check(s) failed\n", failures);
         return 1;

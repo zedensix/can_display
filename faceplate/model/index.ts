@@ -27,16 +27,19 @@ import { config } from "./config";
 import { Faceplate } from "./faceplate";
 import { mockups } from "./mockups";
 import { Tray } from "./tray";
+import { VentMount } from "./ventmount";
 
 export const vars: ScadSpecialVariables = { $fn: 64 }; // smoothness of the holes and posts
 
 export const faceplate = new Faceplate(config);
 export const tray = new Tray(config, faceplate);
+export const ventMount = new VentMount(config, faceplate);
 
 /** Each part to print, as it lies on the bed. */
 export const parts: Record<string, ScadObject> = {
   faceplate: faceplate.object,
   tray: tray.object,
+  ...ventMount.print,
 };
 
 const modules = mockups(config, faceplate);
@@ -46,4 +49,12 @@ export const assembly: ScadObject = union(
   faceplate.object.color("gold"),
   modules.faceplate,
   union(tray.object.color("silver"), modules.tray).translate([0, 0, faceplate.thickness + config.tray.gap]),
+);
+
+/** The assembly on its temporary vent mount, for its picture. */
+export const onVent: ScadObject = union(
+  assembly,
+  union(ventMount.clamp, ventMount.feet)
+    .color("tomato")
+    .translate([0, 0, faceplate.thickness + config.tray.gap + config.tray.thickness]),
 );

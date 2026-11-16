@@ -15,7 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createOpenSCAD } from "openscad-wasm";
 import type { ScadObject } from "scad-js";
-import { assembly, faceplate, parts, tray, vars } from "../faceplate/model";
+import { assembly, faceplate, onVent, parts, tray, vars, ventMount } from "../faceplate/model";
 import { checked, config } from "../faceplate/model/config";
 
 const rendersDir = join("faceplate", "renders");
@@ -32,6 +32,8 @@ const pictures: Record<string, { object: ScadObject; rotation: number[]; colors?
   assembly: { object: assembly, rotation: [70, 0, 140], colors: true }, // from behind, every module in place
   "assembly-front": { object: assembly.rotate([0, 180, 0]), rotation: [55, 0, 20], colors: true }, // what shows in the car
   "assembly-side": { object: assembly, rotation: [90, 0, 90], colors: true }, // from the side: the stack, the front at the bottom
+  "vent-mount": { object: onVent, rotation: [90, 0, 90], colors: true }, // on its temporary vent hook, from the side
+  "vent-clamp": { object: ventMount.clamp, rotation: [70, 0, 140], colors: true }, // the clamp alone, from behind the dash
 };
 
 async function renderStl(source: string, path: string): Promise<void> {

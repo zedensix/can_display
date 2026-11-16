@@ -90,8 +90,8 @@ play in every pocket and hole.
 | 4 × M3x10 self-tapping | the tray, onto the faceplate's posts |
 | 1 zip tie, 4 mm wide at most | the converter, around it and through the tray |
 
-1. Drop the display face down into its pocket, ribbon end toward the
-   encoder, and screw its board on.
+1. Drop the display face down into its pocket, its header at the plate's
+   outer edge, away from the encoder, and screw its board on.
 2. Push the encoder through from the back, its header on the board's
    back, and screw its board onto the two
    standoffs under its holes (2 × M2x6); the two opposite only hold it
@@ -107,12 +107,46 @@ play in every pocket and hole.
    bottom edge.
 5. Screw the tray onto the posts.
 
-Neither part has a way to fix the whole thing in the car yet: that depends
-on where it goes.
+Neither part has a way to fix the whole thing in the car for good yet: that
+depends on where it goes.
+
+### On an air vent, for testing
+
+A clamp hangs the dash on one horizontal slat of the central vent (either
+half), for a test drive, with no change to the faceplate or the tray:
+
+- `stl/vent-bar.stl`: a bar across the tray's back under its 2 top screws,
+  and the upper leg, going into the vent above the slat.
+- `stl/vent-jaw.stl`: the lower leg, under the slat. Its heel bears on the
+  upper leg, so the screw closes the two like pliers.
+- `stl/vent-wheel.stl`: the thumbwheel. Press an M3x12 socket head screw's
+  head into it from below (warm it with a soldering iron, or a drop of
+  glue); the hole on top takes the hex key.
+- `stl/vent-feet.stl`: 2 tubes on the bottom posts, resting on what's
+  under the vent (the vent is shorter than the dash), so the dash stands
+  square and doesn't turn with the slat.
+
+| Screws | For |
+| --- | --- |
+| 2 × M3x14 self-tapping | the top of the tray, through the bar (instead of 2 M3x10) |
+| 2 × M3x30 self-tapping | the bottom of the tray, through the feet (instead of 2 M3x10) |
+| 1 × M3x12 socket head | the clamp: through the wheel and the upper leg, biting into the jaw |
+
+Slide the upper leg over the slat and the jaw under it, push the screw
+through the upper leg into the jaw, and turn the wheel until it holds.
+
+The `vent` dimensions in `model/config.ts` are guesses: measure the slat
+(thickness, and depth up to the vertical vanes behind it: the legs stop
+1 mm short), the gap between two slats, how far the vent's face will sit
+from the tray's back, and how far what's under the vent will; then rerun
+`mise run faceplate`. The model refuses a leg too thick for the gap, a
+wheel with no room between the tray and the vent, a jaw on the Pico.
+`renders/vent-mount.png` shows it in place from the side,
+`renders/vent-clamp.png` the clamp alone.
 
 ## Printing
 
-Print `stl/faceplate.stl` and `stl/tray.stl`, each front face down on the bed: the pockets open upward, the posts
+Print `stl/faceplate.stl` and `stl/tray.stl`, each front face down on the bed (the vent mount's parts lie as they print: the bar on its top face, the jaw on its side, the wheel and the feet standing): the pockets open upward, the posts
 and standoffs stand up, the window bevel is a 45 degree overhang, so the
 faceplate needs no supports, nor does the tray: their 2 mm rims are on
 their backs only. PETG or ASA rather than PLA, which softens in a car parked in

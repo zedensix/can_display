@@ -3,42 +3,26 @@
 #include "board.h"
 #include "hardware/gpio.h"
 #include "hardware/spi.h"
-#include "obd/obd.h"
+#include "mcp2515_internal.h"
+#include "obd/mcp_check.h"
 #include "pico/time.h"
 #include "store.h"
 
 // 1MHz is conservative on purpose: plenty for dashboard-rate data, and it
-// survives cheap level shifters and long jumper wires.
+// survives the SO line's resistor divider and long jumper wires.
 #define CAN_BAUD 1000000
 // The AFR and the throttle need requests: they aren't broadcast. One
 // at a time, in turn: TX0 holds a single frame.
 #define REQUEST_INTERVAL_MS 125
 
-enum {
-    INSTR_RESET = 0xC0,
-    INSTR_WRITE = 0x02,
-    INSTR_READ = 0x03,
-    INSTR_READ_STATUS = 0xA0,
-    INSTR_READ_RX0 = 0x90,
-    INSTR_READ_RX1 = 0x94,
-    INSTR_LOAD_TX0 = 0x40,
-    INSTR_RTS_TX0 = 0x81,
-
-    REG_CANSTAT = 0x0E,
-    REG_CANCTRL = 0x0F,
-    REG_CNF3 = 0x28,
-    REG_CNF2 = 0x29,
-    REG_CNF1 = 0x2A,
-    REG_RXB0CTRL = 0x60,
-    REG_RXB1CTRL = 0x70,
-};
-
+// Where the source stands: the self test failed (nothing more until a
+// reboot), it listens to the bus, or the chip is in normal mode.
+static enum { CAN_FAILED, CAN_LISTENING, CAN_RUNNING } phase;
 static state_t *state;
-static bool ready;
 static uint32_t request_ms;
 static bool request_throttle;
 
-static void spi_transfer(const uint8_t *out, uint8_t *in, size_t len) {
+void mcp2515_transfer(const uint8_t *out, uint8_t *in, size_t len) {
     gpio_put(CAN_CS, 0);
     if (in) {
         spi_write_read_blocking(spi1, out, in, len);
@@ -48,14 +32,47 @@ static void spi_transfer(const uint8_t *out, uint8_t *in, size_t len) {
     gpio_put(CAN_CS, 1);
 }
 
-static void write_register(uint8_t reg, uint8_t value) {
-    spi_transfer((const uint8_t[]){INSTR_WRITE, reg, value}, NULL, 3);
+void mcp2515_write(uint8_t reg, uint8_t value) {
+    mcp2515_transfer((const uint8_t[]){INSTR_WRITE, reg, value}, NULL, 3);
 }
 
-static uint8_t read_register(uint8_t reg) {
+uint8_t mcp2515_read(uint8_t reg) {
     uint8_t in[3];
-    spi_transfer((const uint8_t[]){INSTR_READ, reg, 0}, in, 3);
+    mcp2515_transfer((const uint8_t[]){INSTR_READ, reg, 0}, in, 3);
     return in[2];
+}
+
+uint8_t mcp2515_read_status(void) {
+    uint8_t in[2];
+    mcp2515_transfer((const uint8_t[]){INSTR_READ_STATUS, 0}, in, 2);
+    return in[1];
+}
+
+bool mcp2515_read_frame(uint8_t instruction, can_frame_t *f) {
+    uint8_t out[14] = {instruction}, in[14];
+    mcp2515_transfer(out, in, sizeof in);
+    // in[1..4]: SIDH SIDL EID8 EID0, in[5]: DLC, in[6..13]: data. Reading
+    // through READ RX clears the buffer's interrupt flag.
+    if (in[2] & 0x08) {
+        return false; // extended (29bit) ID
+    }
+    *f = (can_frame_t){.id = (uint32_t)(in[1] << 3 | in[2] >> 5), .dlc = (uint8_t)(in[5] & 0x0F)};
+    if (f->dlc > 8) {
+        f->dlc = 8;
+    }
+    for (int i = 0; i < f->dlc; i++) {
+        f->data[i] = in[6 + i];
+    }
+    return true;
+}
+
+void mcp2515_send(const can_frame_t *f) {
+    uint8_t out[14] = {INSTR_LOAD_TX0, (uint8_t)(f->id >> 3), (uint8_t)((f->id & 7) << 5), 0, 0, f->dlc};
+    for (int i = 0; i < f->dlc; i++) {
+        out[6 + i] = f->data[i];
+    }
+    mcp2515_transfer(out, NULL, 6 + f->dlc);
+    mcp2515_transfer((const uint8_t[]){INSTR_RTS_TX0}, NULL, 1);
 }
 
 void mcp2515_source_init(state_t *s) {
@@ -64,78 +81,57 @@ void mcp2515_source_init(state_t *s) {
     gpio_set_function(CAN_SCK, GPIO_FUNC_SPI);
     gpio_set_function(CAN_MOSI, GPIO_FUNC_SPI);
     gpio_set_function(CAN_MISO, GPIO_FUNC_SPI);
+    // An SO that answers nothing reads 0x00, not whatever a floating pin picks up.
+    gpio_pull_down(CAN_MISO);
     gpio_init(CAN_CS);
     gpio_set_dir(CAN_CS, GPIO_OUT);
     gpio_put(CAN_CS, 1);
+    phase = mcp2515_selftest_start(state) ? CAN_LISTENING : CAN_FAILED;
+}
 
-    spi_transfer((const uint8_t[]){INSTR_RESET}, NULL, 1);
-    sleep_ms(10);
-    // 500kbps, the GT86's high-speed CAN bus, with the 8MHz crystal of the
-    // blue MCP2515 + TJA1050 board. One time quantum is 2 / 8MHz = 250ns,
-    // a bit is 8 of them: sync 1, propagation 2, phase 1 3, phase 2 2,
-    // sampled at 75%. SJW 1, no prescaler. A 16MHz crystal takes 0x00,
-    // 0xF0, 0x86 instead.
-    write_register(REG_CNF1, 0x00);     // SJW 1, BRP 0
-    write_register(REG_CNF2, 0x91);     // phase 2 set in CNF3, phase 1 3, propagation 2
-    write_register(REG_CNF3, 0x01);     // phase 2 2
-    write_register(REG_RXB0CTRL, 0x64); // any frame, roll over into RXB1
-    write_register(REG_RXB1CTRL, 0x60); // any frame
-    write_register(REG_CANCTRL, 0x00);  // normal mode
-    sleep_ms(10);
-    ready = (read_register(REG_CANSTAT) >> 5) == 0;
-    if (!ready) {
-        log_line("fatal: CAN: the MCP2515 didn't enter normal mode, check its wiring");
-        state_set_status(state, "CAN\nMCP2515 not answering\ncheck its wiring");
+bool mcp2515_wants_retry(void) {
+    return state && state->wait == WAIT_RETRY;
+}
+
+// start_running leaves listen-only for normal mode, where the chip
+// acknowledges frames and sends the OBD requests.
+static void start_running(void) {
+    mcp2515_write(REG_CANCTRL, CANCTRL_NORMAL);
+    sleep_ms(5);
+    const char *fault = mcp_check_mode(mcp2515_read(REG_CANSTAT), MCP_MODE_NORMAL);
+    if (fault) {
+        log_line("can: self test failed: %s", fault);
+        state_set_status(state, fault);
+        state->wait = WAIT_RETRY;
+        phase = CAN_FAILED;
         return;
     }
-    log_line("can: MCP2515 ready");
-}
-
-static void read_rx_buffer(uint8_t instruction, uint32_t now_ms) {
-    uint8_t out[14] = {instruction}, in[14];
-    spi_transfer(out, in, sizeof in);
-    // in[1..4]: SIDH SIDL EID8 EID0, in[5]: DLC, in[6..13]: data. Reading
-    // through READ RX clears the buffer's interrupt flag.
-    if (in[2] & 0x08) {
-        return; // extended (29bit) ID
-    }
-    can_frame_t f = {.id = (uint32_t)(in[1] << 3 | in[2] >> 5), .dlc = (uint8_t)(in[5] & 0x0F)};
-    if (f.dlc > 8) {
-        f.dlc = 8;
-    }
-    for (int i = 0; i < f.dlc; i++) {
-        f.data[i] = in[6 + i];
-    }
-    if (!gt86_decode_broadcast(&f, state, now_ms)) {
-        obd_decode_frame(&f, state, now_ms);
-    }
-}
-
-static void send_obd_request(const can_frame_t *f) {
-    uint8_t out[14] = {INSTR_LOAD_TX0, (uint8_t)(f->id >> 3), (uint8_t)((f->id & 7) << 5), 0, 0, f->dlc};
-    for (int i = 0; i < f->dlc; i++) {
-        out[6 + i] = f->data[i];
-    }
-    spi_transfer(out, NULL, 6 + f->dlc);
-    spi_transfer((const uint8_t[]){INSTR_RTS_TX0}, NULL, 1);
+    log_line("can: self test passed, MCP2515 running");
+    phase = CAN_RUNNING;
 }
 
 void mcp2515_poll_bus(uint32_t now_ms) {
-    if (!ready) {
+    if (phase == CAN_FAILED) {
         return;
     }
-    uint8_t in[2];
-    spi_transfer((const uint8_t[]){INSTR_READ_STATUS, 0}, in, 2);
-    if (in[1] & 0x01) {
-        read_rx_buffer(INSTR_READ_RX0, now_ms);
+    if (phase == CAN_LISTENING) {
+        if (mcp2515_selftest_listen(state, now_ms)) {
+            start_running();
+        }
+        return;
     }
-    if (in[1] & 0x02) {
-        read_rx_buffer(INSTR_READ_RX1, now_ms);
+    uint8_t status = mcp2515_read_status();
+    can_frame_t f;
+    for (int i = 0; i < 2; i++) {
+        if (status & (i ? RX1_FULL : RX0_FULL) && mcp2515_read_frame(i ? INSTR_READ_RX1 : INSTR_READ_RX0, &f) &&
+            !gt86_decode_broadcast(&f, state, now_ms)) {
+            obd_decode_frame(&f, state, now_ms);
+        }
     }
     if (now_ms - request_ms >= REQUEST_INTERVAL_MS) {
         request_ms = now_ms;
         can_frame_t request = obd_build_request(request_throttle ? PID_THROTTLE : PID_LAMBDA);
         request_throttle = !request_throttle;
-        send_obd_request(&request);
+        mcp2515_send(&request);
     }
 }

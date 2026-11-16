@@ -78,7 +78,7 @@ an https reverse proxy: Web Bluetooth needs https, and the proxy is what asks wh
 | ST7789 V2.2 2.0" 240x320 SPI display | the screen | in portrait |
 | KY-040 rotary encoder (EC11) | turn, click, hold | wired on its own legs, the Pico's pull-ups |
 | ELM327 Bluetooth LE OBD dongle | the car's data, wireless | tested with a Vgate iCar Pro 2S |
-| *or* MCP2515 + TJA1050 CAN module | the car's data, wired | on OBD pins 6 and 14, level-shifted |
+| *or* MCP2515 + TJA1050 CAN module | the car's data, wired | on OBD pins 6 and 14, its SO through a resistor divider (5V to 3.3V) |
 | 12V to 5V converter | power | from a switched 12V, into the Pico's USB socket |
 | Printed faceplate and tray | holding it all | modeled in code, see below |
 

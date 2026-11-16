@@ -97,6 +97,16 @@
       "earSlotWidth": 5,
       "earSlotDepth": 7
     },
+    "vent": {
+      "standoff": 20,
+      "slatThickness": 2,
+      "slatDepth": 12,
+      "slatGap": 8,
+      "legThickness": 3,
+      "legWidth": 12,
+      "wheelDiameter": 14,
+      "feetLength": 20
+    },
     "clearance": 0.3
   },
   "checked": {

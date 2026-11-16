@@ -58,6 +58,7 @@ void test_flashlog(void);
 void test_settings(void);
 void test_screen(void);
 void test_sensors(void);
+void test_mcp_check(void);
 void test_extremes(void);
 void test_off_throttle(void);
 void test_datalog(void);

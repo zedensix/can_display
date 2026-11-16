@@ -35,7 +35,8 @@ function display(c: Config, faceplate: Faceplate): ScadObject {
   const { display: d, plate } = c;
   const boardFront = plate.frontSkin + d.glassThickness;
   const boardBack = boardFront + d.pcbThickness;
-  const headerY = -d.pcbLength + 2;
+  // The header at the board's top end, toward the plate's outer edge, away from the encoder.
+  const headerY = -2;
   return union(
     box(
       -d.glassWidth / 2,
@@ -54,7 +55,7 @@ function display(c: Config, faceplate: Faceplate): ScadObject {
       plate.frontSkin,
     ).color("orangered"),
     box(-d.pcbWidth / 2, d.pcbWidth / 2, -d.pcbLength, 0, boardFront, boardBack).color("royalblue"),
-    ...[headerY, -2].map((y) =>
+    ...[headerY, -d.pcbLength + 2].map((y) =>
       box(-d.solderRowWidth / 2, d.solderRowWidth / 2, y - 1, y + 1, boardFront - d.solderHeight, boardFront).color(
         "goldenrod",
       ),

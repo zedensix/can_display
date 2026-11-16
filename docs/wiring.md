@@ -151,7 +151,7 @@ faster, and gets oil temperature, but needs the wiring below.
 |---|---|---|
 | SCK  | GP10 | SPI1 clock |
 | SI (MOSI) | GP11 | |
-| SO (MISO) | GP12 | see the 5V warning below |
+| SO (MISO) | GP12, through a divider | 1kΩ in series, 2kΩ to GND: see the 5V warning below |
 | CS   | GP13 | |
 | INT  | *(unused)* | firmware polls instead of using the interrupt pin |
 | VCC  | VBUS (5V, physical pin 40) | the TJA1050 transceiver on most boards needs 5V |
@@ -177,12 +177,21 @@ soldering):
 Only green and green/white go to the MCP2515; insulate every other wire
 on its own.
 
-**The RP2040 is not 5V tolerant.** On the common blue MCP2515 +
-TJA1050 board, powering it from 5V makes SO swing to 5V, straight into
-GP12. Either put a level shifter (or a simple divider) on SO, or do the
-usual mod: feed the MCP2515 chip itself from 3V3 and keep only the
-TJA1050 on 5V. The Pico's 3.3V outputs on SCK/SI/CS are read fine by a
-5V MCP2515.
+**The RP2040 is not 5V tolerant: a divider on SO.** The common blue
+MCP2515 + TJA1050 board needs 5V for its TJA1050 transceiver, and at 5V
+the MCP2515's SO swings to 5V. Never wire it straight into GP12: put a
+1kΩ resistor in series from SO to GP12, and a 2kΩ (or 2.2kΩ) from GP12
+to GND, which brings it to 3.3V; at the 1MHz SPI clock the firmware uses,
+the divider is fast enough. SCK, SI and CS go straight: a 5V MCP2515
+reads the Pico's 3.3V outputs fine.
+
+Without resistors, swap the transceiver: desolder the TJA1050 (the 8-pin
+SOIC chip by the screw terminal) and solder an SN65HVD230 in its place,
+same pinout (1 TXD/D, 2 GND, 3 VCC, 4 RXD/R, 5 Vref, 6 CANL, 7 CANH,
+8 S/Rs; check pin 8 reaches GND, bridge it to pin 2 if not). The whole
+board then runs on 3V3, VCC on 3V3(OUT), with no divider. Feeding only
+the MCP2515 from 3V3 and keeping the TJA1050 on 5V isn't enough: the
+TJA1050's RXD then puts 5V on a 3.3V MCP2515.
 
 **Remove jumper J1** on that board. It adds a 120Ω termination
 resistor, but the car's bus is already terminated at both ends; a third
@@ -195,6 +204,26 @@ high-speed CAN bus: the CNF1, CNF2 and CNF3 values that
 `mcp2515_source_init` writes in `src/firmware/hardware/mcp2515.c` (0x00, 0x91,
 0x01: 8 time quanta of 250ns, sampled at 75%), not tried on this car
 yet. A 16MHz crystal takes 0x00, 0xF0 and 0x86.
+
+**The self test.** Each boot with the CAN source (picking it in the
+settings reboots into it) checks the wiring before anything goes on the
+bus, and the panel says which wire to look at:
+
+1. SPI: the MCP2515 must answer a reset, and a register must read back
+   what was written. No answer points at VCC, GND, CS, SCK, SI or SO; SO
+   stuck high at SO and its divider; writes that don't stick at SI.
+2. Loopback: a frame sent to the chip itself must come back; stuck in
+   config mode means its crystal doesn't run.
+3. The car's bus, in listen-only mode (it neither transmits nor
+   acknowledges, so a wrong bit rate or swapped wires can't disturb the
+   car): 10 frames pass it, and the dash goes on to its gauges. Nothing
+   after 5s: ignition off, or CAN-H and CAN-L not reaching OBD pins 6
+   and 14 (it keeps listening). Receive errors and no frame: CAN-H and
+   CAN-L swapped, or a crystal other than 8MHz.
+
+Retry reruns it from a fresh boot; Settings goes back to the dongle. The
+flash log (`mise run logs`) keeps each step's readings. The test can't
+see a missing SO divider: 5V reads as a 1 just as well.
 
 Ground the board only through the Pico's ground, which goes to the car
 chassis via the converter. Never to anything else.

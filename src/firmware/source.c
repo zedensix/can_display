@@ -49,6 +49,10 @@ bool in_standby(void) {
 }
 
 bool give_click_to_prompt(uint32_t now) {
+    // The MCP2515's Retry reruns its self test from a fresh boot.
+    if (!SIM && source == SOURCE_CAN && mcp2515_wants_retry()) {
+        reboot_board(false);
+    }
     return ble_active() && ble_handle_click(now);
 }
 
