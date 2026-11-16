@@ -20,6 +20,7 @@ mise run flash       # build + flash, step by step; reboots a running Pico into 
 mise run flash-sim   # same, with fake data instead of the car, to test the display
 mise run logs        # read the log the Pico kept in flash (boots, BLE steps, dongle answers, crashes)
 mise run logo        # regenerate the boot splash from 86.png
+mise run logos [dir] # the screensaver's logos from a folder of PNGs (not in git)
 mise run ui          # render every screen into ui/*.png (ui/sheet.png: all side by side)
 mise run wiring      # capture the wiring diagram for docs/wiring.md
 bun run wiring       # the wiring diagram in the browser, and the modules' dimensions to enter before printing
@@ -96,4 +97,6 @@ how to verify them on your own car.
 MIT (`LICENSE`), except the font data in `src/app/ui/fonts.c`: FreeSans
 Bold from GNU FreeFont, GPLv3 with the font exception. The 86 logo
 (`86.png`, `src/app/ui/logo.c`) is Toyota's trademark, not covered by the
-MIT license.
+MIT license. The screensaver's other logos, the car's parts' makers',
+aren't in the repository: `mise run logos` builds them in from your own
+folder.

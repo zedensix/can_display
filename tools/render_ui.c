@@ -130,14 +130,16 @@ static void shot_offline(canvas_t *c) {
     render_choice_screen(c, "OFFLINE\nIOS-Vlink", CHOICE_SETTINGS);
 }
 
-// The screensaver, the shine across the logo and later, between two shines.
+// The screensaver, on the 86's logo (the parts' logos stay out of git):
+// the shine across it, then fading in.
 static void shot_showcar(canvas_t *c) {
-    render_screen(c, &(state_t){.wait = WAIT_CHOICE}, (screen_t){.idle = true});
+    state_t s = {.wait = WAIT_CHOICE};
+    ui_render(c, &s, &(screen_t){.idle = true}, &cfg, 1300);
 }
 
 static void shot_showcar_later(canvas_t *c) {
     state_t s = {.wait = WAIT_CHOICE};
-    ui_render(c, &s, &(screen_t){.idle = true}, &cfg, now + 2600);
+    ui_render(c, &s, &(screen_t){.idle = true}, &cfg, 300);
 }
 
 static void shot_connecting(canvas_t *c) {

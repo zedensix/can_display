@@ -53,5 +53,8 @@
 - [x] Log site: the server keeps every session (SQLite through Drizzle, migrations applied at start, each sample once), a viewer (a session's charts with a shared cursor), light/dark/system theme; login left to the https reverse proxy
 - [ ] Log site: deploy it with a volume on /data, behind the proxy's login
 - [x] READY and OFFLINE screens: the knob picks CONNECT or SETTINGS
-- [x] Screensaver: after 30s with nothing connected and no input, an animated show car screen (LED scanners, the logo turning with a shine, GT86 breathing)
+- [x] Screensaver: after 30s with nothing connected and no input, the 86's logo then the parts' logos one at a time (fading in and out, a shine across each, dots)
+- [x] Screensaver logos: Greddy, HKS, Pioneer, Perrin, Whiteline, GrimmSpeed, OZ, Sparco, RCM (mise run logos from a folder kept out of git, alphabetical order; cropped to their ink; palette PNGs read too)
+- [x] Buttons: an icon (Bluetooth, gear, back) and a capitalized label; padding inside the BLE | CAN pill
+- [x] Buttons, switches and the selected settings row as anti-aliased pills, round like the spinner
 - [ ] Check on the board: the CONNECT / SETTINGS choice, the screensaver's frame rate

@@ -7,3 +7,5 @@ node_modules/
 .playwright-mcp/
 .claude/skills
 data/
+logos/
+src/app/ui/brands_data.h

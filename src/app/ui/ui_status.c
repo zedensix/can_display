@@ -4,8 +4,6 @@
 
 #include "ui_internal.h"
 
-extern const unsigned char logo_bin[];
-
 int ui_wrap_text(const font_t *font, const char *s, int max_width, char out[][64], int max) {
     int n = 0;
     char line[64] = "";
@@ -110,18 +108,9 @@ void draw_spinner(canvas_t *c, const theme_t *t, int cx, int cy, uint32_t now_ms
 // draw_choice_buttons draws Connect and Settings along the bottom, the
 // one a click does filled.
 static void draw_choice_buttons(canvas_t *c, const theme_t *t, choice_t choice) {
-    static const char *const labels[] = {"CONNECT", "SETTINGS"};
     int gap = 8, w = (c->width - 2 * STATUS_MARGIN - gap) / 2, y = c->height - CHOICE_HEIGHT - 8;
-    for (int i = 0; i < 2; i++) {
-        int x = STATUS_MARGIN + i * (w + gap);
-        bool chosen = (int)choice == i;
-        if (chosen) {
-            gfx_fill_rect(c, x, y, w, CHOICE_HEIGHT, t->accent);
-        } else {
-            draw_outline(c, x, y, w, CHOICE_HEIGHT, gfx_blend(t->background, t->accent, 0.5f));
-        }
-        draw_text_centered(c, label_font, x + w / 2, y + 18, labels[i], chosen ? t->background : t->accent, 1);
-    }
+    draw_button(c, t, STATUS_MARGIN, y, w, CHOICE_HEIGHT, ICON_BLUETOOTH, "Connect", choice == CHOICE_CONNECT);
+    draw_button(c, t, STATUS_MARGIN + w + gap, y, w, CHOICE_HEIGHT, ICON_GEAR, "Settings", choice == CHOICE_SETTINGS);
 }
 
 // draw_status_screen is the source's report while it isn't delivering: the
@@ -163,16 +152,17 @@ void ui_spinner_rows(int panel_height, bool boot, int *top, int *rows) {
 }
 
 void draw_logo(canvas_t *c, int cx, int cy, int shrink, color_t color) {
-    draw_logo_shine(c, cx, cy, shrink, color, color, -1000);
+    draw_bitmap(c, logo_bin, cx, cy, shrink, color, color, -1000);
 }
 
 #define SHINE_BAND 22
 
-void draw_logo_shine(canvas_t *c, int cx, int cy, int shrink, color_t color, color_t shine, int sweep) {
-    int w = logo_bin[0] << 8 | logo_bin[1], h = logo_bin[2] << 8 | logo_bin[3];
+void draw_bitmap(canvas_t *c, const unsigned char *bitmap, int cx, int cy, int shrink, color_t color, color_t shine,
+                 int sweep) {
+    int w = bitmap[0] << 8 | bitmap[1], h = bitmap[2] << 8 | bitmap[3];
     int stride = (w + 7) / 8;
     int x0 = cx - w / shrink / 2, y0 = cy - h / shrink / 2;
-    const unsigned char *rows = logo_bin + 4;
+    const unsigned char *rows = bitmap + 4;
     for (int y = 0; y < h / shrink; y++) {
         for (int x = 0; x < w / shrink; x++) {
             bool on = false;

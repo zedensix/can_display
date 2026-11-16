@@ -1,71 +1,53 @@
-// The screensaver, nothing connected: the car on show, like a show car's
-// stand at night. Scanners sweep the LED bars along the top and the
-// bottom, the logo turns in its ring with a shine crossing it now and
-// then, a spotlight lights the floor, GT86 breathes under it, and the
-// line under that changes every few seconds.
+// The screensaver, nothing connected: the 86's logo, then the logos of
+// the parts on the car (brands.c, from logos/*.png), one at a time. Each
+// fades in rising a few pixels, a shine crosses it, and it fades out
+// rising on; dots along the bottom say which one it is.
 
 #include <math.h>
 
 #include "ui_internal.h"
 
-#define SCAN_LEDS 20
-#define SCAN_MS 1800 // one sweep across and back
-#define SCAN_TRAIL 4.0f
-#define SHINE_MS 3500 // a shine across the logo, then a pause
-#define BREATH_MS 2600
-#define LINE_MS 4000
-#define LOGO_Y 108
-#define NAME_Y 264
+#define LOGO_MS 4000 // each logo on screen
+#define FADE_MS 600  // its fade in, and out
+#define RISE 10      // how far it rises in each fade, pixels
+#define SHINE_FROM 900
+#define SHINE_MS 900
+#define LOGO_Y 140
+#define DOTS_Y 290
 
-// draw_scanner draws a bar of LEDs at y, a lit one sweeping across and
-// back with a fading trail; mirrored runs it the other way.
-static void draw_scanner(canvas_t *c, const theme_t *t, int y, uint32_t now_ms, bool mirrored) {
-    const int gap = 2, margin = GRID_GAP;
-    int led_w = (c->width - 2 * margin - gap * (SCAN_LEDS - 1)) / SCAN_LEDS;
-    int x0 = (c->width - (led_w * SCAN_LEDS + gap * (SCAN_LEDS - 1))) / 2;
-    float phase = (float)(now_ms % SCAN_MS) / SCAN_MS;
-    float head = (phase < 0.5f ? phase * 2 : 2 - phase * 2) * (SCAN_LEDS - 1);
-    if (mirrored) {
-        head = SCAN_LEDS - 1 - head;
-    }
-    for (int i = 0; i < SCAN_LEDS; i++) {
-        float d = fabsf((float)i - head);
-        float lit = d < 1 ? 1 : fmaxf(0, 1 - (d - 1) / SCAN_TRAIL);
-        color_t color = gfx_blend(gfx_blend(t->background, t->accent, 0.12f), lit > 0.8f ? t->danger : t->accent, lit);
-        gfx_fill_rect(c, x0 + i * (led_w + gap), y, led_w, 8, color);
-    }
-}
-
-// draw_spotlight lights the floor under the car: rows brighter toward
-// its middle.
-static void draw_spotlight(canvas_t *c, const theme_t *t) {
-    const int top = LOGO_Y + 60, middle = LOGO_Y + 120, bottom = c->height - 16;
-    for (int y = top; y < bottom; y++) {
-        float f = 1 - fabsf((float)(y - middle)) / (float)(y < middle ? middle - top : bottom - middle);
-        gfx_fill_rect(c, 0, y, c->width, 1, gfx_blend(t->background, t->frame, 0.55f * f * f));
+// draw_dots draws a dot per logo, the one shown a lit pill.
+static void draw_dots(canvas_t *c, const theme_t *t, int count, int shown) {
+    const int dot = 6, pill = 16, gap = 6;
+    int x = (c->width - (count - 1) * (dot + gap) - pill) / 2;
+    for (int i = 0; i < count; i++) {
+        int w = i == shown ? pill : dot;
+        fill_round_rect(c, x, DOTS_Y, w, dot, dot / 2,
+                        i == shown ? t->accent : gfx_blend(t->background, t->label, 0.25f), t->background);
+        x += w + gap;
     }
 }
 
 void draw_showcar(canvas_t *c, const theme_t *t, uint32_t now_ms) {
     gfx_fill_rect(c, 0, 0, c->width, c->height, t->background);
-    draw_spotlight(c, t);
-    draw_scanner(c, t, 6, now_ms, false);
-    draw_scanner(c, t, c->height - 14, now_ms, true);
+    int count = 1 + brand_count, shown = (int)(now_ms / LOGO_MS % (uint32_t)count);
+    uint32_t at = now_ms % LOGO_MS;
 
-    // The shine crosses the logo's diagonal in the first 60% of its cycle.
-    int cx = c->width / 2;
-    float shine = (float)(now_ms % SHINE_MS) / SHINE_MS / 0.6f;
-    int from = cx + LOGO_Y - 90, to = cx + LOGO_Y + 90;
-    int sweep = shine < 1 ? from + (int)(shine * (float)(to - from)) : -1000;
-    draw_spinner(c, t, cx, LOGO_Y, now_ms, 0);
-    draw_logo_shine(c, cx, LOGO_Y, 2, t->accent, t->alarm_text, sweep);
+    // In: from below, fading in; out: on up, fading out.
+    float in = fminf(1, (float)at / FADE_MS), out = fminf(1, (float)(LOGO_MS - at) / FADE_MS);
+    float ease_in = 1 - (1 - in) * (1 - in), ease_out = 1 - (1 - out) * (1 - out);
+    int y = LOGO_Y + (int)lroundf(RISE * (1 - ease_in)) - (int)lroundf(RISE * (1 - ease_out));
+    float shown_fade = fminf(ease_in, ease_out);
 
-    float breath = 0.5f + 0.5f * sinf(2 * PI * (float)(now_ms % BREATH_MS) / BREATH_MS);
-    draw_text_centered(c, &font_bold24, cx, NAME_Y, "GT86", gfx_blend(t->frame, t->accent, 0.45f + 0.55f * breath), 2);
-
-    // Each line fades in and out over its LINE_MS.
-    static const char *const lines[] = {"FA20 BOXER 2.0", "REAR WHEEL DRIVE", "PRESS TO WAKE"};
-    uint32_t n = now_ms / LINE_MS % (sizeof lines / sizeof lines[0]);
-    float fade = sinf(PI * (float)(now_ms % LINE_MS) / LINE_MS);
-    draw_text_centered(c, label_font, cx, NAME_Y + 26, lines[n], gfx_blend(t->background, t->label, fade), 1);
+    // The shine crosses the logo once it's in.
+    int cx = c->width / 2, sweep = -1000;
+    if (at >= SHINE_FROM && at < SHINE_FROM + SHINE_MS) {
+        sweep = cx + y - 160 + (int)((at - SHINE_FROM) * 320 / SHINE_MS);
+    }
+    // The 86 in the dash's red-orange, the parts' logos in white.
+    color_t color = gfx_blend(t->background, shown == 0 ? t->accent : t->alarm_text, shown_fade);
+    color_t shine = gfx_blend(t->background, t->alarm_text, shown_fade);
+    draw_bitmap(c, shown == 0 ? logo_bin : brands[shown - 1].bitmap, cx, y, 1, color, shine, sweep);
+    if (count > 1) {
+        draw_dots(c, t, count, shown);
+    }
 }

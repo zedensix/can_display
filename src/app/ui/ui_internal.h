@@ -23,6 +23,16 @@ extern const font_t *const label_font;
 // draw_segment_bar draws count segments in a row.
 void draw_segment_bar(canvas_t *c, int x, int y, int w, int h, int count, const color_t colors[]);
 void draw_outline(canvas_t *c, int x, int y, int w, int h, color_t color);
+// fill_round_rect and outline_round_rect draw a rectangle with corners of
+// radius r (at most half its side: a pill, a circle), anti-aliased against
+// bg, the color under them, like the spinner's ring.
+void fill_round_rect(canvas_t *c, int x, int y, int w, int h, int r, color_t color, color_t bg);
+void outline_round_rect(canvas_t *c, int x, int y, int w, int h, int r, color_t color, color_t bg);
+typedef enum { ICON_BLUETOOTH, ICON_GEAR, ICON_BACK } icon_t;
+// draw_button draws a pill button, its icon and label centered: filled
+// when chosen (the knob's on it), else outlined.
+void draw_button(canvas_t *c, const theme_t *t, int x, int y, int w, int h, icon_t icon, const char *label,
+                 bool chosen);
 void draw_text_centered(canvas_t *c, const font_t *font, int cx, int y, const char *s, color_t color, int scale);
 // draw_text_fitting centers s in the largest font it fits max_width in.
 void draw_text_fitting(canvas_t *c, int cx, int y, int max_width, const char *s, color_t color);
@@ -40,9 +50,20 @@ void draw_spinner(canvas_t *c, const theme_t *t, int cx, int cy, uint32_t now_ms
 // draw_logo draws the logo centered on cx, cy, shrink times smaller: a
 // pixel is lit if any in its shrink x shrink block is.
 void draw_logo(canvas_t *c, int cx, int cy, int shrink, color_t color);
-// draw_logo_shine is draw_logo with a band of shine across it, on the
-// diagonal x + y = sweep (screen pixels).
-void draw_logo_shine(canvas_t *c, int cx, int cy, int shrink, color_t color, color_t shine, int sweep);
+// draw_bitmap draws a 1-bit bitmap as logo.c holds them (big-endian
+// width and height, then rows) like draw_logo, with a band of shine
+// across it on the diagonal x + y = sweep (screen pixels; far off: none).
+void draw_bitmap(canvas_t *c, const unsigned char *bitmap, int cx, int cy, int shrink, color_t color, color_t shine,
+                 int sweep);
+extern const unsigned char logo_bin[];
+
+// brands.c, generated from logos/*.png: the screensaver's logos after the 86's.
+typedef struct {
+    const char *name;
+    const unsigned char *bitmap;
+} brand_t;
+extern const brand_t brands[];
+extern const int brand_count;
 
 // ui_showcar.c
 // draw_showcar is the screensaver, nothing connected: the car on show.
