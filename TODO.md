@@ -30,5 +30,5 @@
 - [x] Schéma de câblage : fils de couleurs différentes jamais superposés (broches des modules décalées d'un demi-pas), étiquettes lisibles par-dessus les fils
 - [x] Sélecteur de source dans les réglages (Data source : BLE / CAN), appliqué par un redémarrage en quittant la page ; le MCP2515 peut rester câblé en BLE, les lignes qui ont besoin du dongle sont grisées en CAN
 - [ ] Transfo : couper ses oreilles au ras du boîtier
-- [ ] Encodeur : dessouder le connecteur coudé et le ressouder au dos de la carte (côté opposé au potard)
+- [x] Encodeur : pastilles du connecteur arrachées, 4 fils soudés sur ses pattes (C vers GND, A GP2, B GP3, la patte du bouton à côté de R1 vers GP4 ; pas de pont : la carte relie déjà C à l'autre patte du bouton, un pont le court-circuite), colle chaude dessus ; A sur GP3 et B sur GP2 pour le bon sens ; enlever R2 et R3 (le + en l'air relie A et B par 20K : un cran sur deux perdu)
 - [ ] Façade : fixation dans la voiture (où elle va, comment elle tient)

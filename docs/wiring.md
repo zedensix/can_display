@@ -36,19 +36,38 @@ It's SPI, not I2C: no MISO, the display is write-only.
 
 ## Rotary encoder: KY-040 (EC11)
 
-| KY-040 pin | Pico W pin | Notes |
+Wired on the EC11's own legs, through the KY-040 board's holes, not on
+its header (whose pads can lift off when resoldering it): the legs are
+a row of 3 (A, C in the middle, B) and a row of 2 (the button). The
+Pico's internal pull-ups on GP2, GP3 and GP4 replace the board's, so
+nothing powers the encoder. The board's own traces already tie C to one
+button leg: one GND wire for both, and no bridge to add (one from C to the
+other leg shorts the button: stuck pressed, and the 1s hold reboots in a
+loop). With a multimeter, the button leg that beeps with C is that one;
+GP4 goes on the other (on the KY-040, the one next to R1).
+
+**Remove R2 and R3** (the board's 10K pull-ups on A and B): they go to
++, and with + unwired they tie A and B together through 20K. A closed
+contact then drags the other line to about 0.9V, which the RP2040 reads
+either way: the knob skips every other click. Without them, the Pico's
+internal pull-ups do the job (or wire + to 3V3(OUT) and keep them).
+
+| EC11 leg | Pico W pin | Notes |
 |---|---|---|
-| CLK | GP2 | quadrature A, read on interrupts |
-| DT | GP3 | quadrature B |
-| SW | GP4 | push button, active low; the Pico's internal pull-up is used |
-| + | 3V3(OUT) | **not 5V**: the board's pull-ups go to +, and the RP2040 isn't 5V tolerant |
-| GND | GND | |
+| B (row of 3, an end) | GP2 | quadrature (the header's CLK), read on interrupts |
+| A (row of 3, the other end) | GP3 | quadrature (the header's DT) |
+| button leg not tied to C (next to R1) | GP4 | push button, active low (the header's SW) |
+| C (row of 3, middle) | GND | the board ties the other button leg to it |
+
+With its header intact, the same goes through it: CLK, DT and SW as
+above, GND, and + left unwired (or on 3V3(OUT), never 5V: the board's
+pull-ups go to +, and the RP2040 isn't 5V tolerant).
 
 Turn on the gauges: every gauge, then each one alone, big. Click on the
 gauges: settings page (turn to pick a row, click to change it, Back to
 leave); while the screen says "press to connect" or "press to retry",
 the click goes to the connection instead. Hold 1s: reboot. If turning
-goes the wrong way, swap CLK and DT. `STEPS_PER_DETENT` in
+goes the wrong way, swap A and B (CLK and DT). `STEPS_PER_DETENT` in
 `src/firmware/knob.c` is 2, for a half-step encoder (the one on this
 car); if one click moves two rows, it's a full-step one: set it to 4.
 
@@ -136,8 +155,26 @@ faster, and gets oil temperature, but needs the wiring below.
 | INT  | *(unused)* | firmware polls instead of using the interrupt pin |
 | VCC  | VBUS (5V, physical pin 40) | the TJA1050 transceiver on most boards needs 5V |
 | GND  | GND | |
-| CAN-H | OBD-II pin 6 | |
-| CAN-L | OBD-II pin 14 | |
+| CAN-H | OBD-II pin 6 | green on the OBD cable used here |
+| CAN-L | OBD-II pin 14 | green/white, twisted with CAN-H |
+
+The OBD cable's colors, from its seller's chart (no standard: another
+cable has its own; check each with a multimeter's continuity before
+soldering):
+
+| OBD pin | Color | | OBD pin | Color |
+|---|---|---|---|---|
+| 1 | brown | | 9 | red/white |
+| 2 | brown/white | | 10 | white |
+| 3 | purple | | 11 | yellow |
+| 4 | orange (chassis ground) | | 12 | pink |
+| 5 | light blue (signal ground) | | 13 | grey |
+| 6 | **green: CAN-H** | | 14 | **green/white: CAN-L** |
+| 7 | black | | 15 | blue |
+| 8 | black/white | | 16 | red (battery 12V, always live: not for the converter) |
+
+Only green and green/white go to the MCP2515; insulate every other wire
+on its own.
 
 **The RP2040 is not 5V tolerant.** On the common blue MCP2515 +
 TJA1050 board, powering it from 5V makes SO swing to 5V, straight into

@@ -24,6 +24,7 @@
   #diagram.dragging { cursor: grabbing; }
   #diagram .module { cursor: pointer; }
   nav .hint { align-self: center; font-size: 13px; opacity: 0.7; }
+  #encoder-legs { height: 540px; margin-top: 16px; border: 1px solid rgb(127 127 127 / 0.35); border-radius: 10px; }
   .notes { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); margin-top: 16px; }
   .note { border: 1px solid rgb(127 127 127 / 0.35); border-radius: 10px; padding: 12px 14px; }
   .note b { display: block; margin-bottom: 4px; }
@@ -88,12 +89,13 @@
 </nav>
 <main id="wiring">
   <svg id="diagram" viewBox="0 0 1240 820" role="img" aria-label="Wiring diagram"></svg>
+  <svg id="encoder-legs" viewBox="0 0 1000 540" role="img" aria-label="The encoder's legs, soldered"></svg>
   <div class="notes">
     <div class="note"><b>Never 12V on the Pico</b>Only through the 12V to 5V converter, its micro-USB plug in the Pico's socket. Take a switched 12V (ACC/ignition fuse tap), not OBD pin 16: it stays live with the car off.</div>
-    <div class="note"><b>3.3V logic only</b>The encoder's + goes to 3V3(OUT), not 5V: its pull-ups would put 5V on the RP2040, which isn't 5V tolerant.</div>
+    <div class="note"><b>Encoder on its legs</b>Wires soldered straight on the EC11's legs, the KY-040 board's header unused: the Pico's internal pull-ups on GP2-4 replace the board's, nothing powers it. Turning the wrong way: swap A and B.</div>
     <div class="note"><b>Keep GP15 free</b>The pico-sdk borrows it at boot (RP2040-E5). GPIO23, 24, 25 and 29 belong to the wireless chip.</div>
     <div class="note"><b>OBD dongle: no wire</b>The Vgate iCar Pro 2S plugs into the OBD port; the Pico W talks to it over BLE. One client at a time: a phone connected to it hides it.</div>
-    <div class="note"><b>MCP2515 (wired CAN)</b>VCC on VBUS (5V). Its SO swings to 5V: level shift it before GP12. Remove jumper J1 (120Ω termination). 8MHz crystal, 500kbps.</div>
+    <div class="note"><b>MCP2515 (wired CAN)</b>VCC on VBUS (5V). Its SO swings to 5V: level shift it before GP12. Remove jumper J1 (120Ω termination). 8MHz crystal, 500kbps. On the OBD cable: CAN-H pin 6 green, CAN-L pin 14 green/white (the seller's chart: check with a multimeter); never pin 16, red, the battery's 12V.</div>
     <div class="note"><b>Flashing in the car</b>The Pico has one USB socket: unplug the converter's micro-USB, plug the Mac's cable instead.</div>
   </div>
 </main>
@@ -164,15 +166,19 @@ const MODULES = [
     ],
   },
   {
-    id: "encoder", kind: "encoder", name: "KY-040 encoder", sub: "turn, click, hold",
+    id: "encoder", kind: "encoder", name: "EC11 encoder (KY-040)", sub: "wired on its legs",
     x: 110, y: 176, w: 190, h: 150, side: "left", pinTop: 223,
-    // Front: knob up, header at the top, CLK DT SW + GND from the left.
+    // Soldered on the encoder's own legs, not the board's header: its row
+    // of 3 (A, C in the middle, B) and of 2 (the button). The Pico's internal pull-ups
+    // replace the board's, so no power goes to it. The board's traces
+    // tie C to one button leg: one GND wire for both. A on GP3 and B on
+    // GP2: the way that turns right on this car. R2 and R3 are removed. Listed in the Pico's order: no
+    // header to follow, so no wire crosses another.
     pins: [
-      { label: "CLK", pico: 4, net: "clk", wire: "GP2" },
-      { label: "DT", pico: 5, net: "dt", wire: "GP3" },
+      { label: "C + SW", pico: 3, net: "gnd" },
+      { label: "B", pico: 4, net: "clk", wire: "GP2 CLK" },
+      { label: "A", pico: 5, net: "dt", wire: "GP3 DT" },
       { label: "SW", pico: 6, net: "sw", wire: "GP4" },
-      { label: "+", pico: 36, net: "v33", wire: "3V3" },
-      { label: "GND", pico: 3, net: "gnd" },
     ],
   },
   {
@@ -190,8 +196,8 @@ const MODULES = [
     ],
     // The screw terminal, on the far edge: CAN-L above CAN-H seen from the front.
     edgePins: [
-      { label: "CAN-L", note: "OBD pin 14", net: "spi1" },
-      { label: "CAN-H", note: "OBD pin 6", net: "spi1" },
+      { label: "CAN-L", note: "OBD 14 · green/white", net: "spi1" },
+      { label: "CAN-H", note: "OBD 6 · green", net: "spi1" },
     ],
   },
 ];
@@ -486,7 +492,7 @@ function drawCar(svg, theme) {
     svgText(svg, theme, 660, 664, "BLE", { size: 12, weight: 700, color: link });
   }
   svgElement("rect", { x: 560, y: 750, width: 80, height: 16, rx: 3, fill: theme.board ? "#57534e" : "none", stroke, "stroke-width": 1.5 }, svg);
-  const port = wiringView.source === "ble" ? "OBD-II port (BLE, nothing to wire)" : "OBD-II port: CAN-H pin 6, CAN-L pin 14";
+  const port = wiringView.source === "ble" ? "OBD-II port (BLE, nothing to wire)" : "OBD-II port: CAN-H pin 6 (green), CAN-L pin 14 (green/white)";
   svgText(svg, theme, 600, 786, port, { size: 11, anchor: "middle", color: theme.dim });
 }
 
@@ -536,8 +542,134 @@ function drawDiagram(style) {
   }
   drawCar(layer, theme);
   mirrored = false;
+  drawEncoderLegs(theme);
   document.body.className = style;
   showSelectedNet();
+}
+
+// The KY-040 seen from its back, as screwed on the dash (header at the
+// top), wired on the encoder's own legs: its header's pads are gone. The
+// legs' places are read off a photo of the board, in mm from its top
+// left corner. Not mirrored with the Pico: it shows the board as you see
+// it with the iron in hand.
+const ENCODER_LEGS = {
+  board: [18.5, 26],
+  header: [3.9, 6.44, 8.98, 11.52, 14.06].map((x, i) => ({ x, y: 1.9, label: ["GND", "+", "SW", "DT", "CLK"][i] })),
+  shaft: [8.9, 15],
+  rivets: [[1.6, 6.3], [1.6, 19.8]],
+  // R2 and R3, A's and B's pull-ups to +: with the + pad gone, they tie A
+  // and B together through 20K, and the knob skips every other click.
+  // Removed: the Pico's own pull-ups do the job. R1 (the button's) is empty.
+  resistors: [{ label: "R2 remove", x: [9, 11.7], y: 14.6 }, { label: "R3 remove", x: [9, 11.7], y: 17.9 }],
+  r1: { x: 11.4, y: [10.3, 12.3] },
+  // The board's own traces tie C to the button's left leg: the right one,
+  // next to R1, is the button's signal. Bridging C to it shorts the button.
+  legs: [
+    { x: 6.4, y: 8, label: "SW", net: "gnd" },
+    { x: 11.4, y: 8, label: "SW", net: "sw", to: "GP4 · Pico pin 6", route: [[11.4, 4.6]] },
+    { x: 6.4, y: 22.5, label: "A", net: "dt", to: "GP3 · Pico pin 5", route: [[6.4, 25.4]] },
+    { x: 8.9, y: 22.5, label: "C", net: "gnd", to: "GND · Pico pin 3", route: [[8.9, 24.4]] },
+    { x: 11.4, y: 22.5, label: "B", net: "clk", to: "GP2 · Pico pin 4", route: [[11.4, 23.4]] },
+  ],
+  // C to the button's left leg, through the board: nothing to solder.
+  trace: [[6.4, 8], [4.6, 9.5], [4.6, 20.5], [8.9, 22.5]],
+};
+
+function drawEncoderLegs(theme) {
+  const svg = document.getElementById("encoder-legs");
+  svg.replaceChildren();
+  svgElement("rect", { x: 0, y: 0, width: 1000, height: 540, fill: theme.background }, svg);
+  const e = ENCODER_LEGS;
+  const S = 16; // px per mm
+  const [ox, oy] = [110, 96];
+  const at = ([x, y]) => [ox + x * S, oy + y * S];
+  const labelX = ox + 24 * S;
+  const light = theme.board ? "#fff" : theme.text;
+  const dark = theme.board ? "#0b1220" : theme.background;
+  svgText(svg, theme, 24, 34, "KY-040 encoder, soldered on its legs", { size: 16, weight: 700 });
+  svgText(svg, theme, 24, 54, "seen from the back, as on the dash: header at the top, knob behind", { size: 12, color: theme.dim });
+
+  const [w, h] = e.board;
+  svgElement("rect", { x: ox, y: oy, width: w * S, height: h * S, rx: 6, fill: theme.board ? theme.board.encoder : "none",
+               stroke: theme.board ? "#334155" : theme.line, "stroke-width": 2 }, svg);
+  // The encoder's body, on the knob side: dashed.
+  const [sx, sy] = at(e.shaft);
+  svgElement("rect", { x: sx - 6.25 * S, y: sy - 6.25 * S, width: 12.5 * S, height: 12.5 * S, fill: "none", stroke: theme.dim,
+               "stroke-width": 1.2, "stroke-dasharray": "6 4" }, svg);
+  svgText(svg, theme, ox - 8, sy - 2, "encoder body", { size: 10.5, anchor: "end", color: theme.dim });
+  svgText(svg, theme, ox - 8, sy + 12, "(dashed, knob side)", { size: 10.5, anchor: "end", color: theme.dim });
+
+  for (const [x, y] of e.rivets.map(at)) {
+    svgElement("circle", { cx: x, cy: y, r: 1.8 * S, fill: theme.board ? "#f5f5f4" : "none", stroke: theme.board ? "#a8a29e" : theme.line, "stroke-width": 1.5 }, svg);
+  }
+  svgText(svg, theme, ox - 8, at(e.rivets[0])[1] - 2.2 * S, "filament rivets", { size: 10.5, anchor: "end", color: theme.dim });
+
+  for (const r of e.resistors) {
+    for (const x of r.x) {
+      const [px, py] = at([x, r.y]);
+      svgElement("rect", { x: px - 0.6 * S, y: py - 0.5 * S, width: 1.2 * S, height: S, fill: theme.board ? "#cbd5e1" : "none", stroke: light, "stroke-width": 1 }, svg);
+    }
+    const [lx, ly] = at([(r.x[0] + r.x[1]) / 2, r.y]);
+    svgElement("rect", { x: lx - 0.75 * S, y: ly - 0.45 * S, width: 1.5 * S, height: 0.9 * S, fill: "#111827", stroke: light, "stroke-width": 0.6 }, svg);
+    const half = 1.8 * S;
+    svgElement("path", { d: `M ${lx - half} ${ly - 0.7 * S} L ${lx + half} ${ly + 0.7 * S} M ${lx + half} ${ly - 0.7 * S} L ${lx - half} ${ly + 0.7 * S}`,
+                 stroke: "#dc2626", "stroke-width": 2 }, svg);
+    svgText(svg, theme, at([5.6, r.y])[0], ly + 4, r.label, { size: 10, anchor: "end", color: light });
+  }
+  const [r1x, r1y0] = at([e.r1.x, e.r1.y[0]]);
+  const r1y1 = at([e.r1.x, e.r1.y[1]])[1];
+  svgElement("rect", { x: r1x - 0.6 * S, y: r1y0 - 0.5 * S, width: 1.2 * S, height: r1y1 - r1y0 + S, fill: "none", stroke: light,
+               "stroke-width": 1, "stroke-dasharray": "3 3" }, svg);
+  svgText(svg, theme, at([5.6, 0])[0], (r1y0 + r1y1) / 2 + 4, "R1 empty", { size: 10, anchor: "end", color: light });
+
+  // The header's pads: torn off, unused.
+  for (const pad of e.header) {
+    const [x, y] = at([pad.x, pad.y]);
+    svgElement("circle", { cx: x, cy: y, r: 0.8 * S, fill: "none", stroke: theme.dim, "stroke-width": 1.2, "stroke-dasharray": "3 2" }, svg);
+    svgElement("path", { d: `M ${x - 6} ${y - 6} L ${x + 6} ${y + 6} M ${x + 6} ${y - 6} L ${x - 6} ${y + 6}`, stroke: "#dc2626", "stroke-width": 2 }, svg);
+    svgText(svg, theme, x, oy - 8, pad.label, { size: 9.5, anchor: "middle", color: theme.dim });
+  }
+
+  // Each wire, ringed with the background so a dark one shows on the board.
+  const wire = (points, net, dashed) => {
+    const d = points.map(([x, y], i) => `${i ? "L" : "M"} ${x} ${y}`).join(" ");
+    svgElement("path", { d, fill: "none", stroke: dark === theme.background ? theme.background : "#e2e8f0", "stroke-width": theme.wireWidth + 3,
+                 "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+    svgElement("path", { d, fill: "none", stroke: wireColor(theme, net), "stroke-width": theme.wireWidth, "stroke-linejoin": "round",
+                 "stroke-linecap": "round", ...(dashed ? { "stroke-dasharray": "8 5" } : {}) }, svg);
+  };
+  // The board's trace from C to the button's left leg: thin, it's copper, not a wire.
+  const trace = e.trace.map(at).map(([x, y], i) => `${i ? "L" : "M"} ${x} ${y}`).join(" ");
+  svgElement("path", { d: trace, fill: "none", stroke: theme.board ? "#b45309" : theme.line, "stroke-width": 2, "stroke-dasharray": "2 3" }, svg);
+  const [tx, ty] = at([4.6, 14]);
+  svgText(svg, theme, tx + 6, ty + 30, "board trace", { size: 10, color: light });
+  svgText(svg, theme, tx + 6, ty + 43, "C to SW", { size: 10, color: light });
+  for (const leg of e.legs.filter((l) => l.to)) {
+    const points = [[leg.x, leg.y], ...leg.route].map(at);
+    const y = points.at(-1)[1];
+    wire([...points, [labelX - 10, y]], leg.net);
+    svgText(svg, theme, labelX, y + 4, leg.to, { size: 12, weight: 700, color: theme.net ? theme.net[leg.net] === "#1c1917" ? theme.text : theme.net[leg.net] : theme.text });
+  }
+  for (const leg of e.legs) {
+    const [x, y] = at([leg.x, leg.y]);
+    svgElement("circle", { cx: x, cy: y, r: 0.85 * S, fill: theme.pin, stroke: theme.board ? "#78350f" : theme.line, "stroke-width": 1.2 }, svg);
+    svgElement("circle", { cx: x, cy: y, r: 0.3 * S, fill: theme.board ? "#1c1917" : theme.background }, svg);
+    svgText(svg, theme, x, y - 1.2 * S, leg.label, { size: 11, weight: 700, anchor: "middle", color: light });
+  }
+
+  // What to know, beside the drawing.
+  const notes = [
+    ["No bridge to solder", "one would short the button: stuck pressed"],
+    ["Row of 3: A, C, B", "C, the middle one, is the common: GND"],
+    ["Row of 2: the button", "the right one to GP4; the board ties the left to C"],
+    ["R2 and R3: remove them", "+ is gone: they tie A to B, every other click lost"],
+    ["Turns the wrong way?", "swap GP2 and GP3 at the Pico"],
+    ["No + wire", "the Pico's pull-ups replace R2 and R3"],
+  ];
+  notes.forEach(([title, text], i) => {
+    svgText(svg, theme, labelX + 230, 150 + i * 46, title, { size: 12, weight: 700 });
+    svgText(svg, theme, labelX + 230, 166 + i * 46, text, { size: 11.5, color: theme.dim });
+  });
 }
 
 function turnOver(id) {
