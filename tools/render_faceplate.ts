@@ -15,8 +15,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createOpenSCAD } from "openscad-wasm";
 import type { ScadObject } from "scad-js";
-import { assembly, faceplate, onVent, parts, pod, tray, vars, ventMount } from "../faceplate/model";
+import { difference } from "scad-js";
+import { assembly, faceplate, head, onVent, parts, pod, tray, vars, ventMount } from "../faceplate/model";
 import { checked, config } from "../faceplate/model/config";
+import { box } from "../faceplate/model/geometry";
 
 const rendersDir = join("faceplate", "renders");
 
@@ -38,6 +40,15 @@ const pictures: Record<string, { object: ScadObject; rotation: number[]; colors?
   "pod-side": { object: pod.assembly, rotation: [90, 0, 60], colors: true }, // the can cut open: the sled and its boards
   "pod-face-back": { object: pod.face, rotation: [235, 0, 25] }, // the room behind the face, the spigot
   "pod-sled": { object: parts["pod-sled"], rotation: [55, 0, 25] }, // as it sits on the bed
+  "head-front": { object: head.assembly.rotate([0, 180, 0]), rotation: [70, 0, 20], colors: true }, // what shows in the car
+  // Cut open across the Pico's standoffs: the stack, display, Pico, lid, the wedge under it.
+  "head-side": {
+    object: difference(head.assembly, box(head.picoHoles[0][0], 50, -50, 50, -50, 50)),
+    rotation: [90, 0, 90],
+    colors: true,
+  },
+  "head-shell-back": { object: head.shell, rotation: [55, 0, 25] }, // as it sits on the bed: the room, the bosses, the USB notch
+  "head-lid": { object: parts["head-lid"], rotation: [55, 0, 25] }, // as it sits on the bed: the Pico's standoffs
 };
 
 async function renderStl(source: string, path: string): Promise<void> {
@@ -82,6 +93,8 @@ const dimensions = {
     // The encoder board's ends from the shaft, its pins near the right one.
     encoderBoard: [faceplate.encoderBoardLeft, faceplate.encoderBoardRight],
     depth: faceplate.thickness + config.tray.gap + config.tray.thickness,
+    // The head's outside, its wedge aside.
+    head: [2 * (head.halfX + config.head.wall), 2 * (head.halfY + config.head.wall), head.depth],
     // Each board's pilot hole, from its holes' size.
     pilots: Object.fromEntries(Object.entries(config.boards).map(([name, board]) => [name, tray.pilotOf(board)])),
   },
@@ -97,6 +110,12 @@ await Bun.write(
 await Bun.write(
   join(rendersDir, "pod.scad"),
   `// Written by tools/render_faceplate.ts (mise run faceplate): don't edit. Preview (F5) keeps the colors.\n${pod.assembly.serialize(vars)}`,
+);
+
+// The head's the same way (`mise run head`).
+await Bun.write(
+  join(rendersDir, "head.scad"),
+  `// Written by tools/render_faceplate.ts (mise run faceplate): don't edit. Preview (F5) keeps the colors.\n${head.assembly.serialize(vars)}`,
 );
 
 for (const [name, part] of Object.entries(parts)) {

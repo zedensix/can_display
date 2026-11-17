@@ -21,6 +21,8 @@
  * - Pod (pod.ts): the whole dash in the driver's round air vent instead,
  *   the display in landscape and the encoder in a face shaped like the
  *   vent's gauge adapter, the boards on a sled in a can behind it.
+ * - Head (head.ts): the smallest box for up high, the display in
+ *   landscape and the Pico behind it, everything else on a cable.
  *
  * Every dimension is in config.ts; each part is a class in its own file.
  */
@@ -29,6 +31,7 @@ import type { ScadObject, ScadSpecialVariables } from "scad-js";
 import { union } from "scad-js";
 import { config } from "./config";
 import { Faceplate } from "./faceplate";
+import { Head } from "./head";
 import { mockups } from "./mockups";
 import { Pod } from "./pod";
 import { Tray } from "./tray";
@@ -40,6 +43,7 @@ export const faceplate = new Faceplate(config);
 export const tray = new Tray(config, faceplate);
 export const ventMount = new VentMount(config, faceplate);
 export const pod = new Pod(config, faceplate);
+export const head = new Head(config, faceplate);
 
 /** Each part to print, as it lies on the bed. */
 export const parts: Record<string, ScadObject> = {
@@ -47,6 +51,7 @@ export const parts: Record<string, ScadObject> = {
   tray: tray.object,
   ...ventMount.print,
   ...pod.print,
+  ...head.print,
 };
 
 const modules = mockups(config, faceplate);
