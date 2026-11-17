@@ -36,7 +36,7 @@ source_t source_running(void);
 void poll_data_source(uint32_t now);
 bool in_standby(void);
 // give_click_to_prompt hands a click to the data source's prompt, if one waits for it.
-bool give_click_to_prompt(uint32_t now);
+bool give_click_to_prompt(uint32_t now, choice_t choice);
 // remember_connected_dongle keeps the dongle just connected to in the settings, as
 // the one the connect prompt offers first.
 void remember_connected_dongle(settings_t *cfg);

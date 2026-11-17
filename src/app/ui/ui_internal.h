@@ -37,7 +37,7 @@ void draw_outline(canvas_t *c, int x, int y, int w, int h, color_t color);
 // bg, the color under them, like the spinner's ring.
 void fill_round_rect(canvas_t *c, int x, int y, int w, int h, int r, color_t color, color_t bg);
 void outline_round_rect(canvas_t *c, int x, int y, int w, int h, int r, color_t color, color_t bg);
-typedef enum { ICON_BLUETOOTH, ICON_GEAR, ICON_BACK, ICON_RETRY } icon_t;
+typedef enum { ICON_BLUETOOTH, ICON_GEAR, ICON_BACK, ICON_RETRY, ICON_NEXT } icon_t;
 // draw_button draws a pill button, its icon and label centered: filled
 // when chosen (the knob's on it), else outlined.
 void draw_button(canvas_t *c, const theme_t *t, int x, int y, int w, int h, icon_t icon, const char *label,
@@ -49,11 +49,27 @@ void draw_text_fitting(canvas_t *c, int cx, int y, int max_width, const char *s,
 bool alarm_blink_lit(uint32_t now_ms);
 
 // ui_tiles.c: the gauges between top and bottom.
-void draw_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, int bottom, uint32_t now_ms);
+// format_tile_value is what tile shows for its reading: text, color and
+// gauge fraction (-1: stale, "--").
+void format_tile_value(const tile_t *tile, const state_t *s, uint32_t now_ms, const theme_t *t, char text[24],
+                       color_t *color, float *fraction);
+// gauge_segment_colors colors count segments of tile's range lit up to
+// fraction, peak (or -1) marked, on an alarm's red when alarm.
+void gauge_segment_colors(const range_t *r, float fraction, float peak, int count, bool alarm, const theme_t *t,
+                          color_t out[]);
 void draw_track_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, int bottom, drive_mode_t mode,
                      uint32_t now_ms);
 void draw_tile_dial(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int y, int w, int h, const state_t *s,
                     uint32_t now_ms);
+
+// ui_main.c
+// draw_main_layout is the gauges page's every-gauge view between top
+// and bottom: the oil temperature first and big, the others as a list.
+void draw_main_layout(canvas_t *c, const theme_t *t, const state_t *s, int top, int bottom, uint32_t now_ms);
+
+// ui_doors.c
+// draw_door_screen is the whole screen with doors (DOOR_* bits) open.
+void draw_door_screen(canvas_t *c, const theme_t *t, uint8_t doors);
 
 // ui_strip.c
 // draw_info_strip draws the gear, the outside temperature and the

@@ -44,7 +44,7 @@ a race-wheel shift light across the top, and every drive logged to your phone.
 | | | |
 |:-:|:-:|:-:|
 | <img src="ui/grid.png" width="240" alt="Every gauge"> | <img src="ui/oil.png" width="240" alt="A gauge alone"> | <img src="ui/alarms.png" width="240" alt="Alarms"> |
-| **Every gauge**, with the shift light | **One gauge alone**, its session's min and max | **Alarms**: the tile blinks red |
+| **Every gauge**: the oil first, the rest as a list | **One gauge alone**, its session's min and max | **Alarms**: the row blinks red |
 | <img src="ui/cold.png" width="240" alt="Cold engine"> | <img src="ui/shift.png" width="240" alt="Shift light"> | <img src="ui/oil_critical.png" width="240" alt="Oil overheating"> |
 | **Cold engine**: blue, don't rev it yet | **Shift light**, lit in pairs from both ends | **Oil at 130°C**: the whole screen |
 | <img src="ui/ready.png" width="240" alt="Connect prompt"> | <img src="ui/settings.png" width="240" alt="Settings"> | <img src="ui/showcar.png" width="240" alt="Screensaver"> |
@@ -55,6 +55,8 @@ a race-wheel shift light across the top, and every drive logged to your phone.
 | **Pedal**, a view on the knob | **Engine load**, another | **Near the limiter**: the whole screen flashes |
 | <img src="ui/grid_landscape.png" width="240" alt="Landscape"> | <img src="ui/oil_landscape.png" width="240" alt="A gauge alone, landscape"> | <img src="ui/ready_landscape.png" width="240" alt="Connect prompt, landscape"> |
 | **Landscape**, the panel on its side | **A gauge alone**, its extremes beside it | Every screen turns with it |
+| <img src="ui/door.png" width="240" alt="Door open"> | <img src="ui/doors.png" width="240" alt="Doors open"> | <img src="ui/listen.png" width="240" alt="Listen CAN"> |
+| **A door open**: which, on the car | **Several**: each swung out | **Listen CAN**: a step, Next or Cancel |
 
 Along the bottom of the gauges: the gear engaged (worked out from the RPM and the speed), the
 temperature outside and the distance driven. A rotary encoder drives it all: turn for the
@@ -161,8 +163,8 @@ The CI runs every hook (clang-format, Biome, `bun check` for the types, the test
 
 The CAN IDs and formulas come from community reverse-engineering, not factory documentation:
 **don't trust them blindly**. [docs/can-reverse-engineering.md](docs/can-reverse-engineering.md)
-covers how to check them on your own car, and the dash's own tool for it: a scan of the
-ECU's RAM.
+covers how to check them on your own car, and the dash's own tools for it: a scan of the
+ECU's RAM, and a guided listen of the CAN bus.
 
 ## Design notes
 

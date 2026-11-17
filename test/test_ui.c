@@ -64,7 +64,10 @@ void test_screen(void) {
     static const struct {
         int row;
         action_t action;
-    } actions[] = {{ROW_SEND_LOG, ACTION_SEND_LOG}, {ROW_SCAN, ACTION_SCAN}, {ROW_DISCONNECT, ACTION_DISCONNECT}};
+    } actions[] = {{ROW_SEND_LOG, ACTION_SEND_LOG},
+                   {ROW_SCAN, ACTION_SCAN},
+                   {ROW_LISTEN, ACTION_LISTEN},
+                   {ROW_DISCONNECT, ACTION_DISCONNECT}};
     for (size_t i = 0; i < sizeof actions / sizeof actions[0]; i++) {
         screen_apply_turn(&s, actions[i].row - s.cursor, 6, &cfg);
         screen_apply_click(&s, &cfg);
@@ -209,8 +212,22 @@ void test_orientations(void) {
         ui_render(&c, &s, &(screen_t){.page = PAGE_SETTINGS, .cursor = ROW_DISCONNECT}, &cfg, 1000);
         state_t waiting = {.wait = WAIT_RETRY, .status = "NO LINK\nsomething long enough to wrap over a few lines"};
         ui_render(&c, &waiting, &(screen_t){0}, &cfg, 1000);
+        // A door open takes the page, in either orientation.
+        state_t open = s;
+        state_set_doors(&open, DOOR_DRIVER | DOOR_PASSENGER | DOOR_BOOT, 1000);
+        ui_render(&c, &open, &(screen_t){0}, &cfg, 1000);
+        CHECK(pixels[(h - 22) * w + w / 2] != theme_dark.frame, "%dx%d: the strip under the door screen", w, h);
         // The strip's separator, a line across the bottom of the gauges.
         ui_render(&c, &s, &(screen_t){0}, &cfg, 1000);
         CHECK(pixels[(h - 22) * w + w / 2] == theme_dark.frame, "%dx%d: no info strip at the bottom", w, h);
     }
+}
+
+// Doors read count until DOORS_STALE_MS; never read, none.
+void test_doors(void) {
+    state_t s = {0};
+    CHECK(state_doors(&s, 0) == 0, "doors open without a reading");
+    state_set_doors(&s, DOOR_BOOT, 0);
+    CHECK(state_doors(&s, DOORS_STALE_MS) == DOOR_BOOT, "the boot read at 0 not open");
+    CHECK(state_doors(&s, DOORS_STALE_MS + 1) == 0, "a stale reading still counts");
 }

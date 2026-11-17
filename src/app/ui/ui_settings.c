@@ -22,7 +22,8 @@ static const struct {
 static const char *const settings_labels[SETTINGS_ROWS] = {
     [ROW_BRIGHTNESS] = "Brightness", [ROW_SHIFT_LIGHT] = "Shift light", [ROW_FLIP] = "Flip screen",
     [ROW_LANDSCAPE] = "Landscape",   [ROW_SOURCE] = "Source",           [ROW_AUTO_CONNECT] = "Auto-connect",
-    [ROW_SEND_LOG] = "Send log",     [ROW_SCAN] = "Scan ECU RAM",       [ROW_DISCONNECT] = "Disconnect",
+    [ROW_SEND_LOG] = "Send log",     [ROW_SCAN] = "Scan ECU RAM",       [ROW_LISTEN] = "Listen CAN",
+    [ROW_DISCONNECT] = "Disconnect",
 };
 
 // draw_toggle draws a switch ending at right, centered on cy, on bg: a

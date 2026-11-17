@@ -70,12 +70,13 @@ void test_elm_scan(void) {
 }
 
 // fast_answer answers MULTI_POLL_FAST: RPM 1726, lambda 1.0 (AFR 14.7)
-// and its sensor's voltage, throttle 20%, pedal 50.2%, load 40%, timing
+// and its sensor's voltage, throttle 20%, pedal 42% (this ECU's byte is the
+// percent), load 40%, timing
 // 8°, 17 bytes over three frames. slow_answer, MULTI_POLL_SLOW: coolant
 // 83°C, intake 31°C, 100 km/h, commanded lambda 1.0, rail 20 MPa, short
 // term trim +7.8%, 15 bytes.
 static const char *fast_answer = "7E81011410C1AF82480\r"
-                                 "7E82100666611335A80\r"
+                                 "7E82100666611335A2A\r"
                                  "7E82204660E90AAAAAA\r>";
 static const char *slow_answer = "7E8100F41057B0F470D\r"
                                  "7E821644480002307D0\r"
@@ -103,7 +104,7 @@ void test_elm_multi_pid(void) {
     static const struct {
         signal_t sig;
         float want;
-    } got[] = {{SIG_RPM, 1726},  {SIG_AFR, 14.7f}, {SIG_THROTTLE, 20},      {SIG_PEDAL, 50.2f},
+    } got[] = {{SIG_RPM, 1726},  {SIG_AFR, 14.7f}, {SIG_THROTTLE, 20},      {SIG_PEDAL, 42},
                {SIG_LOAD, 40},   {SIG_TIMING, 8},  {SIG_COOLANT, 83},       {SIG_IAT, 31},
                {SIG_SPEED, 100}, {SIG_RAIL, 20},   {SIG_AFR_TARGET, 14.7f}, {SIG_STFT, 7.8125f}};
     for (size_t i = 0; i < sizeof got / sizeof got[0]; i++) {
@@ -115,9 +116,9 @@ void test_elm_multi_pid(void) {
     CHECK(strcmp(last_sent(&d), "010C24115A040E\r") == 0, "after ? sent %s, want 010C24115A040E", last_sent(&d));
 }
 
-// The drive mode through the dongle: every ELM_MODE_INTERVAL_MS polling
-// stops for a raw monitor of 0D3 alone, which stops at its first frame,
-// then the dongle is set back.
+// The drive mode and the doors through the dongle: every
+// ELM_MODE_INTERVAL_MS polling stops for a raw monitor of 0D3 alone, then
+// of 375, each stopping at its first frame, then the dongle is set back.
 void test_elm_drive_mode(void) {
     static fake_dongle_t d;
     memset(&d, 0, sizeof d);
@@ -134,6 +135,8 @@ void test_elm_drive_mode(void) {
         feed_dongle_answer(&e, strncmp(last_sent(&d), "AT", 2) == 0 ? "OK\r>" : "NO DATA\r>", t);
     }
     CHECK(strcmp(last_sent(&d), "ATCAF0\r") == 0, "the mode's monitor didn't start: last sent %s", last_sent(&d));
+    state_set_reading(&s, SIG_SPEED, 0, t); // stopped: the doors are monitored too
+    state_set_reading(&s, SIG_RPM, 800, t); // idling: the mode counts
     feed_dongle_answer(&e, "OK\r>", t);
     CHECK(strcmp(last_sent(&d), "ATCRA0D3\r") == 0, "then %s, want ATCRA0D3", last_sent(&d));
     feed_dongle_answer(&e, "OK\r>", t);
@@ -142,8 +145,17 @@ void test_elm_drive_mode(void) {
     CHECK(strcmp(last_sent(&d), "\r") == 0, "the monitor didn't stop at the frame: last sent %s", last_sent(&d));
     CHECK(state_drive_mode(&s, t + 30) == DRIVE_VSC_OFF, "the mode read is %d, want VSC off",
           state_drive_mode(&s, t + 30));
+    CHECK(strstr(d.logged, "drive mode VSC off, 0D3 20 0E C0 0E 00 00 8D") != NULL, "the change wasn't logged:\n%s",
+          d.logged);
     feed_dongle_answer(&e, "STOPPED\r>", t + 40);
-    CHECK(strcmp(last_sent(&d), "ATCRA\r") == 0, "after the monitor %s, want ATCRA", last_sent(&d));
+    CHECK(strcmp(last_sent(&d), "ATCRA375\r") == 0, "after the mode's monitor %s, want ATCRA375", last_sent(&d));
+    feed_dongle_answer(&e, "OK\r>", t + 40);
+    CHECK(strcmp(last_sent(&d), "ATMA\r") == 0 && e.monitoring, "then %s, want ATMA", last_sent(&d));
+    feed_dongle_answer(&e, "3750301000400000010\r", t + 45); // the driver's door open
+    CHECK(strcmp(last_sent(&d), "\r") == 0, "the doors' monitor didn't stop at the frame: %s", last_sent(&d));
+    CHECK(state_doors(&s, t + 45) == DOOR_DRIVER, "the doors read %d, want the driver's", state_doors(&s, t + 45));
+    feed_dongle_answer(&e, "STOPPED\r>", t + 45);
+    CHECK(strcmp(last_sent(&d), "ATCRA\r") == 0, "after the monitors %s, want ATCRA", last_sent(&d));
     feed_dongle_answer(&e, "OK\r>", t + 50);
     CHECK(strcmp(last_sent(&d), "ATCAF1\r") == 0, "then %s, want ATCAF1", last_sent(&d));
     feed_dongle_answer(&e, "OK\r>", t + 60);

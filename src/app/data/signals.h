@@ -40,9 +40,10 @@ typedef struct {
 // delivering, with Settings always beside it (to switch to the CAN source
 // when Bluetooth won't do): WAIT_CHOICE, Connect (READY, OFFLINE);
 // WAIT_RETRY, Retry (on the way to the dongle, or a failure);
-// WAIT_CANCEL, Cancel (a RAM scan). WAIT_NONE while it's delivering, or
-// busy with something of its own.
-typedef enum { WAIT_NONE, WAIT_CHOICE, WAIT_RETRY, WAIT_CANCEL } wait_t;
+// WAIT_CANCEL, Cancel (a RAM scan, a CAN listen); WAIT_STEP, Next and
+// Cancel in place of Settings (a CAN listen's prompt). WAIT_NONE while
+// it's delivering, or busy with something of its own.
+typedef enum { WAIT_NONE, WAIT_CHOICE, WAIT_RETRY, WAIT_CANCEL, WAIT_STEP } wait_t;
 
 // drive_mode_t is the stability control's mode, from its two buttons:
 // everything on; TRC off (a short press on TRC OFF); VSC SPORT (its own
@@ -62,6 +63,10 @@ typedef struct {
     drive_mode_t drive_mode;
     uint32_t drive_mode_ms;
     bool drive_mode_read;
+    // doors, a DOOR_* bit each open, as last read, at doors_ms; doors_read: ever.
+    uint8_t doors;
+    uint32_t doors_ms;
+    bool doors_read;
     char status[192];
 } state_t;
 
@@ -116,7 +121,19 @@ void state_set_drive_mode(state_t *s, drive_mode_t mode, uint32_t now_ms);
 // DRIVE_MODE_STALE_MS: a mode read longer ago than that no longer counts
 // (the dongle reads it every few seconds, the CAN bus many times a second).
 #define DRIVE_MODE_STALE_MS 10000
+// DRIVE_MODE_MIN_RPM: with the engine off (contact on), 0x0D3 reads as
+// everything off (byte 3 bit 0 cleared: the VSC isn't running), so the
+// mode only counts with the engine running.
+#define DRIVE_MODE_MIN_RPM 400
+
+// The doors and the boot, a bit each in state_t.doors (0x375, obd.h).
+enum { DOOR_DRIVER = 1, DOOR_PASSENGER = 2, DOOR_BOOT = 4 };
+// DOORS_STALE_MS: doors read longer ago than that count as shut.
+#define DOORS_STALE_MS 10000
+void state_set_doors(state_t *s, uint8_t doors, uint32_t now_ms);
+// state_doors is the DOOR_* bits open, 0 without a recent reading.
+uint8_t state_doors(const state_t *s, uint32_t now_ms);
 
 // state_drive_mode is the mode the UI goes by: the last one read, or
-// DRIVE_NORMAL without a recent one.
+// DRIVE_NORMAL without a recent one or with the engine off.
 drive_mode_t state_drive_mode(const state_t *s, uint32_t now_ms);

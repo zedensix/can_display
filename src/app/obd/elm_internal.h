@@ -2,8 +2,9 @@
 
 // What the ELM327 session's files share. elm327.c runs the session: init,
 // probes, each answer to its phase, timeouts; elm_poll.c polls the gauges;
-// elm_mode.c reads the drive mode off the bus; elm_scan.c scans the
-// engine ECU's RAM; elm_parse.c parses the dongle's lines.
+// elm_mode.c reads the drive mode and the doors off the bus; elm_scan.c scans the
+// engine ECU's RAM; elm_listen.c listens to the CAN bus; elm_parse.c
+// parses the dongle's lines.
 
 #include "elm327.h"
 
@@ -51,3 +52,7 @@ void mode_monitor_over(elm_t *e);
 void start_ram_scan(elm_t *e, uint32_t now_ms);
 void finish_ram_scan(elm_t *e, uint32_t now_ms);
 void handle_ram_scan_answer(elm_t *e, char *lines[], int n, uint32_t now_ms);
+
+// elm_listen.c
+void start_can_listen(elm_t *e, uint32_t now_ms);
+void handle_can_listen_answer(elm_t *e, uint32_t now_ms);

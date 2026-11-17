@@ -14,7 +14,7 @@
 // alone. A click opens the settings. There, turning moves the cursor, a
 // click toggles the row under it or, on brightness and the shift light,
 // makes turning change the value until the next click. The action rows
-// (Send log, Scan ECU RAM, Disconnect) return
+// (Send log, Scan ECU RAM, Listen CAN, Disconnect) return
 // to the gauges and set action. Back returns to the gauges. With the CAN
 // source, the rows that need the dongle (screen_row_needs_ble) do nothing.
 //
@@ -41,6 +41,7 @@ enum {
     ROW_AUTO_CONNECT,
     ROW_SEND_LOG,
     ROW_SCAN,
+    ROW_LISTEN,
     ROW_DISCONNECT,
     ROW_BACK,
     SETTINGS_ROWS,
@@ -52,11 +53,14 @@ typedef enum {
     ACTION_NONE,
     ACTION_SEND_LOG,
     ACTION_SCAN,
+    ACTION_LISTEN,
     ACTION_DISCONNECT,
 } action_t;
 
 // choice_t is what a click does while the data source waits on the
-// driver: CHOICE_CONNECT is its own button (Connect, Retry, Cancel).
+// driver: CHOICE_CONNECT is its own button (Connect, Retry, Cancel,
+// Next); CHOICE_SETTINGS opens the settings, or, beside Next
+// (WAIT_STEP), is Cancel, left to the caller like CHOICE_CONNECT.
 typedef enum { CHOICE_CONNECT, CHOICE_SETTINGS } choice_t;
 
 #define SCREEN_IDLE_MS 30000

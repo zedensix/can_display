@@ -6,6 +6,7 @@
 #include "data/signals.h"
 #include "store/datalog.h"
 #include "store/settings.h"
+#include "ui/screen.h"
 
 // The ELM327 Bluetooth LE OBD dongle as the data source: scan, connect,
 // find its serial-port characteristics, then run an elm327 session over
@@ -29,9 +30,13 @@ void ble_init(state_t *state, bool auto_connect, const dongle_t *last);
 bool ble_take_connected_dongle(dongle_t *out);
 void ble_poll_radio(uint32_t now_ms);
 
-// ble_handle_click hands a click to a waiting prompt, and reports whether
-// one was waiting.
-bool ble_handle_click(uint32_t now_ms);
+// ble_handle_click hands a click to a waiting prompt, with the button it
+// was on (screen_t.choice), and reports whether one was waiting.
+bool ble_handle_click(uint32_t now_ms, choice_t choice);
+
+// ble_request_can_listen starts a guided listen of the CAN bus, once the
+// session polls (elm_request_can_listen).
+void ble_request_can_listen(void);
 
 // ble_hold_retries holds the automatic retry after a failure while hold
 // (the settings page is open: the driver may be switching to CAN).

@@ -15,6 +15,9 @@ void test_obd_decode(void) {
     can_frame_t throttle = {OBD_RESPONSE_ECU1, 8, {0x03, 0x41, 0x11, 0x33}};
     CHECK(obd_decode_frame(&throttle, &s, 1) && nearly_equal(s.readings[SIG_THROTTLE].value, 20),
           "throttle = %f, want 20", (double)s.readings[SIG_THROTTLE].value);
+    can_frame_t floored = {OBD_RESPONSE_ECU1, 8, {0x03, 0x41, 0x5A, 0x68}}; // 104: past 100 floored
+    CHECK(obd_decode_frame(&floored, &s, 1) && nearly_equal(s.readings[SIG_PEDAL].value, 100),
+          "floored pedal = %f, want 100", (double)s.readings[SIG_PEDAL].value);
     can_frame_t ethanol = {OBD_RESPONSE_ECU1, 8, {0x05, 0x63, 0x42, 0x85, 0x80, 0x00}};
     CHECK(obd_decode_frame(&ethanol, &s, 1) && nearly_equal(s.readings[SIG_ETHANOL].value, 66.75f),
           "ethanol = %f, want 66.75", (double)s.readings[SIG_ETHANOL].value);
@@ -69,11 +72,18 @@ void test_isotp(void) {
 }
 
 // The drive mode, from the frames the guided Listen CAN read on this car,
-// one per mode. A mode read more than
+// one per mode, the engine running. A mode read more than
 // DRIVE_MODE_STALE_MS ago no longer counts.
 void test_drive_mode(void) {
     state_t s = {0};
     CHECK(state_drive_mode(&s, 0) == DRIVE_NORMAL, "no mode read isn't normal");
+    // Contact on, engine off: byte 3 bit 0 cleared, read as everything
+    // off, but the engine isn't running: normal.
+    can_frame_t engine_off = {GT86_ID_DRIVE_MODE, 7, {0x00, 0x06, 0xC0, 0x66, 0x00, 0x00, 0x90}};
+    state_set_reading(&s, SIG_RPM, 0, 1000);
+    CHECK(gt86_decode_broadcast(&engine_off, &s, 1000) && state_drive_mode(&s, 1000) == DRIVE_NORMAL,
+          "engine off, the mode is %d, want normal", state_drive_mode(&s, 1000));
+    state_set_reading(&s, SIG_RPM, 800, 1000);
     static const struct {
         uint8_t data[7];
         drive_mode_t mode;

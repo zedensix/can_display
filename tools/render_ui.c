@@ -1,7 +1,8 @@
 // render_ui draws the UI's screens with fixed readings, as the panel
 // would show them, into PPM files: one per screen and sheet.ppm with all
 // of them in a grid, SHEET_COLUMNS wide. `mise run ui` turns them into
-// ui/*.png. The screens themselves are in render_ui_shots.c.
+// ui/*.png. The screens themselves are in render_ui_shots.c (the gauges)
+// and render_ui_screens.c (the rest).
 
 #include <stdio.h>
 #include <string.h>
@@ -11,9 +12,12 @@
 #define GAP 8
 #define SHEET_COLUMNS 3
 // MAX_SHOTS sizes the buffers: main refuses more.
-#define MAX_SHOTS 48
+#define MAX_SHOTS 64
 
 static color_t pixels[W * H];
+// Every shot, the gauges' then the others'.
+static shot_t shots[MAX_SHOTS];
+static int shot_count;
 
 #define SHEET_ROWS ((MAX_SHOTS + SHEET_COLUMNS - 1) / SHEET_COLUMNS)
 // The sheet's cells are H square, for both orientations.
@@ -77,9 +81,15 @@ int main(int argc, char **argv) {
         fprintf(stderr, "usage: %s <output dir>\n", argv[0]);
         return 2;
     }
-    if (shot_count > MAX_SHOTS) {
-        fprintf(stderr, "%d screens, MAX_SHOTS is %d\n", shot_count, MAX_SHOTS);
+    if (gauge_shot_count + screen_shot_count > MAX_SHOTS) {
+        fprintf(stderr, "%d screens, MAX_SHOTS is %d\n", gauge_shot_count + screen_shot_count, MAX_SHOTS);
         return 1;
+    }
+    for (int k = 0; k < gauge_shot_count; k++) {
+        shots[shot_count++] = gauge_shots[k];
+    }
+    for (int k = 0; k < screen_shot_count; k++) {
+        shots[shot_count++] = screen_shots[k];
     }
     memset(sheet, 0x40, sizeof sheet);
     for (int k = 0; k < shot_count; k++) {

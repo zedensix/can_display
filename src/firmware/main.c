@@ -119,7 +119,7 @@ int main(void) {
         // On the gauges (and in standby, where nothing is shown), a waiting
         // connection prompt takes the click.
         if (screen_apply_input(&screen, &state, turn, press, ui_view_count, &cfg, start) &&
-            !((screen.page == PAGE_GAUGES || in_standby()) && give_click_to_prompt(start))) {
+            !((screen.page == PAGE_GAUGES || in_standby()) && give_click_to_prompt(start, screen.choice))) {
             screen_apply_click(&screen, &cfg);
         }
         hold_retries(screen.page == PAGE_SETTINGS);

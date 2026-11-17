@@ -6,6 +6,7 @@
 
 #include "data/signals.h"
 #include "obd.h"
+#include "sniff.h"
 
 // An ELM327 session, transport-agnostic: commands go out through
 // callbacks.write, the dongle's output comes back through elm_feed_dongle_output.
@@ -37,14 +38,29 @@
 #define ELM_ENGINE_MAX_MISSES 3
 #define ELM_ENGINE_READS 5
 
-// The drive mode (GT86_ID_DRIVE_MODE) is broadcast, not asked: every
-// ELM_MODE_INTERVAL_MS, polling stops for the dongle to monitor that ID
-// alone, raw (ATCAF0, ATCRA0D3, ATMA), until a frame or ELM_MODE_DWELL_MS,
-// then goes back (ATCRA, ATCAF1): 5 round trips. Dropped after
-// ELM_MODE_MAX_MISSES monitors without the frame while the ECU answers.
+// Listening to the CAN bus (elm_request_can_listen) for sniff_t: the bus is far
+// busier than BLE can carry, so the dongle listens to one window of 256
+// IDs at a time (ATCF/ATCM), ELM_LISTEN_DWELL_MS each, ELM_LISTEN_ROUNDS
+// times over the bus per step (about 25s a step): twice, so each ID is
+// seen more than once in a step, its noise with it.
+#define ELM_LISTEN_WINDOWS 8
+#define ELM_LISTEN_DWELL_MS 1500
+#define ELM_LISTEN_ROUNDS 2
+
+// The drive mode (GT86_ID_DRIVE_MODE) and the doors (GT86_ID_DOORS) are
+// broadcast, not asked: every ELM_MODE_INTERVAL_MS, polling stops for the
+// dongle to monitor each ID alone in turn, raw (ATCAF0, then ATCRA0D3,
+// ATMA, ATCRA375, ATMA), each until its frame or its dwell, then
+// goes back (ATCRA, ATCAF1): 7 round trips. Each ID is dropped after
+// ELM_MODE_MAX_MISSES monitors without its frame while the ECU answers.
 #define ELM_MODE_INTERVAL_MS 3000
 #define ELM_MODE_DWELL_MS 400
+// The doors' frame comes far less often than the mode's (400ms of
+// monitoring missed it every time): a longer monitor, at a standstill
+// only (with the speed at 0).
+#define ELM_DOORS_DWELL_MS 1500
 #define ELM_MODE_MAX_MISSES 3
+#define ELM_MONITORS 2
 
 // The RAM scan reads ELM_SCAN_CHUNK bytes at a time (whole floats, and
 // the answer fits isotp_t), from ELM_SCAN_START until the ECU refuses an
@@ -71,6 +87,7 @@ typedef enum {
     ELM_INIT,
     ELM_PROBE,
     ELM_SCAN,
+    ELM_LISTEN,
     ELM_POLL,
     ELM_FAILED,
 } elm_phase_t;
@@ -94,9 +111,10 @@ typedef struct {
     uint32_t battery_ms;
     uint32_t engine_ms;
     int engine_step, engine_misses[ELM_ENGINE_READS];
-    // The drive mode's monitor: its step (0: not running), its last start,
-    // the monitors without its frame in a row, whether this one got it.
-    int mode_step, mode_misses;
+    // The broadcast monitors: their step (0: not running), the ID being
+    // monitored (an index of elm_mode.c's), their last start, each ID's
+    // monitors without its frame in a row, whether this one got it.
+    int mode_step, mode_monitor, mode_misses[ELM_MONITORS];
     uint32_t mode_ms;
     bool mode_got;
     // ecu_ms is when the engine ECU last answered (or polling started):
@@ -112,9 +130,17 @@ typedef struct {
     bool scan_requested, scan_cancelled;
     uint32_t scan_addr;
     int scan_candidates;
+    // listen_requested starts listening to the bus at the next poll
+    // (elm_request_can_listen); listen_awaiting_click is while a step's
+    // prompt waits for the driver (elm_listen_click); listen_cancelled
+    // ends it at the answer in flight (elm_cancel_listen); windows counts
+    // a step's monitors.
+    bool listen_requested, listen_awaiting_click, listen_cancelled;
+    int windows;
+    sniff_t sniff;
     // monitoring is while the dongle prints frames (the drive mode's
-    // monitor), stop_sent once it's been told to stop; monitor_ms: when it
-    // started; monitor_dwell_ms: how long it may run.
+    // monitor, a listen's), stop_sent once it's been told to stop;
+    // monitor_ms: when it started; monitor_dwell_ms: how long it may run.
     bool monitoring, stop_sent;
     uint32_t monitor_ms, monitor_dwell_ms;
 } elm_t;
@@ -132,6 +158,22 @@ void elm_request_ram_scan(elm_t *e);
 // elm_cancel_ram_scan ends a running scan after the read in flight, as if
 // it had reached its end. It returns whether a scan was running.
 bool elm_cancel_ram_scan(elm_t *e);
+
+// elm_request_can_listen asks for a sniff of the CAN bus (see sniff_t and
+// ELM_LISTEN_*): it starts at the next poll, prompts the driver for each
+// of sniff_steps as the status (Next, Cancel), listens once they click
+// Next (elm_listen_click), logs the candidates, then restarts the
+// session.
+void elm_request_can_listen(elm_t *e);
+
+// elm_listen_click tells a listen's prompt the driver has done what it
+// asks. It returns whether a prompt was waiting for it.
+bool elm_listen_click(elm_t *e, uint32_t now_ms);
+
+// elm_cancel_listen ends a listen: at once at a prompt, else at the
+// answer in flight (a monitor stopped first); the session starts over.
+// It returns whether a listen was running.
+bool elm_cancel_listen(elm_t *e, uint32_t now_ms);
 
 #define ELM_MAX_LINES 16
 

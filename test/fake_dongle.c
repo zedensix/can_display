@@ -2,9 +2,9 @@
 
 void fake_write(void *ctx, const char *command) {
     fake_dongle_t *d = ctx;
-    if (d->sent_count < 512) {
-        snprintf(d->sent[d->sent_count++], sizeof d->sent[0], "%s", command);
-    }
+    // Full, the last slot takes each new one: last_sent stays right.
+    int at = d->sent_count < 512 ? d->sent_count++ : 511;
+    snprintf(d->sent[at], sizeof d->sent[0], "%s", command);
 }
 void fake_log(void *ctx, const char *line) {
     fake_dongle_t *d = ctx;

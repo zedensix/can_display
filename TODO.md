@@ -13,6 +13,9 @@
 - [ ] Check in the car: the two multi-PID requests (log `polling 6 PIDs a request`), each new reading against what's expected (pedal 0 to 100%, timing that drops on a pull, rail around 4 to 20 MPa, speed against the car's), the limiter flash from 7300 rpm
 - [ ] Check in the car: the gear shown in each gear (and N with the clutch in), the outside temperature against the car's own, the `01A0` bitmap in the log: whether the ECU has the gear (0xA4: then read it instead of working it out) and the odometer (0xA6; `01A6 (giving up)` if not), every screen in landscape on the panel itself (MADCTL MV)
 - [ ] Odometer if 01A6 isn't there: it's the cluster's, not the engine ECU's; find how the cluster gives it (a diagnostic read at its own address, captured from Techstream)
+- [ ] Check the door screen in the car: each door and the boot, contact on and engine running (0x375 byte 1, found engine off)
+- [ ] Rerun Listen CAN engine running for the stalk held down and the cruise ON/OFF button (nothing on the bus engine off); the stalk's up and pulled are in 0x144 byte 0, but driving the dash with them needs the MCP2515 (through the dongle, a press falls between monitors)
+- [ ] Tyre pressures: only if the wheels have TPMS sensors; capture what Techstream asks the TPMS ECU, then a tyres view (designed: the car from above, a pressure at each corner)
 - [ ] Cruise control set speed: probably in the engine ECU's RAM, not on the bus (the cluster never shows it): RAM scans with the cruise set at two speeds
 - [ ] Knock: not in standard OBD; look for the FA20's knock retard and fine knock learning in the ECU's RAM
 - [ ] Check in the car: Send log to the phone, acknowledged, back to the gauges

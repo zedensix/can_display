@@ -94,6 +94,8 @@ static const char *const icon_rows[][13] = {
                     "X...........", "XX.........X", ".X........XX", ".XX......XX.", "..XXX..XXX..", "....XXXX...."},
     [ICON_BACK] = {"...X.......", "..XX.......", ".XXXXXXXXXX", "XXXXXXXXXXX", ".XXXXXXXXXX", "..XX.......",
                    "...X......."},
+    [ICON_NEXT] = {".......X...", ".......XX..", "XXXXXXXXXX.", "XXXXXXXXXXX", "XXXXXXXXXX.", ".......XX..",
+                   ".......X..."},
 };
 
 static int icon_height(icon_t icon) {

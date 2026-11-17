@@ -36,12 +36,16 @@ static bool engine_read_wanted(const elm_t *e, int read) {
 static void send_next_engine_command(elm_t *e, uint32_t now_ms);
 
 void send_next_poll_command(elm_t *e, uint32_t now_ms) {
-    // A scan waits for the engine ECU's header switching, and the drive
-    // mode's monitor, to be over: each leaves the dongle set up otherwise
-    // until its last command.
+    // A scan or a listen waits for the engine ECU's header switching, and
+    // the drive mode's monitor, to be over: each leaves the dongle set up
+    // otherwise until its last command.
     bool idle = e->engine_step == 0 && e->mode_step == 0;
     if (e->scan_requested && idle) {
         start_ram_scan(e, now_ms);
+        return;
+    }
+    if (e->listen_requested && idle) {
+        start_can_listen(e, now_ms);
         return;
     }
     if (e->mode_step > 0) {

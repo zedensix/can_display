@@ -174,6 +174,12 @@ void ui_render(canvas_t *c, const state_t *state, const screen_t *screen, const 
         draw_status_screen(c, t, state, screen, now_ms);
         return;
     }
+    // A door or the boot open takes the gauges page, after the oil.
+    uint8_t doors = state_doors(state, now_ms);
+    if (doors) {
+        draw_door_screen(c, t, doors);
+        return;
+    }
     // With the shift light on, its bar takes the top of the gauges.
     int top = 0;
     if (cfg->shift_rpm) {
@@ -188,7 +194,7 @@ void ui_render(canvas_t *c, const state_t *state, const screen_t *screen, const 
     } else if (state_drive_mode(state, now_ms) != DRIVE_NORMAL) {
         draw_track_grid(c, t, state, top, bottom, state_drive_mode(state, now_ms), now_ms);
     } else {
-        draw_grid(c, t, state, top, bottom, now_ms);
+        draw_main_layout(c, t, state, top, bottom, now_ms);
     }
     draw_info_strip(c, t, state, now_ms);
     draw_limiter_flash(c, t, &state->readings[SIG_RPM], now_ms);

@@ -45,7 +45,9 @@ typedef struct {
 // ECU may not have (its bitmaps from 0x60 on were never asked).
 #define PID_ODOMETER 0xA6
 // The relative pedal position: 0 to 100% of its travel, where 0x49 (the
-// absolute one) stops short of both ends.
+// absolute one) stops short of both ends. On this car its byte is the
+// percent (seen floored: about half, read as A*100/255), unverified at
+// part throttle.
 #define PID_PEDAL 0x5A
 
 // GASOLINE_STOICH_AFR turns lambda into a gasoline AFR.
@@ -106,6 +108,15 @@ bool isotp_add_frame(isotp_t *r, const can_frame_t *f);
 // all 5 modes, the same bits each time. Read, not yet checked against
 // the cluster's own lamps on a drive.
 #define GT86_ID_DRIVE_MODE 0x0D3
+// The doors and the boot, broadcast: byte 1 bit 0 the driver's door, bit
+// 1 the passenger's, bit 5 the boot; byte 3 bit 2 set with either door
+// open. 0x374 byte 3 carries the same three bits. Found by a guided
+// Listen CAN run on this car, contact on, engine off (2026-11-17).
+// That run also found the cruise control stalk in 0x144 byte 0: bit 4
+// held up, bit 5 pulled; held down and the ON/OFF button changed
+// nothing there (with the engine off). Not read: a press is too short
+// for the dongle's monitor between polls.
+#define GT86_ID_DOORS 0x375
 
 // gt86_decode_broadcast handles the broadcast frames above. It returns false for
 // anything else.

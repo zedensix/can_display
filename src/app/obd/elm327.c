@@ -110,6 +110,9 @@ static void handle_dongle_answer(elm_t *e, uint32_t now_ms) {
     case ELM_SCAN:
         handle_ram_scan_answer(e, lines, n, now_ms);
         break;
+    case ELM_LISTEN:
+        handle_can_listen_answer(e, now_ms);
+        break;
     case ELM_POLL:
         handle_poll_answer(e, lines, n, now_ms);
         break;
@@ -119,8 +122,8 @@ static void handle_dongle_answer(elm_t *e, uint32_t now_ms) {
 }
 
 void elm_start_session(elm_t *e, state_t *state, elm_callbacks_t cb, uint32_t now_ms) {
-    // Not *e = (elm_t){...}: with its buffers, that temporary would take
-    // a good part of the Pico's 2KB stack.
+    // Not *e = (elm_t){...}: with the sniff table, that temporary would
+    // take far more than the Pico's 2KB stack.
     memset(e, 0, sizeof *e);
     e->cb = cb;
     e->state = state;
@@ -137,7 +140,9 @@ void elm_feed_dongle_output(elm_t *e, const uint8_t *data, size_t len, uint32_t 
             e->rx[e->rx_len] = 0;
             can_frame_t f;
             if (elm_parse_frame(e->rx, &f)) {
-                if (mode_monitor_frame(e, &f, now_ms) && !e->stop_sent) {
+                if (e->phase == ELM_LISTEN) {
+                    sniff_add_frame(&e->sniff, &f);
+                } else if (mode_monitor_frame(e, &f, now_ms) && !e->stop_sent) {
                     // The mode's in: the monitor can stop right away.
                     e->stop_sent = true;
                     e->cb.write(e->cb.ctx, "\r");
@@ -178,6 +183,13 @@ void elm_check_timers(elm_t *e, uint32_t now_ms) {
         send_next_probe(e, now_ms);
         return;
     }
+    if (e->phase == ELM_LISTEN) {
+        e->cb.log(e->cb.ctx, error);
+        sniff_log_candidates(&e->sniff, e->cb.log, e->cb.ctx);
+        e->state->wait = WAIT_NONE;
+        elm_start_session(e, e->state, e->cb, now_ms);
+        return;
+    }
     if (e->phase == ELM_SCAN) {
         e->waiting = false;
         e->cb.log(e->cb.ctx, error);
@@ -194,6 +206,12 @@ void elm_check_timers(elm_t *e, uint32_t now_ms) {
 void elm_request_ram_scan(elm_t *e) {
     if (e->phase == ELM_POLL) {
         e->scan_requested = true;
+    }
+}
+
+void elm_request_can_listen(elm_t *e) {
+    if (e->phase == ELM_POLL) {
+        e->listen_requested = true;
     }
 }
 

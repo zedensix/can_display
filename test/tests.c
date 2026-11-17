@@ -32,6 +32,9 @@ int main(void) {
     test_limiter_flash();
     test_gear_and_trip();
     test_orientations();
+    test_elm_listen();
+    test_elm_listen_cancel();
+    test_doors();
     if (failures) {
         printf("%d check(s) failed\n", failures);
         return 1;

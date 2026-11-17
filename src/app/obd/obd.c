@@ -58,8 +58,10 @@ signal_t obd_decode_message(const uint8_t *msg, int len, state_t *state, uint32_
             got = SIG_THROTTLE, size = 1;
             state_set_reading(state, got, (float)v[0] * 100 / 255, now_ms);
         } else if (msg[i] == PID_PEDAL && value_len >= 1) {
+            // This ECU sends the percent itself, a bit over 100 floored,
+            // not the standard A*100/255 (half of the travel at the floor).
             got = SIG_PEDAL, size = 1;
-            state_set_reading(state, got, (float)v[0] * 100 / 255, now_ms);
+            state_set_reading(state, got, v[0] > 100 ? 100 : (float)v[0], now_ms);
         } else if (msg[i] == PID_LOAD && value_len >= 1) {
             got = SIG_LOAD, size = 1;
             state_set_reading(state, got, (float)v[0] * 100 / 255, now_ms);
@@ -162,6 +164,12 @@ bool gt86_decode_broadcast(const can_frame_t *f, state_t *state, uint32_t now_ms
                              : f->data[0] & 0x20  ? DRIVE_TRC_OFF
                                                   : DRIVE_NORMAL,
                              now_ms);
+        return true;
+    case GT86_ID_DOORS:
+        state_set_doors(state,
+                        (f->data[1] & 0x01 ? DOOR_DRIVER : 0) | (f->data[1] & 0x02 ? DOOR_PASSENGER : 0) |
+                            (f->data[1] & 0x20 ? DOOR_BOOT : 0),
+                        now_ms);
         return true;
     case GT86_ID_TEMPERATURES:
         state_set_reading(state, SIG_OIL, (float)f->data[2] - 40, now_ms);

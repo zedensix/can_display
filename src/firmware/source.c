@@ -48,12 +48,12 @@ bool in_standby(void) {
     return ble_active() && ble_in_standby();
 }
 
-bool give_click_to_prompt(uint32_t now) {
+bool give_click_to_prompt(uint32_t now, choice_t choice) {
     // The MCP2515's Retry reruns its self test from a fresh boot.
     if (!SIM && source == SOURCE_CAN && mcp2515_wants_retry()) {
         reboot_board(false);
     }
-    return ble_active() && ble_handle_click(now);
+    return ble_active() && ble_handle_click(now, choice);
 }
 
 void remember_connected_dongle(settings_t *cfg) {
@@ -100,6 +100,9 @@ void run_settings_action(action_t action) {
     }
     case ACTION_SCAN:
         ble_request_ram_scan();
+        break;
+    case ACTION_LISTEN:
+        ble_request_can_listen();
         break;
     case ACTION_DISCONNECT:
         ble_go_offline();

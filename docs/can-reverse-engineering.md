@@ -130,11 +130,10 @@ then.
 The GT86 has two buttons for it: TRC OFF and VSC SPORT. Together they
 make 5 modes: everything on; TRC off (a short press of TRC OFF); VSC
 sport; both; everything off (TRC OFF held a few seconds: VSC off too).
-A "Listen CAN" tool on the settings page looked for the bits that tell
-them apart, through the dongle. It found them (below) and was removed
-since; it's in the history, `git show 48b9d51:src/app/obd/sniff.c` (and
-`elm_listen.c`, the settings row and `test_elm_listen`), to bring back
-for another flag. How it ran:
+"Listen CAN" on the settings page looked for the bits that tell them
+apart, through the dongle, and found them (below). Its steps have
+changed since (next section); this run's are in the history, `git show
+48b9d51:src/app/obd/sniff.c`. How it ran:
 
 1. Engine running, parked. Click Listen CAN.
 2. The screen prompts each of 8 steps: everything on, TRC OFF, back on,
@@ -185,6 +184,45 @@ only: that byte drifts down step after step (85, 7C, 6B, 6A, 68), an
 analog value whose bit happened to line up, not a flag. The dash reads
 all 5 modes from 0x0D3 (`GT86_ID_DRIVE_MODE`); still to check against
 the cluster's own lamps on a drive.
+
+## Finding the doors, the boot and the cruise control stalk
+
+"Listen CAN" now looks for the doors, the boot, the cruise control
+stalk and its main switch: the door screen and a stalk driving the dash
+need their bits. Contact on, engine off, parked:
+
+1. Settings, Listen CAN.
+2. The screen prompts each of 15 steps: everything shut and the cruise
+   control off, the driver's door open, shut, the passenger's open,
+   shut, the boot open, shut, the stalk held up, let go, held down, let
+   go, held pulled, let go, the cruise ON/OFF button pressed (CRUISE
+   lit), pressed again. Do what it says, then Next; Cancel ends it at
+   any step.
+3. Keep it so while it listens, about 25s a step, until the next
+   prompt: a stalk step means holding it all along. About 7 minutes in
+   all.
+4. `mise run logs`: after a legend, a `sniff:` line per candidate ID,
+   its bits (`bits`, a mask over its bytes) and its data in each state,
+   a letter each: S shut, D driver's door, P passenger's, B boot, U
+   stalk up, W down, C pulled, M cruise on.
+
+Not found isn't proof it's not there: the stalk may be wired to the
+engine ECU alone, its presses never on the bus; then the ECU's RAM is
+the next place to look.
+
+The first run on this car (2026-11-17, contact on, engine off) found:
+
+- the doors and the boot in 0x375 (`GT86_ID_DOORS`), byte 1: bit 0 the
+  driver's door, bit 1 the passenger's, bit 5 the boot; byte 3 bit 2 is
+  set with either door open. 0x374 byte 3 has the same three bits. The
+  dash reads 0x375 (the dongle monitors it after 0x0D3, at a standstill
+  only, up to 1.5s: 400ms missed it every time; the MCP2515 gets it as
+  it streams);
+- the stalk in 0x144 byte 0: bit 4 held up, bit 5 pulled. Held down and
+  the ON/OFF button changed nothing on the bus: perhaps they only count
+  with the engine running, a run to redo engine on. The dash doesn't
+  read the stalk: through the dongle, a press is shorter than the gap
+  between two monitors.
 
 ## Adding an aftermarket ethanol source
 

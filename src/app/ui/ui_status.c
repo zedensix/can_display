@@ -105,14 +105,24 @@ void draw_spinner(canvas_t *c, const theme_t *t, int cx, int cy, uint32_t now_ms
 
 #define CHOICE_HEIGHT 26
 
-// draw_choice_buttons draws the data source's button (Connect, Retry or
-// Cancel) and Settings along the bottom, the one a click does filled.
+// draw_choice_buttons draws the data source's button (Connect, Retry,
+// Cancel, Next) and Settings (Cancel beside Next) along the bottom, the
+// one a click does filled.
 static void draw_choice_buttons(canvas_t *c, const theme_t *t, wait_t wait, choice_t choice) {
     int gap = 8, w = (c->width - 2 * STATUS_MARGIN - gap) / 2, y = c->height - CHOICE_HEIGHT - 8;
-    icon_t icon = wait == WAIT_RETRY ? ICON_RETRY : wait == WAIT_CANCEL ? ICON_BACK : ICON_BLUETOOTH;
-    const char *label = wait == WAIT_RETRY ? "Retry" : wait == WAIT_CANCEL ? "Cancel" : "Connect";
+    icon_t icon = wait == WAIT_RETRY    ? ICON_RETRY
+                  : wait == WAIT_CANCEL ? ICON_BACK
+                  : wait == WAIT_STEP   ? ICON_NEXT
+                                        : ICON_BLUETOOTH;
+    const char *label = wait == WAIT_RETRY    ? "Retry"
+                        : wait == WAIT_CANCEL ? "Cancel"
+                        : wait == WAIT_STEP   ? "Next"
+                                              : "Connect";
     draw_button(c, t, STATUS_MARGIN, y, w, CHOICE_HEIGHT, icon, label, choice == CHOICE_CONNECT);
-    draw_button(c, t, STATUS_MARGIN + w + gap, y, w, CHOICE_HEIGHT, ICON_GEAR, "Settings", choice == CHOICE_SETTINGS);
+    // A listen's prompt: Cancel in Settings' place.
+    bool step = wait == WAIT_STEP;
+    draw_button(c, t, STATUS_MARGIN + w + gap, y, w, CHOICE_HEIGHT, step ? ICON_BACK : ICON_GEAR,
+                step ? "Cancel" : "Settings", choice == CHOICE_SETTINGS);
 }
 
 // draw_status_screen is the source's report while it isn't delivering: the

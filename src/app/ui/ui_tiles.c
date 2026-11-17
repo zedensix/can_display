@@ -32,8 +32,8 @@ static float scale_fraction(const range_t *r, float v) {
 // fraction, or "--" once stale (fraction -1: nothing lit). Off the
 // throttle the AFR is no mixture to judge (the fuel is cut while
 // decelerating, it reads lean): no band color, no alarm, white.
-static void format_tile_value(const tile_t *tile, const state_t *s, uint32_t now_ms, const theme_t *t, char text[24],
-                              color_t *color, float *fraction) {
+void format_tile_value(const tile_t *tile, const state_t *s, uint32_t now_ms, const theme_t *t, char text[24],
+                       color_t *color, float *fraction) {
     reading_t reading = s->readings[tile->signal];
     if (reading_is_stale(&reading, now_ms, tile->stale_ms)) {
         snprintf(text, 24, "--");
@@ -54,8 +54,8 @@ static void format_tile_value(const tile_t *tile, const state_t *s, uint32_t now
 // ones a glimmer of that band so the red zone shows at rest. On an alarm
 // tile, lit segments take the alarm text color. peak (a fraction, or -1
 // for none) marks the session's highest value in the alarm text color.
-static void gauge_segment_colors(const range_t *r, float fraction, float peak, int count, bool alarm, const theme_t *t,
-                                 color_t out[]) {
+void gauge_segment_colors(const range_t *r, float fraction, float peak, int count, bool alarm, const theme_t *t,
+                          color_t out[]) {
     color_t back = alarm ? t->alarm : t->background;
     int lit = fraction < 0 ? 0 : (int)(fraction * (float)count + 0.5f);
     if (fraction > 0 && lit == 0) {
@@ -202,17 +202,6 @@ void draw_tile_dial(canvas_t *c, const theme_t *t, const tile_t *tile, int x, in
         draw_text_centered(c, label_font, cx, ends_y + 30, line, ink, 1);
     }
     draw_text_centered(c, &font_bold12, cx, y + h - 14, tile->label, dim, 1);
-}
-
-// draw_grid draws every tile, from top down: 2 columns, 3 in landscape.
-void draw_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, int bottom, uint32_t now_ms) {
-    int columns = is_landscape(c) ? 3 : 2, rows = (ui_tile_count + columns - 1) / columns;
-    int cell_w = c->width / columns, cell_h = (bottom - top) / rows;
-    for (int i = 0; i < ui_tile_count; i++) {
-        int col = i % columns, row = i / columns;
-        draw_tile(c, t, &ui_tiles[i], col * cell_w + GRID_GAP, top + row * cell_h + GRID_GAP, cell_w - 2 * GRID_GAP,
-                  cell_h - 2 * GRID_GAP, s, now_ms);
-    }
 }
 
 #define BADGE_HEIGHT 20

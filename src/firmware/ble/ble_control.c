@@ -51,7 +51,13 @@ bool ble_in_standby(void) {
     return phase == STANDBY;
 }
 
-bool ble_handle_click(uint32_t now_ms) {
+void ble_request_can_listen(void) {
+    if (phase == RUNNING) {
+        elm_request_can_listen(&elm);
+    }
+}
+
+bool ble_handle_click(uint32_t now_ms, choice_t choice) {
     now = now_ms;
     switch (phase) {
     case PROMPT:
@@ -93,8 +99,12 @@ bool ble_handle_click(uint32_t now_ms) {
         back_to_dongle();
         return true;
     case RUNNING:
-        // A RAM scan's Cancel.
-        return elm_cancel_ram_scan(&elm);
+        // A listen's prompt: Next, or Cancel in Settings' place. Else a
+        // RAM scan's or a listen's Cancel.
+        if (choice == CHOICE_SETTINGS) {
+            return elm_cancel_listen(&elm, now_ms);
+        }
+        return elm_listen_click(&elm, now_ms) || elm_cancel_ram_scan(&elm) || elm_cancel_listen(&elm, now_ms);
     default:
         return false;
     }
