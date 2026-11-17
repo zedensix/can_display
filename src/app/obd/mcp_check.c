@@ -45,7 +45,8 @@ const char *mcp_bus_status(bus_verdict_t verdict) {
     case BUS_LISTENING:
         return "CAN SELF TEST\nSPI ok, loopback ok\nlistening to the car";
     case BUS_SILENT:
-        return "CAN SELF TEST\nSPI ok, loopback ok\nno frame yet: ignition on? CAN-H on OBD 6, CAN-L on 14";
+        return "WAITING FOR THE CAR\nthe CAN bus is asleep: ignition on\nstill nothing with it on: CAN-H on OBD 6, "
+               "CAN-L on 14";
     case BUS_GARBLED:
         return "CAN SELF TEST\nframes garbled\nCAN-H and CAN-L swapped? or not an 8MHz crystal";
     case BUS_OK:

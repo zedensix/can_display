@@ -143,23 +143,23 @@ const defaults = {
   },
   // The pod: the whole dash in the driver's round air vent, in place of a
   // 52 mm gauge (pod.ts). Its front takes the outside of the gauge's
-  // printed adapter (faceplate/resources/gauge_vent.stl), its 2 ears on
-  // the driver's side: the display in landscape, the encoder under it.
+  // printed adapter (faceplate/resources/gauge_vent.stl): its 73 mm lip on
+  // the driver's side, the display in landscape and the encoder under it,
+  // the 83 mm body into the vent's OEM ring, the 2 ears at the back.
   // Behind, a can goes into the vent's duct, a sled in it carrying the
   // Pico, the MCP2515 and the converter. Seen from the back like the rest:
   // x across, y up, the front face at z = 0, z into the vent.
   pod: {
-    bodyDiameter: 83, // the adapter's, which the vent holds
-    bodyLength: 21.2, // from the front face to the step down at the back
-    stepLength: 1.1, // the step from bodyDiameter down to backDiameter
-    backDiameter: 73, // the adapter's back end, which goes in first
-    backLength: 2.2,
-    earWidth: 3, // the 2 ears at the front edge, left and right: across
+    bodyDiameter: 83, // the adapter's, which the vent's OEM ring holds
+    lipDiameter: 73, // its front, standing out of the vent
+    lipLength: 2.2, // then a 45 degree step out to bodyDiameter (the adapter's is steeper: this one prints front down)
+    depth: 24.5, // from the front face to the back, where the ears are
+    earWidth: 3, // the 2 ears at the back edge, left and right: across
     earOut: 1.5, // how far they stand out of the body
     earThickness: 2.5, // front to back
     wall: 2, // the body's wall around the room behind the face
-    displayY: 5, // the display board's middle, above the pod's center
-    shaftY: -22, // the encoder's shaft, below the pod's center
+    displayY: 2, // the display board's middle, above the pod's center
+    shaftY: -24, // the encoder's shaft, below the pod's center
     // The can: into the vent's duct (15 cm and more free behind the
     // adapter), onto a spigot on the pod's back, 2 countersunk M3 screws
     // through its front band into the spigot.

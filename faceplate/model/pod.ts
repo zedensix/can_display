@@ -19,7 +19,7 @@
 // sled flat.
 
 import type { ScadObject } from "scad-js";
-import { cylinder, difference, union } from "scad-js";
+import { cylinder, difference, intersection, union } from "scad-js";
 import type { Config } from "./config";
 import type { Faceplate } from "./faceplate";
 import { box } from "./geometry";
@@ -59,7 +59,7 @@ export class Pod {
     readonly faceplate: Faceplate,
   ) {
     const { pod, clearance, boards } = c;
-    this.back = pod.bodyLength + pod.stepLength + pod.backLength;
+    this.back = pod.depth;
     this.canIn = pod.canDiameter / 2 - pod.canWall;
     this.bandIn = pod.canDiameter / 2 - pod.canBandWall;
     this.spigotOut = this.bandIn - clearance;
@@ -75,11 +75,16 @@ export class Pod {
     if (this.converter[1] > this.plateEnd) throw new Error("pod: the converter is longer than the sled");
   }
 
-  /** The faceplate's display cutouts or mockup, turned to landscape and moved to the pod's frame. */
+  /** The faceplate's display cutouts or mockup, turned to landscape and moved to the pod's frame, its board centered. */
   private displayed(o: ScadObject): ScadObject {
     const { display: d, pod } = this.c;
-    const activeMiddle = this.faceplate.activeTop - d.activeLength / 2;
-    return o.rotate([0, 0, -90]).translate([-activeMiddle, pod.displayY, 0]);
+    return o.rotate([0, 0, -90]).translate([d.pcbLength / 2, pod.displayY, 0]);
+  }
+
+  /** Where the 45 degree step from the lip ends, and the body's radius at z. */
+  get stepEnd(): number {
+    const { pod } = this.c;
+    return pod.lipLength + (pod.bodyDiameter - pod.lipDiameter) / 2;
   }
 
   /** The faceplate's encoder cutouts or mockup, moved under the display. */
@@ -87,37 +92,53 @@ export class Pod {
     return o.translate([0, this.c.pod.shaftY - this.faceplate.shaftY, 0]);
   }
 
-  /** The adapter's outside: body, step, back end, and the 2 ears at the front edge. */
+  /** The adapter's outside: the lip, the step, the body, and the 2 ears at the back edge. */
   private get body(): ScadObject {
     const { pod } = this.c;
     const r = pod.bodyDiameter / 2;
-    const rb = pod.backDiameter / 2;
-    const z1 = pod.bodyLength + pod.stepLength;
+    const rl = pod.lipDiameter / 2;
     return union(
-      alongZ(0, pod.bodyLength, r),
-      alongZ(pod.bodyLength - 0.01, z1, [r, rb]),
-      alongZ(z1 - 0.01, this.back, rb),
+      alongZ(0, pod.lipLength, rl),
+      alongZ(pod.lipLength - 0.01, this.stepEnd, [rl, r]),
+      alongZ(this.stepEnd - 0.01, this.back, r),
       ...[-1, 1].map((side) =>
         box(
           side < 0 ? -r - pod.earOut : r - 0.5,
           side < 0 ? -r + 0.5 : r + pod.earOut,
           -pod.earWidth / 2,
           pod.earWidth / 2,
-          0,
-          pod.earThickness,
+          this.back - pod.earThickness,
+          this.back,
         ),
       ),
     );
   }
 
-  /** The room behind the face: from the face's back, narrowing at 45 degrees to the spigot's bore. */
+  /** The room's radius at the face's back: a wall inside the step. */
+  get roomAtFace(): number {
+    const { pod } = this.c;
+    const t = this.faceplate.thickness;
+    return Math.min(pod.lipDiameter / 2 + Math.max(0, t - pod.lipLength), pod.bodyDiameter / 2) - pod.wall;
+  }
+
+  /**
+   * The room behind the face: a wall inside the step and the body, its
+   * ceiling narrowing at 45 degrees to the spigot's bore (no overhang
+   * either way, printed front down).
+   */
   private get room(): ScadObject {
     const { pod } = this.c;
     const t = this.faceplate.thickness;
     const widest = pod.bodyDiameter / 2 - pod.wall;
-    const atFace = Math.min(widest, this.spigotIn + (this.back - t));
+    const inside =
+      this.stepEnd > t
+        ? union(
+            alongZ(t, this.stepEnd, [this.roomAtFace, widest]),
+            alongZ(this.stepEnd - 0.01, this.back + 0.01, widest),
+          )
+        : alongZ(t, this.back + 0.01, widest);
     return union(
-      alongZ(t, this.back + 0.01, [atFace, this.spigotIn]),
+      intersection(inside, alongZ(t, this.back + 0.01, [this.spigotIn + (this.back - t), this.spigotIn])),
       alongZ(this.back - 0.01, this.back + pod.spigotLength + 1, this.spigotIn),
     );
   }
@@ -141,9 +162,7 @@ export class Pod {
     const { pod, display: d, encoder: e, clearance } = this.c;
     const f = this.faceplate;
     const t = f.thickness;
-    const shift = -(f.activeTop - d.activeLength / 2);
-    // Symmetric across, as wide as the board's wider side: an even honeycomb.
-    const half = Math.max(d.pcbLength + clearance - shift, clearance + shift);
+    const half = d.pcbLength / 2 + clearance;
     const board: Rect = [
       -half,
       half,
@@ -156,11 +175,10 @@ export class Pod {
       pod.shaftY - e.boardWidth / 2 - clearance,
       pod.shaftY + e.boardWidth / 2 + clearance,
     ];
-    const roomAtFace = Math.min(pod.bodyDiameter / 2 - pod.wall, this.spigotIn + (this.back - t));
     const r = pod.ventCell;
-    const front = honeycomb(r, pod.ventWall, 0, roomAtFace - 1, [board, knob]);
+    const front = honeycomb(r, pod.ventWall, 0, Math.min(pod.lipDiameter / 2 - 1, this.roomAtFace - 1), [board, knob]);
     // Clear of the can's front end against the back.
-    const back = honeycomb(r, pod.ventWall, pod.canDiameter / 2 + 0.5, pod.backDiameter / 2 - 1.5);
+    const back = honeycomb(r, pod.ventWall, pod.canDiameter / 2 + 0.5, this.roomAtFace - 1.5);
     return union(cellHoles(front, r, -1, t + 1), cellHoles(back, r, t + 1, this.back + 1));
   }
 

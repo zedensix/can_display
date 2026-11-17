@@ -5,7 +5,9 @@
 #include "hardware/spi.h"
 #include "mcp2515_internal.h"
 #include "obd/mcp_check.h"
+#include "pico/multicore.h"
 #include "pico/time.h"
+#include "pico/util/queue.h"
 #include "store.h"
 
 // 1MHz is conservative on purpose: plenty for dashboard-rate data, and it
@@ -15,11 +17,12 @@
 // frame), every REQUEST_INTERVAL_MS: a cycle asks for each of
 // fast_pids, then the next of slow_pids (0: the ethanol %, a RAM read).
 // The answers come back by PID, whenever the ECU sends them. The intake
-// and the battery are fast: their tiles go stale after 2s.
+// and the battery are fast: their tiles go stale after 2s. So is the
+// speed: the gear (state_gear) wants it under 2s old, read beside RPM
+// that comes 100 times a second; among the slow ones it came every 2.2s.
 #define REQUEST_INTERVAL_MS 40
-static const uint8_t fast_pids[] = {PID_LAMBDA, PID_THROTTLE, PID_PEDAL, PID_LOAD, PID_IAT, PID_VOLTAGE};
-static const uint8_t slow_pids[] = {PID_TIMING, PID_STFT,  PID_LTFT,    PID_AFR_TARGET,
-                                    PID_RAIL,   PID_SPEED, PID_AMBIENT, 0};
+static const uint8_t fast_pids[] = {PID_LAMBDA, PID_THROTTLE, PID_PEDAL, PID_LOAD, PID_IAT, PID_VOLTAGE, PID_SPEED};
+static const uint8_t slow_pids[] = {PID_TIMING, PID_STFT, PID_LTFT, PID_AFR_TARGET, PID_RAIL, PID_AMBIENT, 0};
 #define FAST_COUNT (int)(sizeof fast_pids / sizeof fast_pids[0])
 #define SLOW_COUNT (int)(sizeof slow_pids / sizeof slow_pids[0])
 
@@ -27,8 +30,15 @@ static const uint8_t slow_pids[] = {PID_TIMING, PID_STFT,  PID_LTFT,    PID_AFR_
 // reboot), it listens to the bus, or the chip is in normal mode.
 static enum { CAN_FAILED, CAN_LISTENING, CAN_RUNNING } phase;
 static state_t *state;
-static uint32_t request_ms;
-static int request_step, slow_step;
+// Once running, core1 (bus_reader) alone talks to the chip: it reads
+// each frame into rx_queue as it comes and sends the requests; core0
+// decodes what's queued. Polled from core0 between frames drawn, each
+// buffer held one frame while a frame rendered: a 20Hz broadcast like
+// the temperatures, its period in phase with the loop's 50ms, was lost
+// every time for seconds on end.
+#define RX_QUEUE_FRAMES 64
+static queue_t rx_queue;
+static volatile uint32_t dropped; // frames the queue had no room for
 // The frames read in the first COUNT_MS of running, by ID (counted_ids),
 // logged once: how often each comes through, to tell a frame seldom on
 // the bus from one the polling misses.
@@ -48,8 +58,8 @@ static void count_frame(uint32_t id, uint32_t now_ms) {
     }
     if (now_ms - running_ms >= COUNT_MS) {
         counts_logged = true;
-        log_line("can: frames in the first minute: 7E8 %lu, 375 %lu, 140 %lu, 0D3 %lu, 360 %lu", counts[0], counts[1],
-                 counts[2], counts[3], counts[4]);
+        log_line("can: frames in the first minute: 7E8 %lu, 375 %lu, 140 %lu, 0D3 %lu, 360 %lu, %lu dropped", counts[0],
+                 counts[1], counts[2], counts[3], counts[4], (unsigned long)dropped);
     }
 }
 
@@ -149,6 +159,33 @@ static void set_filters(void) {
     mcp2515_write(REG_RXB1CTRL, 0x00); // filtered
 }
 
+// bus_reader, on core1, reads both RX buffers as fast as SPI goes and
+// sends a request every REQUEST_INTERVAL_MS. A flash write pauses it
+// (multicore lockout): it runs from flash.
+static void bus_reader(void) {
+    multicore_lockout_victim_init();
+    uint32_t request_ms = 0;
+    int request_step = 0, slow_step = 0;
+    for (;;) {
+        uint8_t status = mcp2515_read_status();
+        can_frame_t f;
+        for (int i = 0; i < 2; i++) {
+            if (status & (i ? RX1_FULL : RX0_FULL) && mcp2515_read_frame(i ? INSTR_READ_RX1 : INSTR_READ_RX0, &f) &&
+                !queue_try_add(&rx_queue, &f)) {
+                dropped++;
+            }
+        }
+        uint32_t now_ms = to_ms_since_boot(get_absolute_time());
+        if (now_ms - request_ms >= REQUEST_INTERVAL_MS) {
+            request_ms = now_ms;
+            uint8_t pid = request_step < FAST_COUNT ? fast_pids[request_step] : slow_pids[slow_step++ % SLOW_COUNT];
+            request_step = (request_step + 1) % (FAST_COUNT + 1);
+            can_frame_t request = pid ? obd_build_request(pid) : obd_build_ethanol_read();
+            mcp2515_send(&request);
+        }
+    }
+}
+
 // start_running leaves listen-only for normal mode, where the chip
 // acknowledges frames and sends the OBD requests, the filters set.
 static void start_running(void) {
@@ -166,6 +203,8 @@ static void start_running(void) {
     log_line("can: self test passed, MCP2515 running");
     phase = CAN_RUNNING;
     running_ms = to_ms_since_boot(get_absolute_time());
+    queue_init(&rx_queue, sizeof(can_frame_t), RX_QUEUE_FRAMES);
+    multicore_launch_core1(bus_reader);
 }
 
 void mcp2515_poll_bus(uint32_t now_ms) {
@@ -178,21 +217,11 @@ void mcp2515_poll_bus(uint32_t now_ms) {
         }
         return;
     }
-    uint8_t status = mcp2515_read_status();
     can_frame_t f;
-    for (int i = 0; i < 2; i++) {
-        if (status & (i ? RX1_FULL : RX0_FULL) && mcp2515_read_frame(i ? INSTR_READ_RX1 : INSTR_READ_RX0, &f)) {
-            count_frame(f.id, now_ms);
-            if (!gt86_decode_broadcast(&f, state, now_ms)) {
-                obd_decode_frame(&f, state, now_ms);
-            }
+    while (queue_try_remove(&rx_queue, &f)) {
+        count_frame(f.id, now_ms);
+        if (!gt86_decode_broadcast(&f, state, now_ms)) {
+            obd_decode_frame(&f, state, now_ms);
         }
-    }
-    if (now_ms - request_ms >= REQUEST_INTERVAL_MS) {
-        request_ms = now_ms;
-        uint8_t pid = request_step < FAST_COUNT ? fast_pids[request_step] : slow_pids[slow_step++ % SLOW_COUNT];
-        request_step = (request_step + 1) % (FAST_COUNT + 1);
-        can_frame_t request = pid ? obd_build_request(pid) : obd_build_ethanol_read();
-        mcp2515_send(&request);
     }
 }

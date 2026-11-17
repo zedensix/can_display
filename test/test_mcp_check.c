@@ -17,6 +17,7 @@ void test_mcp_check(void) {
     CHECK(mcp_check_bus(3, 0, MCP_BUS_SILENT_MS) == BUS_LISTENING, "a few frames should keep listening");
     CHECK(mcp_check_bus(MCP_BUS_FRAMES_OK, 5, 200) == BUS_OK, "enough frames should pass, errors or not");
     CHECK(mcp_check_bus(0, MCP_BUS_ERRORS_GARBLED, 200) == BUS_GARBLED, "errors and no frame should be garbled");
+    CHECK(strstr(mcp_bus_status(BUS_SILENT), "ignition"), "a silent bus should say the car may be asleep");
     CHECK(mcp_bus_status(BUS_OK)[0] == '\0', "a bus that passed should clear the status");
     CHECK(strstr(mcp_bus_status(BUS_GARBLED), "swapped"), "garbled should suggest swapped wires");
 }

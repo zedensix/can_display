@@ -228,11 +228,12 @@ bus, and the panel says which wire to look at:
 3. The car's bus, in listen-only mode (it neither transmits nor
    acknowledges, so a wrong bit rate or swapped wires can't disturb the
    car): 10 frames pass it, and the dash goes on to its gauges. Nothing
-   after 5s: ignition off, or CAN-H and CAN-L not reaching OBD pins 6
-   and 14 (it keeps listening). Receive errors and no frame: CAN-H and
+   after 5s says WAITING FOR THE CAR: the bus sleeps until the ignition
+   is on, and the test passes by itself once it wakes. Still nothing
+   with the ignition on: CAN-H and CAN-L not reaching OBD pins 6 and 14. Receive errors and no frame: CAN-H and
    CAN-L swapped, or a crystal other than 8MHz.
 
-Retry reruns it from a fresh boot; Settings goes back to the dongle. The
+Retry (after a failure, not a silent bus) reruns it from a fresh boot; Settings (a click while waiting) goes back to the dongle. The
 flash log (`mise run logs`) keeps each step's readings. The test can't
 see a missing SO divider: 5V reads as a 1 just as well.
 

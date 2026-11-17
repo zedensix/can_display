@@ -16,30 +16,44 @@ union()
             {
               translate(v = [0, 0, 0])
               {
-                cylinder(h = 21.2, r = 41.5, center = false);
+                cylinder(h = 2.2, r = 36.5, center = false);
               }
-              translate(v = [0, 0, 21.189999999999998])
+              translate(v = [0, 0, 2.1900000000000004])
               {
-                cylinder(h = 1.110000000000003, r1 = 41.5, r2 = 36.5, center = false);
+                cylinder(h = 5.01, r1 = 36.5, r2 = 41.5, center = false);
               }
-              translate(v = [0, 0, 22.29])
+              translate(v = [0, 0, 7.19])
               {
-                cylinder(h = 2.210000000000001, r = 36.5, center = false);
+                cylinder(h = 17.31, r = 41.5, center = false);
               }
-              translate(v = [-43, -1.5, 0])
+              translate(v = [-43, -1.5, 22])
               {
                 cube(size = [2, 3, 2.5], center = false);
               }
-              translate(v = [41, -1.5, 0])
+              translate(v = [41, -1.5, 22])
               {
                 cube(size = [2, 3, 2.5], center = false);
               }
             }
             union()
             {
-              translate(v = [0, 0, 5.4])
+              intersection()
               {
-                cylinder(h = 19.11, r1 = 39.3, r2 = 20.2, center = false);
+                union()
+                {
+                  translate(v = [0, 0, 5.4])
+                  {
+                    cylinder(h = 1.7999999999999998, r1 = 37.7, r2 = 39.5, center = false);
+                  }
+                  translate(v = [0, 0, 7.19])
+                  {
+                    cylinder(h = 17.32, r = 39.5, center = false);
+                  }
+                }
+                translate(v = [0, 0, 5.4])
+                {
+                  cylinder(h = 19.11, r1 = 39.3, r2 = 20.2, center = false);
+                }
               }
               translate(v = [0, 0, 24.49])
               {
@@ -47,7 +61,7 @@ union()
               }
             }
           }
-          translate(v = [0, 52, 0])
+          translate(v = [0, 50, 0])
           {
             union()
             {
@@ -70,7 +84,7 @@ union()
             }
           }
         }
-        translate(v = [27.75, 5, 0])
+        translate(v = [29, 2, 0])
         {
           rotate(a = [0, 0, -90], v = undef)
           {
@@ -135,7 +149,7 @@ union()
             }
           }
         }
-        translate(v = [0, 52, 0])
+        translate(v = [0, 50, 0])
         {
           union()
           {
@@ -175,27 +189,6 @@ union()
         {
           union()
           {
-            translate(v = [-17.629611541307906, -30.535382907247953, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [17.629611541307906, -30.535382907247953, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [-23.506148721743873, -27.142562584220403, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
             translate(v = [-19.588457268119896, -27.142562584220403, -1])
             {
               rotate(a = [0, 0, 30], v = undef)
@@ -204,20 +197,6 @@ union()
               }
             }
             translate(v = [19.588457268119896, -27.142562584220403, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [23.506148721743873, -27.142562584220403, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [-25.46499444855586, -23.749742261192853, -1])
             {
               rotate(a = [0, 0, 30], v = undef)
               {
@@ -252,20 +231,6 @@ union()
                 cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
               }
             }
-            translate(v = [25.464994448555863, -23.749742261192853, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [-27.42384017536785, -20.356921938165303, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
             translate(v = [-23.506148721743873, -20.356921938165303, -1])
             {
               rotate(a = [0, 0, 30], v = undef)
@@ -294,97 +259,6 @@ union()
                 cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
               }
             }
-            translate(v = [27.42384017536785, -20.356921938165303, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [-29.38268590217984, -16.964101615137753, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [-25.46499444855586, -16.964101615137753, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [-21.547302994931883, -16.964101615137753, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [-17.629611541307906, -16.964101615137753, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [17.629611541307906, -16.964101615137753, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [21.547302994931886, -16.964101615137753, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [25.464994448555863, -16.964101615137753, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [29.38268590217984, -16.964101615137753, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [-33.300377355803825, -10.178460969082652, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [33.30037735580382, -10.178460969082652, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [-35.25922308261581, -6.785640646055101, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [35.25922308261581, -6.785640646055101, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
             translate(v = [-33.300377355803825, -3.3928203230275504, -1])
             {
               rotate(a = [0, 0, 30], v = undef)
@@ -393,20 +267,6 @@ union()
               }
             }
             translate(v = [33.30037735580382, -3.3928203230275504, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [-35.25922308261581, 0, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [35.25922308261581, 0, -1])
             {
               rotate(a = [0, 0, 30], v = undef)
               {
@@ -427,35 +287,84 @@ union()
                 cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
               }
             }
-            translate(v = [-35.25922308261581, 6.785640646055101, -1])
+            translate(v = [-21.547302994931883, 23.749742261192853, -1])
             {
               rotate(a = [0, 0, 30], v = undef)
               {
                 cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
               }
             }
-            translate(v = [35.25922308261581, 6.785640646055101, -1])
+            translate(v = [-17.629611541307906, 23.749742261192853, -1])
             {
               rotate(a = [0, 0, 30], v = undef)
               {
                 cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
               }
             }
-            translate(v = [-33.300377355803825, 10.178460969082652, -1])
+            translate(v = [-13.711920087683925, 23.749742261192853, -1])
             {
               rotate(a = [0, 0, 30], v = undef)
               {
                 cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
               }
             }
-            translate(v = [33.30037735580382, 10.178460969082652, -1])
+            translate(v = [-9.794228634059948, 23.749742261192853, -1])
             {
               rotate(a = [0, 0, 30], v = undef)
               {
                 cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
               }
             }
-            translate(v = [-23.506148721743873, 27.142562584220403, -1])
+            translate(v = [-5.876537180435968, 23.749742261192853, -1])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [-1.9588457268119894, 23.749742261192853, -1])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [1.9588457268119894, 23.749742261192853, -1])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [5.876537180435968, 23.749742261192853, -1])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [9.794228634059948, 23.749742261192853, -1])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [13.711920087683925, 23.749742261192853, -1])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [17.629611541307906, 23.749742261192853, -1])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [21.547302994931886, 23.749742261192853, -1])
             {
               rotate(a = [0, 0, 30], v = undef)
               {
@@ -539,20 +448,6 @@ union()
                 cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
               }
             }
-            translate(v = [23.506148721743873, 27.142562584220403, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [-17.629611541307906, 30.535382907247953, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
             translate(v = [-13.711920087683925, 30.535382907247953, -1])
             {
               rotate(a = [0, 0, 30], v = undef)
@@ -609,65 +504,37 @@ union()
                 cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
               }
             }
-            translate(v = [17.629611541307906, 30.535382907247953, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [-11.753074360871937, 33.92820323027551, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [-7.835382907247958, 33.92820323027551, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [-3.917691453623979, 33.92820323027551, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [0, 33.92820323027551, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [3.917691453623979, 33.92820323027551, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [7.835382907247958, 33.92820323027551, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
-            translate(v = [11.753074360871937, 33.92820323027551, -1])
-            {
-              rotate(a = [0, 0, 30], v = undef)
-              {
-                cylinder(h = 7.4, r = 1.8, center = false, $fn = 6);
-              }
-            }
           }
           union()
           {
+            translate(v = [-3.917691453623979, -33.92820323027551, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [0, -33.92820323027551, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [3.917691453623979, -33.92820323027551, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [-13.711920087683925, -30.535382907247953, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
             translate(v = [-9.794228634059948, -30.535382907247953, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
@@ -710,6 +577,20 @@ union()
                 cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
               }
             }
+            translate(v = [13.711920087683925, -30.535382907247953, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [-19.588457268119896, -27.142562584220403, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
             translate(v = [-15.670765814495915, -27.142562584220403, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
@@ -732,6 +613,13 @@ union()
               }
             }
             translate(v = [15.670765814495915, -27.142562584220403, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [19.588457268119896, -27.142562584220403, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
               {
@@ -766,6 +654,13 @@ union()
                 cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
               }
             }
+            translate(v = [-27.42384017536785, -20.356921938165303, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
             translate(v = [-23.506148721743873, -20.356921938165303, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
@@ -774,6 +669,20 @@ union()
               }
             }
             translate(v = [23.506148721743873, -20.356921938165303, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [27.42384017536785, -20.356921938165303, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [-29.38268590217984, -16.964101615137753, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
               {
@@ -794,6 +703,20 @@ union()
                 cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
               }
             }
+            translate(v = [29.38268590217984, -16.964101615137753, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [-31.34153162899183, -13.571281292110202, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
             translate(v = [-27.42384017536785, -13.571281292110202, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
@@ -802,6 +725,13 @@ union()
               }
             }
             translate(v = [27.42384017536785, -13.571281292110202, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [31.34153162899183, -13.571281292110202, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
               {
@@ -836,6 +766,13 @@ union()
                 cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
               }
             }
+            translate(v = [-33.300377355803825, -3.3928203230275504, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
             translate(v = [-29.38268590217984, -3.3928203230275504, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
@@ -844,6 +781,13 @@ union()
               }
             }
             translate(v = [29.38268590217984, -3.3928203230275504, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [33.30037735580382, -3.3928203230275504, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
               {
@@ -864,6 +808,13 @@ union()
                 cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
               }
             }
+            translate(v = [-33.300377355803825, 3.3928203230275504, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
             translate(v = [-29.38268590217984, 3.3928203230275504, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
@@ -872,6 +823,13 @@ union()
               }
             }
             translate(v = [29.38268590217984, 3.3928203230275504, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [33.30037735580382, 3.3928203230275504, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
               {
@@ -906,6 +864,13 @@ union()
                 cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
               }
             }
+            translate(v = [-31.34153162899183, 13.571281292110202, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
             translate(v = [-27.42384017536785, 13.571281292110202, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
@@ -914,6 +879,20 @@ union()
               }
             }
             translate(v = [27.42384017536785, 13.571281292110202, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [31.34153162899183, 13.571281292110202, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [-29.38268590217984, 16.964101615137753, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
               {
@@ -934,6 +913,20 @@ union()
                 cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
               }
             }
+            translate(v = [29.38268590217984, 16.964101615137753, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [-27.42384017536785, 20.356921938165303, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
             translate(v = [-23.506148721743873, 20.356921938165303, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
@@ -942,6 +935,13 @@ union()
               }
             }
             translate(v = [23.506148721743873, 20.356921938165303, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [27.42384017536785, 20.356921938165303, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
               {
@@ -976,6 +976,13 @@ union()
                 cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
               }
             }
+            translate(v = [-19.588457268119896, 27.142562584220403, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
             translate(v = [-15.670765814495915, 27.142562584220403, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
@@ -998,6 +1005,20 @@ union()
               }
             }
             translate(v = [15.670765814495915, 27.142562584220403, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [19.588457268119896, 27.142562584220403, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [-13.711920087683925, 30.535382907247953, 6.4])
             {
               rotate(a = [0, 0, 30], v = undef)
               {
@@ -1046,6 +1067,34 @@ union()
                 cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
               }
             }
+            translate(v = [13.711920087683925, 30.535382907247953, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [-3.917691453623979, 33.92820323027551, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [0, 33.92820323027551, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
+            translate(v = [3.917691453623979, 33.92820323027551, 6.4])
+            {
+              rotate(a = [0, 0, 30], v = undef)
+              {
+                cylinder(h = 19.1, r = 1.8, center = false, $fn = 6);
+              }
+            }
           }
         }
       }
@@ -1069,7 +1118,7 @@ union()
       }
     }
   }
-  translate(v = [27.75, 5, 0])
+  translate(v = [29, 2, 0])
   {
     rotate(a = [0, 0, -90], v = undef)
     {
@@ -1196,7 +1245,7 @@ union()
       }
     }
   }
-  translate(v = [0, 52, 0])
+  translate(v = [0, 50, 0])
   {
     union()
     {

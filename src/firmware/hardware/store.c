@@ -6,6 +6,7 @@
 
 #include "hardware/flash.h"
 #include "pico/flash.h"
+#include "pico/multicore.h"
 #include "pico/stdlib.h"
 #include "store/flashlog.h"
 
@@ -39,14 +40,28 @@ static void program_page_now(void *param) {
     flash_range_program(args->offset, args->page, FLASH_PAGE_SIZE);
 }
 
-// flash_safe_execute runs with interrupts off, the code it calls from RAM.
+// flash_op runs op with interrupts off (flash_safe_execute), from RAM.
+// Core1, once it reads the CAN bus (mcp2515.c), runs from flash too: it's
+// held in RAM meanwhile (multicore lockout). The SDK's own lockout is off
+// (PICO_FLASH_SAFE_EXECUTE_PICO_SUPPORT_MULTICORE_LOCKOUT=0 in
+// CMakeLists.txt): it refuses every write while core1 isn't running. A
+// lockout that times out (core1 crashed, a panic) writes anyway.
+#define LOCKOUT_US 500000
+static void flash_op(void (*op)(void *), void *param) {
+    bool held = multicore_lockout_victim_is_initialized(1) && multicore_lockout_start_timeout_us(LOCKOUT_US);
+    flash_safe_execute(op, param, UINT32_MAX);
+    if (held) {
+        multicore_lockout_end_timeout_us(LOCKOUT_US);
+    }
+}
+
 static void erase_sector(uint32_t offset) {
-    flash_safe_execute(erase_sector_now, (void *)(uintptr_t)offset, UINT32_MAX);
+    flash_op(erase_sector_now, (void *)(uintptr_t)offset);
 }
 
 static void program_page(uint32_t offset, const uint8_t *page) {
     program_args_t args = {offset, page};
-    flash_safe_execute(program_page_now, &args, UINT32_MAX);
+    flash_op(program_page_now, &args);
 }
 
 static void read_log_region(void *ctx, uint32_t offset, uint8_t *out, size_t len) {

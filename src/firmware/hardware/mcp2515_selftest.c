@@ -121,6 +121,8 @@ bool mcp2515_selftest_listen(state_t *state, uint32_t now_ms) {
                                       : "listening",
              frames, errors, (unsigned long)(now_ms - since));
     state_set_status(state, mcp_bus_status(verdict));
-    state->wait = verdict == BUS_OK || verdict == BUS_LISTENING ? WAIT_NONE : WAIT_RETRY;
+    // A silent bus is the car asleep far more often than a wire: no Retry,
+    // the listen goes on and passes once the ignition wakes the bus.
+    state->wait = verdict == BUS_GARBLED ? WAIT_RETRY : WAIT_NONE;
     return verdict == BUS_OK;
 }

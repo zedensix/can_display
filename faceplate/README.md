@@ -56,11 +56,12 @@ sat in a printed adapter (`resources/gauge_vent.stl`). Three parts, each
 printed with no supports:
 
 - **The face** (`pod-face`) takes the adapter's outside, so it sits in the
-  vent the same way: the 83 mm body, the step down to 73 mm at the back
-  end, which goes in first, and the 2 ears at the front edge, on the
-  driver's side. Its front is closed: the display in landscape behind its
-  window, the encoder under it, held as on the faceplate. Behind them, a
-  room for their wires narrows at 45 degrees (it prints front down) to a
+  vent the same way: its 73 mm lip on the driver's side, the 83 mm body
+  into the vent's OEM ring, the 2 ears at the back. The step from the lip
+  out to the body is a 45 degree bevel here, steeper on the adapter: the
+  face prints front down. The lip carries the display in landscape behind
+  its window, its board centered, and the encoder under it, held as on the
+  faceplate. Behind them, a room for their wires narrows at 45 degrees to a
   spigot on the back. The ears are left and right of the display: if the
   vent wants them elsewhere, the face turns with them.
 - **The can** (`pod-can`) goes into the vent's duct, about 11 cm behind
@@ -78,8 +79,9 @@ printed with no supports:
 The vent still blows, through a honeycomb like the adapter's grille: in
 through the can's back end and, around the can, through the face's back;
 along the boards and behind the display; out through the face around the
-display and the encoder (about 590 mm² open there, against some
-800 mm² guessed for the adapter's grille: the display takes the middle). The electronics never sit in the
+display and the encoder (about 380 mm² open there, against some
+800 mm² guessed for the adapter's grille: the display and the encoder take
+most of the 73 mm lip; the back lets in some 700). The electronics never sit in the
 duct's still air.
 
 The Dupont plugs don't fit in the can: solder the wires (or use

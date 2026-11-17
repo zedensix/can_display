@@ -15,9 +15,10 @@ set_source_files_properties(${APP_SOURCES} ${FIRMWARE_SOURCES} PROPERTIES COMPIL
 function(add_firmware name)
     add_executable(${name} ${APP_SOURCES} ${FIRMWARE_SOURCES})
     target_include_directories(${name} PRIVATE src/app src/firmware)
-    target_compile_definitions(${name} PRIVATE PICO_PANIC_FUNCTION=crash_panic CYW43_LWIP=0 ${ARGN})
+    target_compile_definitions(${name} PRIVATE PICO_PANIC_FUNCTION=crash_panic CYW43_LWIP=0
+        PICO_FLASH_SAFE_EXECUTE_PICO_SUPPORT_MULTICORE_LOCKOUT=0 ${ARGN})
     target_link_libraries(${name}
-        pico_stdlib pico_flash
+        pico_stdlib pico_flash pico_multicore
         hardware_dma hardware_flash hardware_pwm hardware_spi hardware_watchdog
         pico_cyw43_arch_poll pico_btstack_ble pico_btstack_cyw43)
     pico_btstack_make_gatt_header(${name} PRIVATE "${CMAKE_CURRENT_LIST_DIR}/src/firmware/ble/dash.gatt")
