@@ -31,7 +31,7 @@ function spacer(count: number, x: number, y: number, z0: number, z1: number, alo
 }
 
 /** The display in its pockets: the panel lit, the board, the solder joints at both ends, the header's pins out the back. */
-function display(c: Config, faceplate: Faceplate): ScadObject {
+export function display(c: Config, faceplate: Faceplate): ScadObject {
   const { display: d, plate } = c;
   const boardFront = plate.frontSkin + d.glassThickness;
   const boardBack = boardFront + d.pcbThickness;
@@ -71,7 +71,7 @@ function display(c: Config, faceplate: Faceplate): ScadObject {
  * on its standoffs, its bent pins and plugs on the back of the board, or
  * in their channel under it on the knob side (encoder.pinsDepth above 0).
  */
-function encoder(c: Config, faceplate: Faceplate): ScadObject {
+export function encoder(c: Config, faceplate: Faceplate): ScadObject {
   const e = c.encoder;
   const y = faceplate.shaftY;
   const face = e.panelThickness;

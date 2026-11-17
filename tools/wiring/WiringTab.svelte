@@ -25,7 +25,7 @@
     ],
     [
       "MCP2515: a divider on SO",
-      "VCC on VBUS (5V): its TJA1050 transceiver needs it, so its SO swings to 5V. Never straight into GP12: 1kΩ from SO to GP12, 2kΩ (or 2.2kΩ) from GP12 to GND, 3.3V at the pin. SCK, SI and CS go straight: a 5V MCP2515 reads the Pico's 3.3V. Without resistors: swap the TJA1050 (the 8-pin chip by the screw terminal) for an SN65HVD230, same pinout, and power the board from 3V3.",
+      "VCC on VBUS (5V): its TJA1050 transceiver needs it, so its SO swings to 5V. Never straight into GP12: 1kΩ from SO to GP12, 2kΩ (or 2.2kΩ) from GP12 to GND, 3.3V at the pin. SCK, SI and CS straight are out of spec: at 5V the MCP2515 wants 3.5V for a high, the Pico gives 3.3V (often works, not guaranteed). A 4-channel BSS138 level shifter on SCK, SI, CS and SO (HV 5V, LV 3V3) does all four right, the divider then unneeded. Without resistors: swap the TJA1050 (the 8-pin chip by the screw terminal) for an SN65HVD230, same pinout, and power the board from 3V3.",
     ],
     [
       "MCP2515 (wired CAN)",

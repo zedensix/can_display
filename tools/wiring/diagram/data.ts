@@ -172,7 +172,7 @@ export const MODULES: Module[] = [
       { label: "VCC", pico: 40, net: "v5", wire: "5V" },
       { label: "GND", pico: 18, net: "gnd" },
       { label: "CS", pico: 17, net: "spi1", wire: "GP13" },
-      { label: "SO", pico: 16, net: "spi1", wire: "GP12 ⚠ divider" },
+      { label: "SO", pico: 16, net: "spi1", wire: "GP12" },
       { label: "SI", pico: 15, net: "spi1", wire: "GP11" },
       { label: "SCK", pico: 14, net: "spi1", wire: "GP10" },
       { label: "INT", note: "unused" },

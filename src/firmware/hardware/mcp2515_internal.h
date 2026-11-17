@@ -29,11 +29,21 @@ enum {
     REG_TXB0D0 = 0x36, // TX buffer 0's first data byte: a free register for the readback
     REG_RXB0CTRL = 0x60,
     REG_RXB1CTRL = 0x70,
+    // Acceptance filters 0-5 and masks 0-1: SIDH at these, SIDL next.
+    REG_RXF0SIDH = 0x00,
+    REG_RXF1SIDH = 0x04,
+    REG_RXF2SIDH = 0x08,
+    REG_RXF3SIDH = 0x10,
+    REG_RXF4SIDH = 0x14,
+    REG_RXF5SIDH = 0x18,
+    REG_RXM0SIDH = 0x20,
+    REG_RXM1SIDH = 0x24,
 
     // CANCTRL: the mode asked for, in its top 3 bits.
     CANCTRL_NORMAL = 0x00,
     CANCTRL_LOOPBACK = 0x40,
     CANCTRL_LISTEN = 0x60,
+    CANCTRL_CONFIG = 0x80,
 
     // CANINTF and READ STATUS: a frame in RX buffer 0 or 1; CANINTF: a receive error.
     RX0_FULL = 0x01,

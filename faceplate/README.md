@@ -13,7 +13,7 @@ same assembly in OpenSCAD's window to turn it around in 3D (preview, F5,
 keeps the colors); with Design > Automatic Reload and Preview on, it
 follows each `mise run faceplate`.
 
-Two printed parts:
+Two printed parts (and a third way to mount it all, the vent pod, below):
 
 - **The faceplate** holds the ST7789 2" display in portrait and the
   KY-040 encoder below it. The display shows through a beveled window the
@@ -46,6 +46,45 @@ and is where you enter them; hovering a row highlights what it measures.
 Each value saves itself as you type it, to `data/measured.json` (it overrides
 `config.ts`'s defaults), then the parts rebuild. A value the model
 refuses stays saved: the page says which keys to look at.
+
+## The vent pod
+
+![Pod, front](renders/pod-front.png) ![Pod, the can cut open](renders/pod-side.png)
+
+The whole dash in the driver's round air vent instead, where a 52 mm gauge
+sat in a printed adapter (`resources/gauge_vent.stl`). Three parts, each
+printed with no supports:
+
+- **The face** (`pod-face`) takes the adapter's outside, so it sits in the
+  vent the same way: the 83 mm body, the step down to 73 mm at the back
+  end, which goes in first, and the 2 ears at the front edge, on the
+  driver's side. Its front is closed: the display in landscape behind its
+  window, the encoder under it, held as on the faceplate. Behind them, a
+  room for their wires narrows at 45 degrees (it prints front down) to a
+  spigot on the back. The ears are left and right of the display: if the
+  vent wants them elsewhere, the face turns with them.
+- **The can** (`pod-can`) goes into the vent's duct, about 11 cm behind
+  the face (15 cm and more are free there). Its front band slides onto the
+  spigot, 2 countersunk M3x6 screws through it into the spigot; the
+  cable leaves through the hole in its back end. It prints on that end.
+- **The sled** (`pod-sled`) slides into the can between 2 pairs of ribs
+  and is held between the spigot and the can's back end, no screw. On top,
+  the Pico (USB socket toward the front) then the MCP2515 (its terminal
+  toward the back, by the cable's hole) on standoffs; under it, the
+  converter, zip-tied through 4 slots. Notches in its edges let the wires
+  go from one side to the other: the converter's USB plug up to the Pico at
+  the front, the 12V down at the back. It prints flat.
+
+The vent still blows, through a honeycomb like the adapter's grille: in
+through the can's back end and, around the can, through the face's back;
+along the boards and behind the display; out through the face around the
+display and the encoder (about 590 mm² open there, against some
+800 mm² guessed for the adapter's grille: the display takes the middle). The electronics never sit in the
+duct's still air.
+
+The Dupont plugs don't fit in the can: solder the wires (or use
+right-angle headers). The dimensions are in `config.ts`'s `pod` section;
+the adapter's were read off its STL.
 
 ## Fit
 

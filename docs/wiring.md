@@ -174,6 +174,13 @@ soldering):
 | 7 | black | | 15 | blue |
 | 8 | black/white | | 16 | red (battery 12V, always live: not for the converter) |
 
+Before wiring the MCP2515, check the bus with a voltmeter, the cable in
+the car, contact on (off, the bus sleeps at 0V), the black lead on
+orange (chassis ground): red reads about 12V (orange is ground), green
+about 2.5-3.5V, green/white about 1.5-2.5V, a little under green. This
+car read 12V, 2.6V and 2.3V. On this cable light blue (signal ground)
+reaches nothing: it read 0V against red.
+
 Only green and green/white go to the MCP2515; insulate every other wire
 on its own.
 
@@ -182,8 +189,12 @@ MCP2515 + TJA1050 board needs 5V for its TJA1050 transceiver, and at 5V
 the MCP2515's SO swings to 5V. Never wire it straight into GP12: put a
 1kΩ resistor in series from SO to GP12, and a 2kΩ (or 2.2kΩ) from GP12
 to GND, which brings it to 3.3V; at the 1MHz SPI clock the firmware uses,
-the divider is fast enough. SCK, SI and CS go straight: a 5V MCP2515
-reads the Pico's 3.3V outputs fine.
+the divider is fast enough. SCK, SI and CS straight from the Pico are out of spec: at 5V the
+MCP2515 wants 0.7 VDD, 3.5V, for a high (its datasheet, DS20001801K),
+and the Pico gives 3.3V. It often works on the bench, it isn't
+guaranteed, least of all hot or cold. A 4-channel level shifter (BSS138
+module: HV on 5V, LV on 3V3(OUT)) on SCK, SI, CS and SO makes all four
+right and replaces the divider; so does the transceiver swap below.
 
 Without resistors, swap the transceiver: desolder the TJA1050 (the 8-pin
 SOIC chip by the screw terminal) and solder an SN65HVD230 in its place,

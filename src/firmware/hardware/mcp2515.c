@@ -13,12 +13,13 @@
 #define CAN_BAUD 1000000
 // What isn't broadcast needs requests, one at a time (TX0 holds a single
 // frame), every REQUEST_INTERVAL_MS: a cycle asks for each of
-// fast_pids, then the next of slow_pids. The answers come back by PID,
-// whenever the ECU sends them.
+// fast_pids, then the next of slow_pids (0: the ethanol %, a RAM read).
+// The answers come back by PID, whenever the ECU sends them. The intake
+// and the battery are fast: their tiles go stale after 2s.
 #define REQUEST_INTERVAL_MS 40
-static const uint8_t fast_pids[] = {PID_LAMBDA, PID_THROTTLE, PID_PEDAL, PID_LOAD};
-static const uint8_t slow_pids[] = {PID_IAT,        PID_TIMING, PID_STFT,  PID_LTFT,
-                                    PID_AFR_TARGET, PID_RAIL,   PID_SPEED, PID_AMBIENT};
+static const uint8_t fast_pids[] = {PID_LAMBDA, PID_THROTTLE, PID_PEDAL, PID_LOAD, PID_IAT, PID_VOLTAGE};
+static const uint8_t slow_pids[] = {PID_TIMING, PID_STFT,  PID_LTFT,    PID_AFR_TARGET,
+                                    PID_RAIL,   PID_SPEED, PID_AMBIENT, 0};
 #define FAST_COUNT (int)(sizeof fast_pids / sizeof fast_pids[0])
 #define SLOW_COUNT (int)(sizeof slow_pids / sizeof slow_pids[0])
 
@@ -28,6 +29,29 @@ static enum { CAN_FAILED, CAN_LISTENING, CAN_RUNNING } phase;
 static state_t *state;
 static uint32_t request_ms;
 static int request_step, slow_step;
+// The frames read in the first COUNT_MS of running, by ID (counted_ids),
+// logged once: how often each comes through, to tell a frame seldom on
+// the bus from one the polling misses.
+#define COUNT_MS 60000
+static const uint16_t counted_ids[] = {OBD_RESPONSE_ECU1, GT86_ID_DOORS, GT86_ID_RPM, GT86_ID_DRIVE_MODE,
+                                       GT86_ID_TEMPERATURES};
+#define COUNTED (int)(sizeof counted_ids / sizeof counted_ids[0])
+static uint32_t counts[COUNTED], running_ms;
+static bool counts_logged;
+
+static void count_frame(uint32_t id, uint32_t now_ms) {
+    if (counts_logged) {
+        return;
+    }
+    for (int i = 0; i < COUNTED; i++) {
+        counts[i] += id == counted_ids[i];
+    }
+    if (now_ms - running_ms >= COUNT_MS) {
+        counts_logged = true;
+        log_line("can: frames in the first minute: 7E8 %lu, 375 %lu, 140 %lu, 0D3 %lu, 360 %lu", counts[0], counts[1],
+                 counts[2], counts[3], counts[4]);
+    }
+}
 
 void mcp2515_transfer(const uint8_t *out, uint8_t *in, size_t len) {
     gpio_put(CAN_CS, 0);
@@ -100,9 +124,35 @@ bool mcp2515_wants_retry(void) {
     return state && state->wait == WAIT_RETRY;
 }
 
+static void set_filter(uint8_t reg, uint16_t id) {
+    mcp2515_write(reg, (uint8_t)(id >> 3));
+    mcp2515_write(reg + 1, (uint8_t)((id & 7) << 5));
+}
+
+// set_filters lets in only the frames read, out of the thousands a second
+// on the bus: polled between frames drawn, 2 buffers would hold whatever
+// came last, a rare frame (the doors, an answer) almost never. RX buffer
+// 0 takes the answers and the doors, no rollover, so the fast broadcasts
+// in buffer 1 can't push them out.
+static void set_filters(void) {
+    mcp2515_write(REG_CANCTRL, CANCTRL_CONFIG);
+    sleep_ms(2);
+    set_filter(REG_RXM0SIDH, 0x7FF);
+    set_filter(REG_RXM1SIDH, 0x7FF);
+    set_filter(REG_RXF0SIDH, OBD_RESPONSE_ECU1);
+    set_filter(REG_RXF1SIDH, GT86_ID_DOORS);
+    set_filter(REG_RXF2SIDH, GT86_ID_RPM);
+    set_filter(REG_RXF3SIDH, GT86_ID_DRIVE_MODE);
+    set_filter(REG_RXF4SIDH, GT86_ID_TEMPERATURES);
+    set_filter(REG_RXF5SIDH, GT86_ID_TEMPERATURES);
+    mcp2515_write(REG_RXB0CTRL, 0x00); // filtered, no rollover
+    mcp2515_write(REG_RXB1CTRL, 0x00); // filtered
+}
+
 // start_running leaves listen-only for normal mode, where the chip
-// acknowledges frames and sends the OBD requests.
+// acknowledges frames and sends the OBD requests, the filters set.
 static void start_running(void) {
+    set_filters();
     mcp2515_write(REG_CANCTRL, CANCTRL_NORMAL);
     sleep_ms(5);
     const char *fault = mcp_check_mode(mcp2515_read(REG_CANSTAT), MCP_MODE_NORMAL);
@@ -115,6 +165,7 @@ static void start_running(void) {
     }
     log_line("can: self test passed, MCP2515 running");
     phase = CAN_RUNNING;
+    running_ms = to_ms_since_boot(get_absolute_time());
 }
 
 void mcp2515_poll_bus(uint32_t now_ms) {
@@ -130,16 +181,18 @@ void mcp2515_poll_bus(uint32_t now_ms) {
     uint8_t status = mcp2515_read_status();
     can_frame_t f;
     for (int i = 0; i < 2; i++) {
-        if (status & (i ? RX1_FULL : RX0_FULL) && mcp2515_read_frame(i ? INSTR_READ_RX1 : INSTR_READ_RX0, &f) &&
-            !gt86_decode_broadcast(&f, state, now_ms)) {
-            obd_decode_frame(&f, state, now_ms);
+        if (status & (i ? RX1_FULL : RX0_FULL) && mcp2515_read_frame(i ? INSTR_READ_RX1 : INSTR_READ_RX0, &f)) {
+            count_frame(f.id, now_ms);
+            if (!gt86_decode_broadcast(&f, state, now_ms)) {
+                obd_decode_frame(&f, state, now_ms);
+            }
         }
     }
     if (now_ms - request_ms >= REQUEST_INTERVAL_MS) {
         request_ms = now_ms;
         uint8_t pid = request_step < FAST_COUNT ? fast_pids[request_step] : slow_pids[slow_step++ % SLOW_COUNT];
         request_step = (request_step + 1) % (FAST_COUNT + 1);
-        can_frame_t request = obd_build_request(pid);
+        can_frame_t request = pid ? obd_build_request(pid) : obd_build_ethanol_read();
         mcp2515_send(&request);
     }
 }

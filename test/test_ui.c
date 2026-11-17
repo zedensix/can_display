@@ -230,4 +230,21 @@ void test_doors(void) {
     state_set_doors(&s, DOOR_BOOT, 0);
     CHECK(state_doors(&s, DOORS_STALE_MS) == DOOR_BOOT, "the boot read at 0 not open");
     CHECK(state_doors(&s, DOORS_STALE_MS + 1) == 0, "a stale reading still counts");
+
+    // Dismissed: a click puts the door screen away, another door brings it
+    // back, and a door shut then opened again does too.
+    settings_t cfg = SETTINGS_DEFAULT;
+    screen_t screen = {0};
+    state_set_doors(&s, DOOR_DRIVER, 100);
+    CHECK(screen_shows_doors(&screen, &s, 100), "the driver's door open, no door screen");
+    CHECK(!screen_apply_input(&screen, &s, 0, true, ui_view_count, &cfg, 100), "the dismiss click left to the caller");
+    CHECK(!screen_shows_doors(&screen, &s, 100) && screen.page == PAGE_GAUGES, "dismissed, the door screen stays");
+    state_set_doors(&s, DOOR_DRIVER | DOOR_BOOT, 200);
+    CHECK(screen_shows_doors(&screen, &s, 200), "the boot opened after a dismiss, no door screen");
+    screen_apply_input(&screen, &s, 0, true, ui_view_count, &cfg, 200);
+    state_set_doors(&s, 0, 300);
+    screen_apply_input(&screen, &s, 0, false, ui_view_count, &cfg, 300);
+    state_set_doors(&s, DOOR_DRIVER, 400);
+    screen_apply_input(&screen, &s, 0, false, ui_view_count, &cfg, 400);
+    CHECK(screen_shows_doors(&screen, &s, 400), "the driver's door shut and opened again, no door screen");
 }

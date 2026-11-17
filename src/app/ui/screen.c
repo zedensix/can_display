@@ -76,14 +76,23 @@ void screen_apply_click(screen_t *s, settings_t *cfg) {
     }
 }
 
+bool screen_shows_doors(const screen_t *s, const state_t *state, uint32_t now) {
+    return s->page == PAGE_GAUGES && !state->status[0] && (state_doors(state, now) & ~s->doors_dismissed);
+}
+
 bool screen_apply_input(screen_t *s, const state_t *state, int detents, bool press, int views, settings_t *cfg,
                         uint32_t now) {
+    s->doors_dismissed &= state_doors(state, now);
     if (detents || press) {
         s->input_ms = now;
         if (s->idle) {
             s->idle = false;
             return false;
         }
+    }
+    if (press && !s->idle && screen_shows_doors(s, state, now)) {
+        s->doors_dismissed = state_doors(state, now);
+        return false;
     }
     bool choosing = s->page == PAGE_GAUGES && state->wait != WAIT_NONE;
     if (choosing && detents) {

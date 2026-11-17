@@ -21,7 +21,8 @@
 // While the data source waits on the driver (state_t.wait: READY,
 // OFFLINE, on the way to the dongle, a failure, a RAM scan), turning on
 // the gauges picks between its button (Connect, Retry, Cancel) and
-// Settings instead, and a click does it. Nothing connected and
+// Settings instead, and a click does it. On the door screen, a click
+// dismisses it until another door opens. Nothing connected and
 // no input for SCREEN_IDLE_MS, the screensaver comes on; the next input
 // only wakes it.
 
@@ -78,6 +79,9 @@ typedef struct {
     // input_ms is the last input; idle, the screensaver on.
     uint32_t input_ms;
     bool idle;
+    // doors_dismissed: the open doors (DOOR_* bits) whose screen a click
+    // put away; a door shut leaves it, so opening it again shows it.
+    uint8_t doors_dismissed;
 } screen_t;
 
 // screen_apply_input applies the knob's input at now (none: 0 and false,
@@ -86,6 +90,10 @@ typedef struct {
 // screen_apply_click.
 bool screen_apply_input(screen_t *s, const state_t *state, int detents, bool press, int views, settings_t *cfg,
                         uint32_t now);
+
+// screen_shows_doors is true when the gauges page gives way to the door
+// screen: a door open that wasn't dismissed.
+bool screen_shows_doors(const screen_t *s, const state_t *state, uint32_t now);
 
 // screen_apply_turn applies encoder detents, positive clockwise. views is how
 // many gauges the single-gauge views cycle through.

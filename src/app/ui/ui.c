@@ -55,7 +55,7 @@ const theme_t theme_dark = {
 // the shift light.
 const tile_t ui_tiles[] = {
     {"OIL TEMP", "%.0f", DEGREE "C", SIG_OIL, OIL_RANGE, SLOW_STALE_MS},
-    {"COOLANT", "%.0f", DEGREE "C", SIG_COOLANT, COOLANT_RANGE, FAST_STALE_MS},
+    {"COOLANT", "%.0f", DEGREE "C", SIG_COOLANT, COOLANT_RANGE, SLOW_STALE_MS},
     {"AFR", "%.1f", "", SIG_AFR, AFR_RANGE, FAST_STALE_MS},
     {"INTAKE", "%.0f", DEGREE "C", SIG_IAT, IAT_RANGE, FAST_STALE_MS},
     {"BATTERY", "%.1f", "V", SIG_BATTERY, BATTERY_RANGE, FAST_STALE_MS},
@@ -174,10 +174,10 @@ void ui_render(canvas_t *c, const state_t *state, const screen_t *screen, const 
         draw_status_screen(c, t, state, screen, now_ms);
         return;
     }
-    // A door or the boot open takes the gauges page, after the oil.
-    uint8_t doors = state_doors(state, now_ms);
-    if (doors) {
-        draw_door_screen(c, t, doors);
+    // A door or the boot open takes the gauges page, after the oil, until
+    // dismissed.
+    if (screen_shows_doors(screen, state, now_ms)) {
+        draw_door_screen(c, t, state_doors(state, now_ms));
         return;
     }
     // With the shift light on, its bar takes the top of the gauges.

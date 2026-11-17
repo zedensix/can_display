@@ -15,7 +15,7 @@
 - [ ] Odometer if 01A6 isn't there: it's the cluster's, not the engine ECU's; find how the cluster gives it (a diagnostic read at its own address, captured from Techstream)
 - [ ] Check the door screen in the car: each door and the boot, contact on and engine running (0x375 byte 1, found engine off)
 - [ ] Rerun Listen CAN engine running for the stalk held down and the cruise ON/OFF button (nothing on the bus engine off); the stalk's up and pulled are in 0x144 byte 0, but driving the dash with them needs the MCP2515 (through the dongle, a press falls between monitors)
-- [ ] Tyre pressures: only if the wheels have TPMS sensors; capture what Techstream asks the TPMS ECU, then a tyres view (designed: the car from above, a pressure at each corner)
+- [ ] Tyre pressures, on hold: first check the valves (metal with a nut at the base: a sensor; rubber: none). Sensors there aren't paired to the car, so its TPMS ECU has no pressures to give: pair them (a dealer or a TPMS tool), then capture what Techstream asks that ECU; or hear the sensors directly with a 433MHz receiver on the Pico and decode their protocol. Then a tyres view (designed: the car from above, a pressure at each corner)
 - [ ] Cruise control set speed: probably in the engine ECU's RAM, not on the bus (the cluster never shows it): RAM scans with the cruise set at two speeds
 - [ ] Knock: not in standard OBD; look for the FA20's knock retard and fine knock learning in the ECU's RAM
 - [ ] Check in the car: Send log to the phone, acknowledged, back to the gauges

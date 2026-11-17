@@ -18,6 +18,14 @@ void test_obd_decode(void) {
     can_frame_t floored = {OBD_RESPONSE_ECU1, 8, {0x03, 0x41, 0x5A, 0x68}}; // 104: past 100 floored
     CHECK(obd_decode_frame(&floored, &s, 1) && nearly_equal(s.readings[SIG_PEDAL].value, 100),
           "floored pedal = %f, want 100", (double)s.readings[SIG_PEDAL].value);
+    can_frame_t voltage = {OBD_RESPONSE_ECU1, 8, {0x04, 0x41, 0x42, 0x36, 0xB0}}; // 14.0V
+    CHECK(obd_decode_frame(&voltage, &s, 1) && nearly_equal(s.readings[SIG_BATTERY].value, 14.0f),
+          "voltage = %f, want 14.0", (double)s.readings[SIG_BATTERY].value);
+    can_frame_t read = obd_build_ethanol_read();
+    static const uint8_t want_read[8] = {0x07, 0x23, 0x14, 0xFF, 0xF8, 0x7C, 0x7C, 0x04};
+    CHECK(read.id == OBD_ENGINE_ECU && read.dlc == 8 && memcmp(read.data, want_read, 8) == 0,
+          "the ethanol read frame is %03X %02X %02X %02X ...", (unsigned)read.id, read.data[0], read.data[1],
+          read.data[2]);
     can_frame_t ethanol = {OBD_RESPONSE_ECU1, 8, {0x05, 0x63, 0x42, 0x85, 0x80, 0x00}};
     CHECK(obd_decode_frame(&ethanol, &s, 1) && nearly_equal(s.readings[SIG_ETHANOL].value, 66.75f),
           "ethanol = %f, want 66.75", (double)s.readings[SIG_ETHANOL].value);

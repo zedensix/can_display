@@ -6,6 +6,20 @@ can_frame_t obd_build_request(uint8_t pid) {
     return (can_frame_t){.id = OBD_REQUEST_ID, .dlc = 8, .data = {0x02, 0x01, pid}};
 }
 
+can_frame_t obd_build_ethanol_read(void) {
+    // The ELM's hex, one byte per 2 digits, after the single frame's length.
+    can_frame_t f = {.id = OBD_ENGINE_ECU, .dlc = 8};
+    const char *hex = ETHANOL_RAM_READ;
+    int n = (int)strlen(hex) / 2;
+    f.data[0] = (uint8_t)n;
+    for (int i = 0; i < 2 * n; i++) {
+        char c = hex[i];
+        int digit = c <= '9' ? c - '0' : c - 'A' + 10;
+        f.data[1 + i / 2] = (uint8_t)(f.data[1 + i / 2] << 4 | digit);
+    }
+    return f;
+}
+
 bool obd_decode_frame(const can_frame_t *f, state_t *state, uint32_t now_ms) {
     isotp_t r = {0};
     return f->id == OBD_RESPONSE_ECU1 && isotp_add_frame(&r, f) &&
@@ -81,6 +95,9 @@ signal_t obd_decode_message(const uint8_t *msg, int len, state_t *state, uint32_
         } else if (msg[i] == PID_SPEED && value_len >= 1) {
             got = SIG_SPEED, size = 1;
             state_set_reading(state, got, (float)v[0], now_ms);
+        } else if (msg[i] == PID_VOLTAGE && value_len >= 2) {
+            got = SIG_BATTERY, size = 2;
+            state_set_reading(state, got, (float)(v[0] << 8 | v[1]) / 1000, now_ms);
         } else if (msg[i] == PID_AMBIENT && value_len >= 1) {
             got = SIG_AMBIENT, size = 1;
             state_set_reading(state, got, (float)v[0] - 40, now_ms);

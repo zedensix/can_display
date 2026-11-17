@@ -44,6 +44,9 @@ typedef struct {
 // The odometer, 4 bytes in tenths of a km: a newer PID, which this car's
 // ECU may not have (its bitmaps from 0x60 on were never asked).
 #define PID_ODOMETER 0xA6
+// The engine ECU's supply voltage (V, /1000): the battery's, a few tenths
+// under it, for a source without the dongle's ATRV (the MCP2515).
+#define PID_VOLTAGE 0x42
 // The relative pedal position: 0 to 100% of its travel, where 0x49 (the
 // absolute one) stops short of both ends. On this car its byte is the
 // percent (seen floored: about half, read as A*100/255), unverified at
@@ -71,6 +74,9 @@ typedef struct {
 
 // obd_build_request is the Mode 01 single-frame request for pid.
 can_frame_t obd_build_request(uint8_t pid);
+// obd_build_ethanol_read is ETHANOL_RAM_READ as a single frame to the
+// engine ECU, for a source without the dongle (the MCP2515).
+can_frame_t obd_build_ethanol_read(void);
 
 // obd_decode_frame handles an ECU1 single-frame answer (see
 // obd_decode_message). It returns false for anything else.

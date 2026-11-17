@@ -3,6 +3,7 @@
 
 import { drawCar, drawConverter } from "./car";
 import { type Face, NET_NAMES, type Style, THEMES, type Theme, type WiringView } from "./data";
+import { drawDivider } from "./divider";
 import { drawModule } from "./module";
 import { drawPico } from "./pico";
 import { routeWires, shownModules, type Wire } from "./route";
@@ -84,7 +85,8 @@ function drawWireLabel(svg: Element, theme: Theme, w: Wire) {
   if (!w.wire) return;
   const first: [number, number][] = [w.points[0], w.points[1]];
   const last = w.points.slice(-2);
-  const [[x0, y0], [x1]] = Math.abs(first[1][0] - first[0][0]) >= 80 ? first : last;
+  // The SO wire's Pico end holds its resistor (drawSeriesResistor).
+  const [[x0, y0], [x1]] = Math.abs(first[1][0] - first[0][0]) >= 80 && w.label !== "SO" ? first : last;
   const label = svgText(svg, theme, (x0 + x1) / 2, y0 - 6, w.wire, {
     size: 10,
     weight: 600,
@@ -147,6 +149,7 @@ export function drawDiagram(svg: SVGSVGElement, style: Style, view: WiringView) 
   for (const w of wires) drawWire(layer, theme, w);
   const labels = svgElement("g", {}, layer);
   for (const w of wires) drawWireLabel(labels, theme, w);
+  if (view.source === "wired") drawDivider(labels, theme, wires);
   drawConverter(layer, theme);
   drawPico(layer, theme, view);
   for (const m of shownModules(view)) drawModule(layer, theme, m, view.faces[m.id], pinFaces[m.id]);

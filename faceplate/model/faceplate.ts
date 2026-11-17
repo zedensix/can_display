@@ -99,7 +99,7 @@ export class Faceplate {
   }
 
   /** The window onto the lit area, beveled toward the front. */
-  private get displayWindow(): ScadObject {
+  get displayWindow(): ScadObject {
     const { display, window, plate } = this.c;
     const halfWidth = display.activeWidth / 2 + window.margin;
     const top = this.activeTop + window.margin;
@@ -119,7 +119,7 @@ export class Faceplate {
    * open at the back, and a relief under the solder joints at each end of
    * the board, between its edge and the panel's pocket.
    */
-  private get displayPockets(): ScadObject {
+  get displayPockets(): ScadObject {
     const { display, plate, clearance } = this.c;
     return union(
       box(
@@ -156,7 +156,7 @@ export class Faceplate {
   }
 
   /** Pilot holes for the display board's 4 screws, blind so the front stays clean. */
-  private get displayScrewHoles(): ScadObject {
+  get displayScrewHoles(): ScadObject {
     const { display, screw, plate } = this.c;
     const x = display.pcbWidth / 2 - display.holeInset;
     return union(
@@ -173,7 +173,7 @@ export class Faceplate {
   }
 
   /** The bushing's hole through the plate, and the body's recess from the back. */
-  private get encoderCutouts(): ScadObject {
+  get encoderCutouts(): ScadObject {
     const { encoder, clearance } = this.c;
     const half = this.encoderRecessHalf;
     return union(
@@ -205,7 +205,7 @@ export class Faceplate {
   }
 
   /** The encoder board's 4 standoffs, from the plate's back up to the board. */
-  private get encoderStandoffs(): ScadObject {
+  get encoderStandoffs(): ScadObject {
     const height = this.encoderBoardFace - this.thickness;
     return union(
       ...this.encoderBoardStandoffs.map(([x, y]) =>
@@ -219,7 +219,7 @@ export class Faceplate {
   }
 
   /** Pilot holes through the encoder board's standoffs (2 take its screws), blind in the plate. */
-  private get encoderScrewHoles(): ScadObject {
+  get encoderScrewHoles(): ScadObject {
     const { plate, screw } = this.c;
     return union(
       ...this.encoderBoardStandoffs.map(([x, y]) =>

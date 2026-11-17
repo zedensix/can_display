@@ -12,7 +12,6 @@
 #define HERO_SEGMENTS 20
 #define ROW_SEGMENTS 10
 #define ROW_LABEL_W 92
-#define ROW_VALUE_W 78
 // A row's bar only where it gets at least this wide.
 #define ROW_BAR_MIN 30
 
@@ -60,9 +59,33 @@ static void draw_hero(canvas_t *c, const theme_t *t, const tile_t *tile, int x, 
     draw_segment_bar(c, x + 8, y + h - 18, w - 16, 10, HERO_SEGMENTS, colors);
 }
 
-// draw_row draws tile as a row of the list in the box x, y, w, h.
-static void draw_row(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int y, int w, int h, const state_t *s,
-                     uint32_t now_ms) {
+// row_font picks the font every row's value is drawn in, rows w by h:
+// the largest whose digits fit the row's height and whose widest value
+// fits beside the label, the same for every row (one per row looked
+// patchy). value_w gets that widest value's width.
+static const font_t *row_font(int w, int h, int *value_w) {
+    static const char *const widest[] = {"100" DEGREE "C", "14.2V", "100%", "17.2"};
+    const font_t *fonts[] = {&font_bold18, &font_bold12, label_font};
+    const font_t *font = label_font;
+    for (int i = 0; i < 3; i++) {
+        font = fonts[i];
+        *value_w = 0;
+        for (int k = 0; k < 4; k++) {
+            int tw = gfx_text_width(font, widest[k]);
+            *value_w = tw > *value_w ? tw : *value_w;
+        }
+        int digit_h = font->glyphs['0' - font->first].height;
+        if (digit_h <= h - 6 && *value_w <= w - 16 - ROW_LABEL_W - 8) {
+            break;
+        }
+    }
+    return font;
+}
+
+// draw_row draws tile as a row of the list in the box x, y, w, h, its
+// value in font, value_w wide at most.
+static void draw_row(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int y, int w, int h, const font_t *font,
+                     int value_w, const state_t *s, uint32_t now_ms) {
     char text[24];
     color_t color;
     float fraction;
@@ -71,17 +94,27 @@ static void draw_row(canvas_t *c, const theme_t *t, const tile_t *tile, int x, i
     if (alarm) {
         gfx_fill_rect(c, x, y, w, h, t->alarm);
     }
-    int baseline = y + h / 2 + 5;
-    gfx_text(c, label_font, x + 8, baseline, tile->label, alarm ? t->alarm_text : t->label, 1);
-    const font_t *font = gfx_text_width(&font_bold18, text) <= ROW_VALUE_W ? &font_bold18 : &font_bold12;
-    gfx_text(c, font, x + w - 8 - gfx_text_width(font, text), y + h / 2 + 8, text, alarm ? t->alarm_text : color, 1);
-    int bar_x = x + 8 + ROW_LABEL_W, bar_w = w - 16 - ROW_LABEL_W - ROW_VALUE_W - 8;
+    gfx_text(c, label_font, x + 8, y + h / 2 + 5, tile->label, alarm ? t->alarm_text : t->label, 1);
+    // The digits centered on the row.
+    int baseline = y + (h + font->glyphs['0' - font->first].height) / 2;
+    gfx_text(c, font, x + w - 8 - gfx_text_width(font, text), baseline, text, alarm ? t->alarm_text : color, 1);
+    int bar_x = x + 8 + ROW_LABEL_W, bar_w = w - 16 - ROW_LABEL_W - value_w - 8;
     if (bar_w >= ROW_BAR_MIN) {
         color_t colors[ROW_SEGMENTS];
         gauge_segment_colors(&tile->range, fraction, -1, ROW_SEGMENTS, alarm, t, colors);
         draw_segment_bar(c, bar_x, y + h / 2 - 3, bar_w, 6, ROW_SEGMENTS, colors);
     }
     gfx_fill_rect(c, x + 4, y + h - 1, w - 8, 1, gfx_blend(t->background, t->frame, 0.6f));
+}
+
+// draw_rows draws the list's rows, rows of them h tall from y, x to x + w.
+static void draw_rows(canvas_t *c, const theme_t *t, int rows, int x, int y, int w, int h, const state_t *s,
+                      uint32_t now_ms) {
+    int value_w;
+    const font_t *font = row_font(w, h, &value_w);
+    for (int i = 0; i < rows; i++) {
+        draw_row(c, t, &ui_tiles[1 + i], x, y + i * h, w, h, font, value_w, s, now_ms);
+    }
 }
 
 void draw_main_layout(canvas_t *c, const theme_t *t, const state_t *s, int top, int bottom, uint32_t now_ms) {
@@ -91,17 +124,11 @@ void draw_main_layout(canvas_t *c, const theme_t *t, const state_t *s, int top, 
         int hero_w = c->width * 2 / 5;
         draw_hero(c, t, &ui_tiles[0], 0, top, hero_w, bottom - top, s, now_ms);
         gfx_fill_rect(c, hero_w, top + 4, 1, bottom - top - 8, t->frame);
-        int row_h = (bottom - top) / rows;
-        for (int i = 0; i < rows; i++) {
-            draw_row(c, t, &ui_tiles[1 + i], hero_w + 1, top + i * row_h, c->width - hero_w - 1, row_h, s, now_ms);
-        }
+        draw_rows(c, t, rows, hero_w + 1, top, c->width - hero_w - 1, (bottom - top) / rows, s, now_ms);
         return;
     }
     int hero_h = (bottom - top) * 9 / 20;
     draw_hero(c, t, &ui_tiles[0], 0, top, c->width, hero_h, s, now_ms);
     gfx_fill_rect(c, 4, top + hero_h, c->width - 8, 1, t->frame);
-    int row_h = (bottom - top - hero_h - 1) / rows;
-    for (int i = 0; i < rows; i++) {
-        draw_row(c, t, &ui_tiles[1 + i], 0, top + hero_h + 1 + i * row_h, c->width, row_h, s, now_ms);
-    }
+    draw_rows(c, t, rows, 0, top + hero_h + 1, c->width, (bottom - top - hero_h - 1) / rows, s, now_ms);
 }

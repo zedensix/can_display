@@ -1,7 +1,7 @@
 // Renders each printable part of the faceplate's model (the faceplate, the
 // tray) to faceplate/stl/<part>.stl, pictures of them to
 // faceplate/renders/*.png, the assembly with every module in place to
-// faceplate/renders/assembly.scad, and the dimensions they're built from
+// faceplate/renders/assembly.scad (and the vent pod's to pod.scad), and the dimensions they're built from
 // to faceplate/data/dimensions.json, which the wiring page's Dimensions
 // tab shows.
 //
@@ -15,7 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createOpenSCAD } from "openscad-wasm";
 import type { ScadObject } from "scad-js";
-import { assembly, faceplate, onVent, parts, tray, vars, ventMount } from "../faceplate/model";
+import { assembly, faceplate, onVent, parts, pod, tray, vars, ventMount } from "../faceplate/model";
 import { checked, config } from "../faceplate/model/config";
 
 const rendersDir = join("faceplate", "renders");
@@ -34,6 +34,10 @@ const pictures: Record<string, { object: ScadObject; rotation: number[]; colors?
   "assembly-side": { object: assembly, rotation: [90, 0, 90], colors: true }, // from the side: the stack, the front at the bottom
   "vent-mount": { object: onVent, rotation: [90, 0, 90], colors: true }, // on its temporary vent hook, from the side
   "vent-clamp": { object: ventMount.clamp, rotation: [70, 0, 140], colors: true }, // the clamp alone, from behind the dash
+  "pod-front": { object: pod.assembly.rotate([0, 180, 0]), rotation: [70, 0, 20], colors: true }, // what shows in the car
+  "pod-side": { object: pod.assembly, rotation: [90, 0, 60], colors: true }, // the can cut open: the sled and its boards
+  "pod-face-back": { object: pod.face, rotation: [235, 0, 25] }, // the room behind the face, the spigot
+  "pod-sled": { object: parts["pod-sled"], rotation: [55, 0, 25] }, // as it sits on the bed
 };
 
 async function renderStl(source: string, path: string): Promise<void> {
@@ -88,6 +92,11 @@ await Bun.write(join("faceplate", "data", "dimensions.json"), `${JSON.stringify(
 await Bun.write(
   join(rendersDir, "assembly.scad"),
   `// Written by tools/render_faceplate.ts (mise run faceplate): don't edit. Preview (F5) keeps the colors.\n${assembly.serialize(vars)}`,
+);
+// The vent pod's the same way (`mise run pod`), the can cut open on the right.
+await Bun.write(
+  join(rendersDir, "pod.scad"),
+  `// Written by tools/render_faceplate.ts (mise run faceplate): don't edit. Preview (F5) keeps the colors.\n${pod.assembly.serialize(vars)}`,
 );
 
 for (const [name, part] of Object.entries(parts)) {

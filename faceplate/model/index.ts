@@ -18,6 +18,10 @@
  *   slots. The 12V-to-5V converter, its ears cut off, lies across the
  *   tray's back between the Pico and the MCP2515, zip-tied.
  *
+ * - Pod (pod.ts): the whole dash in the driver's round air vent instead,
+ *   the display in landscape and the encoder in a face shaped like the
+ *   vent's gauge adapter, the boards on a sled in a can behind it.
+ *
  * Every dimension is in config.ts; each part is a class in its own file.
  */
 
@@ -26,6 +30,7 @@ import { union } from "scad-js";
 import { config } from "./config";
 import { Faceplate } from "./faceplate";
 import { mockups } from "./mockups";
+import { Pod } from "./pod";
 import { Tray } from "./tray";
 import { VentMount } from "./ventmount";
 
@@ -34,12 +39,14 @@ export const vars: ScadSpecialVariables = { $fn: 64 }; // smoothness of the hole
 export const faceplate = new Faceplate(config);
 export const tray = new Tray(config, faceplate);
 export const ventMount = new VentMount(config, faceplate);
+export const pod = new Pod(config, faceplate);
 
 /** Each part to print, as it lies on the bed. */
 export const parts: Record<string, ScadObject> = {
   faceplate: faceplate.object,
   tray: tray.object,
   ...ventMount.print,
+  ...pod.print,
 };
 
 const modules = mockups(config, faceplate);
