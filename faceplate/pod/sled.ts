@@ -7,7 +7,7 @@
 
 import type { ScadObject } from "scad-js";
 import { cylinder, difference, union } from "scad-js";
-import { box } from "./geometry";
+import { box } from "../shared/geometry";
 import type { Pod } from "./pod";
 
 type Board = { width: number; length: number; holesApartX: number; holesApartY: number; holeDiameter: number };

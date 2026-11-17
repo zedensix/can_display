@@ -58,6 +58,16 @@
       "screwClearance": 3.4,
       "standoffWall": 1.8
     },
+    "vent": {
+      "standoff": 20,
+      "slatThickness": 2,
+      "slatDepth": 12,
+      "slatGap": 8,
+      "legThickness": 3,
+      "legWidth": 12,
+      "wheelDiameter": 14,
+      "feetLength": 20
+    },
     "boards": {
       "pico": {
         "width": 51,
@@ -96,16 +106,6 @@
       "earWidthAtEnd": 10,
       "earSlotWidth": 5,
       "earSlotDepth": 7
-    },
-    "vent": {
-      "standoff": 20,
-      "slatThickness": 2,
-      "slatDepth": 12,
-      "slatGap": 8,
-      "legThickness": 3,
-      "legWidth": 12,
-      "wheelDiameter": 14,
-      "feetLength": 20
     },
     "pod": {
       "bodyDiameter": 83,

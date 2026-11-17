@@ -1,5 +1,5 @@
 // The pod: the whole dash in the driver's round air vent, where a 52 mm
-// gauge sat in a printed adapter (faceplate/resources/gauge_vent.stl).
+// gauge sat in a printed adapter (resources/gauge_vent.stl).
 //
 // - The face takes the adapter's outside (its body, the step down at the
 //   back, the 2 ears at the front edge), closed at the front: the display
@@ -20,12 +20,12 @@
 
 import type { ScadObject } from "scad-js";
 import { cylinder, difference, intersection, union } from "scad-js";
-import type { Config } from "./config";
-import type { Faceplate } from "./faceplate";
-import { box } from "./geometry";
-import { display, encoder } from "./mockups";
-import { podSled } from "./podsled";
-import { cellHoles, honeycomb, type Rect } from "./podvents";
+import type { Faceplate } from "../plate/faceplate";
+import type { Config } from "../shared/config";
+import { box } from "../shared/geometry";
+import { display, encoder } from "../shared/mockups";
+import { cellHoles, honeycomb, type Rect } from "../shared/vents";
+import { podSled } from "./sled";
 
 /** A cylinder along x through x0..x1, centered on (y, z), radius r (or r0 at x0 to r1 at x1). */
 function alongX(x0: number, x1: number, y: number, z: number, r: number | [number, number]): ScadObject {

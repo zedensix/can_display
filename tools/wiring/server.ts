@@ -9,13 +9,13 @@
 // back. GET /renders/<name>.png is a render of the parts.
 
 import { join, resolve } from "node:path";
-import { config, numberAt } from "../../faceplate/model/config";
+import { config, numberAt } from "../../faceplate/shared/config";
 import page from "./index.html";
 
 const root = resolve(import.meta.dir, "..", "..");
 const measuredPath = join(root, "faceplate", "data", "measured.json");
 const dimensionsPath = join(root, "faceplate", "data", "dimensions.json");
-const rendersDir = join(root, "faceplate", "renders");
+const rendersDir = join(root, "faceplate", "plate", "renders");
 const noStore = { "cache-control": "no-store" };
 
 /** Checks the page's values: known dimensions, plain non-negative numbers. */
@@ -23,7 +23,7 @@ function parseMeasurements(body: unknown): Record<string, number> {
   if (typeof body !== "object" || body === null || Array.isArray(body)) throw new Error("expected an object");
   const values: Record<string, number> = {};
   for (const [key, value] of Object.entries(body)) {
-    if (numberAt(config, key) === undefined) throw new Error(`${key} isn't a dimension in faceplate/model/config.ts`);
+    if (numberAt(config, key) === undefined) throw new Error(`${key} isn't a dimension in faceplate/shared/config.ts`);
     if (typeof value !== "number" || !Number.isFinite(value) || value < 0)
       throw new Error(`${key}: ${value} isn't a dimension`);
     values[key] = value;

@@ -18,9 +18,9 @@
 
 import type { ScadObject } from "scad-js";
 import { cylinder, difference, union } from "scad-js";
-import type { Config } from "./config";
+import type { Config } from "../shared/config";
+import { box } from "../shared/geometry";
 import type { Faceplate } from "./faceplate";
-import { box } from "./geometry";
 
 const BAR_THICKNESS = 4;
 /** Room between the bar and the Pico's top edge. */

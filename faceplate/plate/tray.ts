@@ -15,19 +15,12 @@
 
 import type { ScadObject } from "scad-js";
 import { cylinder, difference, union } from "scad-js";
-import type { Config } from "./config";
+import type { Config } from "../shared/config";
+import { box, DUPONT_LENGTH, HEADER_PLASTIC, PICO_PINS, PICO_ROWS_APART, PITCH } from "../shared/geometry";
 import type { Faceplate } from "./faceplate";
-import { box, PITCH } from "./geometry";
 
 type Board = Config["boards"][keyof Config["boards"]];
 
-/** The Pico's header (Raspberry Pi's drawing): 2 rows of 20 pins, 17.78 apart, centered on the board. */
-export const PICO_PINS = 20;
-export const PICO_ROWS_APART = 17.78;
-/** A pin header's plastic, and its pins past it; a Dupont plug's length. */
-export const HEADER_PLASTIC = 2.5;
-export const HEADER_PINS = 6;
-export const DUPONT_LENGTH = 14;
 /** The converter's stops, at its ends, and the zip tie around it and through the tray. */
 const CONVERTER_STOP = { thickness: 2, height: 5 };
 const ZIP_TIE = { width: 4.5, thickness: 1.5 };

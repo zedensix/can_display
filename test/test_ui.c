@@ -172,6 +172,14 @@ void test_choice_and_idle(void) {
     CHECK(!s.idle, "the screensaver came on with the data source delivering");
     screen_apply_input(&s, &state, 1, false, 6, &cfg, 200001);
     CHECK(s.view == 1, "turning with nothing to choose didn't change the view");
+
+    // The MCP2515 waiting for the car: a status, nothing to choose.
+    state_set_status(&state, "WAITING FOR THE CAR");
+    screen_apply_input(&s, &state, 0, false, 6, &cfg, 200001 + SCREEN_IDLE_MS);
+    CHECK(s.idle, "no screensaver while the CAN bus sleeps");
+    state.wait = WAIT_CANCEL;
+    screen_apply_input(&s, &state, 0, false, 6, &cfg, 200002 + SCREEN_IDLE_MS);
+    CHECK(!s.idle, "the screensaver hid a scan's progress");
 }
 
 // Near the rev limiter the whole page flashes red; under it, it doesn't.

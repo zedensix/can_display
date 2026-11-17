@@ -1,4 +1,5 @@
-// The pod's vents, a honeycomb like the gauge adapter's grille: the vent's
+// A honeycomb like the vent's gauge adapter's grille, for the pod's vents
+// and the head's lid. The pod's: the vent's
 // air goes in through the can's back end and around the can through the
 // face's back, along the boards and behind the display, and out through
 // the face, around the display and the encoder. The electronics in the

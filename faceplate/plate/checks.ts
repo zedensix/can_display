@@ -2,8 +2,8 @@
 // through the front, a screw in a recess, a post in the encoder's way)
 // stops the build with the key to fix, before anything is printed.
 
+import { ENCODER_PINS, PITCH } from "../shared/geometry";
 import type { Faceplate } from "./faceplate";
-import { ENCODER_PINS, PITCH } from "./geometry";
 
 export function checkFaceplate(f: Faceplate): void {
   const { display, encoder, plate, window, tray, clearance } = f.c;

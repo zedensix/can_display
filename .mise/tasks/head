@@ -4,9 +4,9 @@ set -euo pipefail
 
 # Written by `mise run faceplate`; OpenSCAD reloads it when that reruns
 # with Design > Automatic Reload and Preview on.
-if [ ! -f faceplate/renders/head.scad ]; then
+if [ ! -f faceplate/head/renders/head.scad ]; then
   bun install --frozen-lockfile >/dev/null
   bun tools/render_faceplate.ts
 fi
 # The app bundle around the openscad binary mise installed: `open` starts its window detached.
-open -a "$(cd "$(dirname "$(command -v openscad)")/../.." && pwd)" faceplate/renders/head.scad
+open -a "$(cd "$(dirname "$(command -v openscad)")/../.." && pwd)" faceplate/head/renders/head.scad

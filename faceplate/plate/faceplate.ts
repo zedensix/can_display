@@ -9,9 +9,9 @@
 
 import type { ScadObject } from "scad-js";
 import { cylinder, difference, hull, square, union } from "scad-js";
+import type { Config } from "../shared/config";
+import { box, ENCODER_PINS, PITCH } from "../shared/geometry";
 import { checkFaceplate } from "./checks";
-import type { Config } from "./config";
-import { box, ENCODER_PINS, PITCH } from "./geometry";
 
 export class Faceplate {
   /** Just thick enough to hold the panel and its board, the board flush with the back. */

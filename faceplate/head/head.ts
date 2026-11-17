@@ -22,12 +22,11 @@
 
 import type { ScadObject } from "scad-js";
 import { cylinder, difference, hull, intersection, square, union } from "scad-js";
-import type { Config } from "./config";
-import type { Faceplate } from "./faceplate";
-import { box } from "./geometry";
-import { display } from "./mockups";
-import { cellHoles, honeycomb, type Rect } from "./podvents";
-import { HEADER_PLASTIC, PICO_ROWS_APART } from "./tray";
+import type { Faceplate } from "../plate/faceplate";
+import type { Config } from "../shared/config";
+import { box, HEADER_PLASTIC, PICO_ROWS_APART } from "../shared/geometry";
+import { display } from "../shared/mockups";
+import { cellHoles, honeycomb, type Rect } from "../shared/vents";
 
 export class Head {
   /** The room inside the walls: the display board and its clearance. */

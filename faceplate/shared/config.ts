@@ -7,7 +7,11 @@
 // Positions are seen from the back of the dash, where you screw things on:
 // x across (0 in the middle, + to the right), y up (0 at the display
 // board's top edge).
+
 import measured from "../data/measured.json";
+import { head } from "../head/config";
+import { plateConfig } from "../plate/config";
+import { pod } from "../pod/config";
 
 const defaults = {
   display: {
@@ -57,32 +61,7 @@ const defaults = {
     boardLength: 26, // the board, from the end with the pins to the other one
     boardWidth: 19, // the board, across (the pin row's direction)
   },
-  plate: {
-    frontSkin: 1.2, // material in front of the display glass
-    margin: 8, // plate around the display board and the encoder body: wide enough for tray.postDiameter beside the board
-    cornerRadius: 3, // rounding of the plate's corners, seen from the front
-  },
-  // A lip along the edge, on the faceplate's back and the tray's: on their fronts, they'd print over supports.
-  rim: {
-    height: 2,
-    width: 2,
-  },
-  window: {
-    margin: 0.5, // window larger than the lit area on each side, so no pixel is hidden
-    chamfer: 0.8, // 45 degree bevel on the window's front edge, at most plate.frontSkin
-  },
-  // The tray screws onto 4 posts at the faceplate's corners, behind the
-  // display, and carries the boards on standoffs and the converter on its
-  // back. Between the two: the display's and the encoder's plugs, and the
-  // Pico's through the tray.
-  tray: {
-    thickness: 2.5,
-    gap: 20, // from the faceplate's back to the tray: the Dupont plugs
-    postDiameter: 6.5, // the faceplate's posts
-    screwPilot: 2.5, // hole an M3 self-tapping screw bites into, in each post
-    screwClearance: 3.4, // the M3 screw's hole through the tray
-    standoffWall: 1.8, // around each standoff's pilot hole
-  },
+  ...plateConfig,
   // Each board on the tray's back, seen from the back of the dash, where
   // you screw it on. width runs along x, length along y; its 4 holes on a
   // rectangle centered on the board, holesApartX by holesApartY between
@@ -126,93 +105,8 @@ const defaults = {
     earSlotWidth: 5, // a slot open at the ear's end, for the screw
     earSlotDepth: 7,
   },
-  // A temporary mount on an air vent's horizontal slats, for testing on
-  // the road (ventmount.ts): a clamp on one slat, from a bar across the
-  // tray's back held by the 2 top tray screws (M3x14 instead of M3x10), and
-  // 2 feet on the bottom posts (M3x30) against what's under the vent.
-  // Guesses: measure the vent.
-  vent: {
-    standoff: 20, // from the tray's back to the vent's face: past the converter (14)
-    slatThickness: 2, // the slat the clamp takes, top to bottom
-    slatDepth: 12, // that slat, front to back, up to the vertical vanes behind it: the clamp's legs stop 1 mm short
-    slatGap: 8, // between two slats: each leg goes in one, above and below the slat
-    legThickness: 3, // each leg, top to bottom
-    legWidth: 12, // each leg, across
-    wheelDiameter: 14, // the thumbwheel on the clamp's screw, between the tray and the vent
-    feetLength: 20, // from the tray's back to what the dash's bottom rests on, under the vent (the radio's face)
-  },
-  // The pod: the whole dash in the driver's round air vent, in place of a
-  // 52 mm gauge (pod.ts). Its front takes the outside of the gauge's
-  // printed adapter (faceplate/resources/gauge_vent.stl): its 73 mm lip on
-  // the driver's side, the display in landscape and the encoder under it,
-  // the 83 mm body into the vent's OEM ring, the 2 ears at the back.
-  // Behind, a can goes into the vent's duct, a sled in it carrying the
-  // Pico, the MCP2515 and the converter. Seen from the back like the rest:
-  // x across, y up, the front face at z = 0, z into the vent.
-  pod: {
-    bodyDiameter: 83, // the adapter's, which the vent's OEM ring holds
-    lipDiameter: 73, // its front, standing out of the vent
-    lipLength: 2.2, // then a 45 degree step out to bodyDiameter (the adapter's is steeper: this one prints front down)
-    depth: 24.5, // from the front face to the back, where the ears are
-    earWidth: 3, // the 2 ears at the back edge, left and right: across
-    earOut: 1.5, // how far they stand out of the body
-    earThickness: 2.5, // front to back
-    wall: 2, // the body's wall around the room behind the face
-    displayY: 2, // the display board's middle, above the pod's center
-    shaftY: -24, // the encoder's shaft, below the pod's center
-    // The can: into the vent's duct (15 cm and more free behind the
-    // adapter), onto a spigot on the pod's back, 2 countersunk M3 screws
-    // through its front band into the spigot.
-    canDiameter: 52,
-    canWall: 1.6,
-    canBandLength: 8, // its front end, thicker for the screws' countersinks
-    canBandWall: 2.5,
-    capThickness: 2.5, // its back end, the cable's hole in it
-    cableHole: 9,
-    spigotLength: 4,
-    spigotWall: 3,
-    screwHead: 6, // the countersunk M3's head
-    // The sled: a plate across the can's middle, sliding in between 2
-    // pairs of ribs, held between the spigot and the can's back. On top
-    // the Pico (USB toward the front) then the MCP2515 (terminal toward
-    // the back), under it the converter, zip-tied.
-    plateThickness: 3,
-    ribDepth: 1.4, // the ribs, from the can's wall inward
-    ribWidth: 1.2,
-    zipSlotWidth: 3, // the zip ties' slots through the plate
-    zipSlotLength: 5,
-    notchDepth: 5, // notches in the plate's edges for the wires between its 2 sides
-    notchLength: 8,
-    gap: 4, // along the sled, between the boards
-    // The vents, a honeycomb like the adapter's grille (podvents.ts).
-    ventCell: 1.8, // each cell, center to corner
-    ventWall: 0.8, // between two cells: 2 lines of a 0.4 mm nozzle
-  },
-  // The head (head.ts): the display in landscape and the Pico W right
-  // behind it, the smallest box they go in, for up high (the meter hood's
-  // top); the MCP2515 and the converter at the OBD port, the encoder on its
-  // own, on a cable. Seen from the back: x across, y up, the front at z = 0.
-  head: {
-    wall: 1.6, // around the display's board: 4 lines of a 0.4 mm nozzle
-    cornerRadius: 3,
-    displayBackGap: 1.5, // from the display board's back to the Pico's header plastic: the board's components
-    picoHeaderHeight: 2.5, // the header's plastic under the Pico's board, toward the display, its pins cut flush with it; 0 without a header
-    picoPcbThickness: 1,
-    picoStandoff: 3.5, // from the Pico's board to the lid: its components (the USB socket, 2.6) and the wires soldered on its pins' tips
-    picoUsbOverhang: 1.3, // how far its micro-USB socket stands past its board's end
-    standoffDiameter: 4.4, // the Pico's 4 standoffs under the lid, M2 x 5 self-tapping screws
-    lidThickness: 1.2,
-    bossWidth: 5, // the lid's 2 screw bosses, on the top and bottom walls
-    bossDepth: 4, // how far they stand out of the wall
-    screwDepth: 4.5, // their pilot holes: M2 x 5 self-tapping screws through the lid
-    screwClearance: 2.4, // the M2 screws' holes through the lid
-    usbSlotWidth: 12, // the notch by the Pico's micro-USB socket, for the plug's overmold
-    usbSlotHeight: 8,
-    cableHole: 6, // through the lid, under the Pico: the wires to the MCP2515, the converter and the encoder
-    tilt: 20, // degrees the screen leans back, a wedge under it, toward the eyes above it (guessed: set it from the hood's slope)
-    ventCell: 1.8, // the lid's honeycomb, as the pod's
-    ventWall: 0.8,
-  },
+  pod,
+  head,
   clearance: 0.3, // play around each pocket and hole, each side
 };
 

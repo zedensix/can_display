@@ -1,11 +1,11 @@
 <!-- The Dimensions tab: each module as the printed parts are built for it
-     (faceplate/model/config.ts, through /dimensions). A value is "checked"
+     (faceplate/shared/config.ts, through /dimensions). A value is "checked"
      when measured on the module or confirmed by a test print, else a
      "guess" to measure before printing. Each edit saves itself 0.8s after
      the last keystroke; the server rebuilds the parts and says whether the
      model takes the values. -->
 <script lang="ts">
-  import type { Config } from "../../faceplate/model/config";
+  import type { Config } from "../../faceplate/shared/config";
   import DimensionCard from "./DimensionCard.svelte";
   import { displayCard } from "./dimensions/cards_display";
   import { encoderCard } from "./dimensions/cards_encoder";

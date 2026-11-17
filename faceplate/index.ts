@@ -24,18 +24,19 @@
  * - Head (head.ts): the smallest box for up high, the display in
  *   landscape and the Pico behind it, everything else on a cable.
  *
- * Every dimension is in config.ts; each part is a class in its own file.
+ * Every dimension is in shared/config.ts, each model's own in its folder's
+ * config.ts; each part is a class in its own file, each model in its folder.
  */
 
 import type { ScadObject, ScadSpecialVariables } from "scad-js";
 import { union } from "scad-js";
-import { config } from "./config";
-import { Faceplate } from "./faceplate";
-import { Head } from "./head";
-import { mockups } from "./mockups";
-import { Pod } from "./pod";
-import { Tray } from "./tray";
-import { VentMount } from "./ventmount";
+import { Head } from "./head/head";
+import { Faceplate } from "./plate/faceplate";
+import { mockups } from "./plate/mockups";
+import { Tray } from "./plate/tray";
+import { VentMount } from "./plate/ventmount";
+import { Pod } from "./pod/pod";
+import { config } from "./shared/config";
 
 export const vars: ScadSpecialVariables = { $fn: 64 }; // smoothness of the holes and posts
 
@@ -45,13 +46,11 @@ export const ventMount = new VentMount(config, faceplate);
 export const pod = new Pod(config, faceplate);
 export const head = new Head(config, faceplate);
 
-/** Each part to print, as it lies on the bed. */
-export const parts: Record<string, ScadObject> = {
-  faceplate: faceplate.object,
-  tray: tray.object,
-  ...ventMount.print,
-  ...pod.print,
-  ...head.print,
+/** Each part to print, as it lies on the bed, by model: each model's folder gets its STLs. */
+export const models: Record<string, Record<string, ScadObject>> = {
+  plate: { faceplate: faceplate.object, tray: tray.object, ...ventMount.print },
+  pod: pod.print,
+  head: head.print,
 };
 
 const modules = mockups(config, faceplate);

@@ -104,8 +104,11 @@ bool screen_apply_input(screen_t *s, const state_t *state, int detents, bool pre
         screen_apply_click(s, cfg);
         return false;
     }
-    // Nothing connected, not a scan's progress: that one stays on screen.
-    bool unconnected = state->wait == WAIT_CHOICE || state->wait == WAIT_RETRY;
+    // Nothing connected: a prompt, on the way to the dongle, a failure, or
+    // a status with nothing to choose (the MCP2515 waiting for the car to
+    // wake the bus). Not a scan's progress (Cancel): that one stays on screen.
+    bool unconnected =
+        state->wait == WAIT_CHOICE || state->wait == WAIT_RETRY || (state->wait == WAIT_NONE && state->status[0]);
     s->idle = s->page == PAGE_GAUGES && unconnected && now - s->input_ms >= SCREEN_IDLE_MS;
     return press;
 }

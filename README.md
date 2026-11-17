@@ -103,9 +103,9 @@ switch between the dongle and the wired CAN.
 ## The enclosure
 
 <p>
-  <img src="faceplate/renders/assembly-front.png" width="32%" alt="The assembly from the front">
-  <img src="faceplate/renders/assembly.png" width="32%" alt="The assembly from the back">
-  <img src="faceplate/renders/assembly-side.png" width="32%" alt="The assembly from the side">
+  <img src="faceplate/plate/renders/assembly-front.png" width="32%" alt="The assembly from the front">
+  <img src="faceplate/plate/renders/assembly.png" width="32%" alt="The assembly from the back">
+  <img src="faceplate/plate/renders/assembly-side.png" width="32%" alt="The assembly from the side">
 </p>
 
 A faceplate holds the display and the encoder; a tray behind it carries the Pico, the CAN

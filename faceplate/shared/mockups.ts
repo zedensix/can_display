@@ -1,19 +1,18 @@
 // The modules as they sit once assembled, for the assembly pictures only
-// (never printed): the display and the encoder in the faceplate's frame,
-// the boards and the converter in the tray's. Outlines, faces and
+// (never printed): the display and the encoder in the faceplate's frame
+// (plate/mockups.ts has the tray's boards). Outlines, faces and
 // connectors come from config.ts; the small parts (chips, the MCP2515's
 // crystal and terminal) are only placed roughly, to show which face is
 // which.
 
 import type { ScadObject } from "scad-js";
 import { cylinder, union } from "scad-js";
+import type { Faceplate } from "../plate/faceplate";
 import type { Config } from "./config";
-import type { Faceplate } from "./faceplate";
-import { box, ENCODER_PINS, PITCH } from "./geometry";
-import { DUPONT_LENGTH, HEADER_PINS, HEADER_PLASTIC, PICO_PINS, PICO_ROWS_APART } from "./tray";
+import { box, DUPONT_LENGTH, ENCODER_PINS, HEADER_PINS, HEADER_PLASTIC, PITCH } from "./geometry";
 
 /** A row of square header pins along X (or Y), centered on (x, y), from z0 to z1. */
-function pinRow(count: number, x: number, y: number, z0: number, z1: number, alongY = false): ScadObject {
+export function pinRow(count: number, x: number, y: number, z0: number, z1: number, alongY = false): ScadObject {
   return union(
     ...Array.from({ length: count }, (_, i) => {
       const offset = (i - (count - 1) / 2) * PITCH;
@@ -24,10 +23,20 @@ function pinRow(count: number, x: number, y: number, z0: number, z1: number, alo
 }
 
 /** A header's plastic spacer under a row of pins. */
-function spacer(count: number, x: number, y: number, z0: number, z1: number, alongY = false): ScadObject {
+export function spacer(count: number, x: number, y: number, z0: number, z1: number, alongY = false): ScadObject {
   const half = (count * PITCH) / 2;
   const [hx, hy] = alongY ? [PITCH / 2, half] : [half, PITCH / 2];
   return box(x - hx, x + hx, y - hy, y + hy, z0, z1).color("black");
+}
+
+/** A row of Dupont plugs along X, centered on (x, y), from z0 to z1. */
+export function plugRow(count: number, x: number, y: number, z0: number, z1: number): ScadObject {
+  return union(
+    ...Array.from({ length: count }, (_, i) => {
+      const px = x + (i - (count - 1) / 2) * PITCH;
+      return box(px - PITCH / 2 + 0.05, px + PITCH / 2 - 0.05, y - PITCH / 2 + 0.05, y + PITCH / 2 - 0.05, z0, z1);
+    }),
+  ).color("dimgray");
 }
 
 /** The display in its pockets: the panel lit, the board, the solder joints at both ends, the header's pins out the back. */
@@ -113,86 +122,4 @@ export function encoder(c: Config, faceplate: Faceplate): ScadObject {
       ),
     ).color("dimgray"),
   );
-}
-
-/** A row of Dupont plugs along X, centered on (x, y), from z0 to z1. */
-function plugRow(count: number, x: number, y: number, z0: number, z1: number): ScadObject {
-  return union(
-    ...Array.from({ length: count }, (_, i) => {
-      const px = x + (i - (count - 1) / 2) * PITCH;
-      return box(px - PITCH / 2 + 0.05, px + PITCH / 2 - 0.05, y - PITCH / 2 + 0.05, y + PITCH / 2 - 0.05, z0, z1);
-    }),
-  ).color("dimgray");
-}
-
-/** The Pico W, components out (its USB socket at the right end), its header under it, the pins and their plugs through the tray. */
-function pico(c: Config): ScadObject {
-  const { tray } = c;
-  const board = c.boards.pico;
-  const [x, y] = board.center;
-  const base = tray.thickness + board.standoffHeight;
-  const face = base + 1;
-  const right = x + board.width / 2;
-  const left = x - board.width / 2;
-  const plastic = base - HEADER_PLASTIC;
-  return union(
-    box(left, right, y - board.length / 2, y + board.length / 2, base, face).color("green"),
-    box(
-      right + 1 - board.usbSocketDepth,
-      right + 1,
-      y - board.usbSocketWidth / 2,
-      y + board.usbSocketWidth / 2,
-      face,
-      face + 2.6,
-    ).color("silver"),
-    box(x - 3.5, x + 3.5, y - 3.5, y + 3.5, face, face + 1).color("black"), // RP2040
-    box(left + 4, left + 14, y - 5, y + 5, face, face + 1.6).color("silver"), // the wireless chip's shield
-    ...[-1, 1].flatMap((side) => {
-      const rowY = y + (side * PICO_ROWS_APART) / 2;
-      return [
-        spacer(PICO_PINS, x, rowY, plastic, base),
-        pinRow(PICO_PINS, x, rowY, plastic - HEADER_PINS, face + 1.5),
-        plugRow(PICO_PINS, x, rowY, plastic - DUPONT_LENGTH, plastic),
-      ];
-    }),
-  );
-}
-
-/** The MCP2515 board, components out: the CAN terminal at the top, the 7-pin header at the bottom. */
-function mcp2515(c: Config): ScadObject {
-  const { tray } = c;
-  const board = c.boards.mcp2515;
-  const [x, y] = board.center;
-  const base = tray.thickness + board.standoffHeight;
-  const face = base + 1.6;
-  const top = y + board.length / 2;
-  const headerY = y - board.length / 2 + 2;
-  return union(
-    box(x - board.width / 2, x + board.width / 2, y - board.length / 2, top, base, face).color("navy"),
-    box(x - 5, x + 5, top - 7.5, top, face, face + 10).color("deepskyblue"), // terminal: H, L
-    box(x - 12, x - 2, y - 3, y + 4.5, face, face + 1.5).color("black"), // MCP2515
-    box(x + 6, x + 11, y - 1, y + 3, face, face + 1.5).color("black"), // TJA1050
-    box(x - 12, x - 1, y - 9, y - 4.5, face, face + 3.5).color("silver"), // 8 MHz crystal
-    spacer(7, x, headerY, face, face + 2.5),
-    pinRow(7, x, headerY, base - 1.5, face + 8.5),
-  );
-}
-
-/** The converter, its ears cut off, on the tray's back between its stops, a zip tie around it. */
-function converter(c: Config): ScadObject {
-  const k = c.converter;
-  const y = -k.fromTop;
-  const z = c.tray.thickness;
-  return union(
-    box(-k.length / 2, k.length / 2, y - k.width / 2, y + k.width / 2, z, z + k.height).color("dimgray"),
-    box(-2, 2, y - k.width / 2 - 1.5, y + k.width / 2 + 1.5, z + k.height, z + k.height + 1).color("white"),
-  );
-}
-
-/** Every module in place: the faceplate's in its frame, the tray's in the tray's (move them with it). */
-export function mockups(c: Config, faceplate: Faceplate): { faceplate: ScadObject; tray: ScadObject } {
-  return {
-    faceplate: union(display(c, faceplate), encoder(c, faceplate)),
-    tray: union(pico(c), mcp2515(c), converter(c)),
-  };
 }

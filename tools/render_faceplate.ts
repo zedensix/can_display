@@ -1,9 +1,9 @@
-// Renders each printable part of the faceplate's model (the faceplate, the
-// tray) to faceplate/stl/<part>.stl, pictures of them to
-// faceplate/renders/*.png, the assembly with every module in place to
-// faceplate/renders/assembly.scad (and the vent pod's to pod.scad), and the dimensions they're built from
-// to faceplate/data/dimensions.json, which the wiring page's Dimensions
-// tab shows.
+// Renders each model's printable parts (the faceplate and tray, the vent
+// pod, the head) to faceplate/<model>/stl/<part>.stl, pictures of them to
+// faceplate/<model>/renders/*.png, each assembly with every module in place
+// to faceplate/<model>/renders/<name>.scad, and the dimensions they're built
+// from to faceplate/data/dimensions.json, which the wiring page's
+// Dimensions tab shows.
 //
 // The STLs come from OpenSCAD compiled to WebAssembly (openscad-wasm),
 // in-process. The pictures need the native openscad, which mise installs
@@ -16,39 +16,45 @@ import { join } from "node:path";
 import { createOpenSCAD } from "openscad-wasm";
 import type { ScadObject } from "scad-js";
 import { difference } from "scad-js";
-import { assembly, faceplate, head, onVent, parts, pod, tray, vars, ventMount } from "../faceplate/model";
-import { checked, config } from "../faceplate/model/config";
-import { box } from "../faceplate/model/geometry";
+import { assembly, faceplate, head, models, onVent, pod, tray, vars, ventMount } from "../faceplate";
+import { checked, config } from "../faceplate/shared/config";
+import { box } from "../faceplate/shared/geometry";
 
-const rendersDir = join("faceplate", "renders");
+type Picture = { object: ScadObject; rotation: number[]; colors?: boolean };
 
 /**
  * Each picture: what it shows, the camera's rotation [x, y, z] in degrees
  * (OpenSCAD fits the distance), and whether to keep colors (preview mode)
  * rather than render the mesh.
  */
-const pictures: Record<string, { object: ScadObject; rotation: number[]; colors?: boolean }> = {
-  "faceplate-front": { object: parts.faceplate.rotate([0, 180, 0]), rotation: [25, 0, 0] }, // turned over: what shows in the car
-  "faceplate-back": { object: parts.faceplate, rotation: [55, 0, 25] }, // as it sits on the bed: pockets and posts
-  "tray-back": { object: parts.tray, rotation: [55, 0, 25] }, // as it sits on the bed: the boards' standoffs
-  assembly: { object: assembly, rotation: [70, 0, 140], colors: true }, // from behind, every module in place
-  "assembly-front": { object: assembly.rotate([0, 180, 0]), rotation: [55, 0, 20], colors: true }, // what shows in the car
-  "assembly-side": { object: assembly, rotation: [90, 0, 90], colors: true }, // from the side: the stack, the front at the bottom
-  "vent-mount": { object: onVent, rotation: [90, 0, 90], colors: true }, // on its temporary vent hook, from the side
-  "vent-clamp": { object: ventMount.clamp, rotation: [70, 0, 140], colors: true }, // the clamp alone, from behind the dash
-  "pod-front": { object: pod.assembly.rotate([0, 180, 0]), rotation: [70, 0, 20], colors: true }, // what shows in the car
-  "pod-side": { object: pod.assembly, rotation: [90, 0, 60], colors: true }, // the can cut open: the sled and its boards
-  "pod-face-back": { object: pod.face, rotation: [235, 0, 25] }, // the room behind the face, the spigot
-  "pod-sled": { object: parts["pod-sled"], rotation: [55, 0, 25] }, // as it sits on the bed
-  "head-front": { object: head.assembly.rotate([0, 180, 0]), rotation: [70, 0, 20], colors: true }, // what shows in the car
-  // Cut open across the Pico's standoffs: the stack, display, Pico, lid, the wedge under it.
-  "head-side": {
-    object: difference(head.assembly, box(head.picoHoles[0][0], 50, -50, 50, -50, 50)),
-    rotation: [90, 0, 90],
-    colors: true,
+const pictures: Record<string, Record<string, Picture>> = {
+  plate: {
+    "faceplate-front": { object: models.plate.faceplate.rotate([0, 180, 0]), rotation: [25, 0, 0] }, // turned over: what shows in the car
+    "faceplate-back": { object: models.plate.faceplate, rotation: [55, 0, 25] }, // as it sits on the bed: pockets and posts
+    "tray-back": { object: models.plate.tray, rotation: [55, 0, 25] }, // as it sits on the bed: the boards' standoffs
+    assembly: { object: assembly, rotation: [70, 0, 140], colors: true }, // from behind, every module in place
+    "assembly-front": { object: assembly.rotate([0, 180, 0]), rotation: [55, 0, 20], colors: true }, // what shows in the car
+    "assembly-side": { object: assembly, rotation: [90, 0, 90], colors: true }, // from the side: the stack, the front at the bottom
+    "vent-mount": { object: onVent, rotation: [90, 0, 90], colors: true }, // on its temporary vent hook, from the side
+    "vent-clamp": { object: ventMount.clamp, rotation: [70, 0, 140], colors: true }, // the clamp alone, from behind the dash
   },
-  "head-shell-back": { object: head.shell, rotation: [55, 0, 25] }, // as it sits on the bed: the room, the bosses, the USB notch
-  "head-lid": { object: parts["head-lid"], rotation: [55, 0, 25] }, // as it sits on the bed: the Pico's standoffs
+  pod: {
+    "pod-front": { object: pod.assembly.rotate([0, 180, 0]), rotation: [70, 0, 20], colors: true }, // what shows in the car
+    "pod-side": { object: pod.assembly, rotation: [90, 0, 60], colors: true }, // the can cut open: the sled and its boards
+    "pod-face-back": { object: pod.face, rotation: [235, 0, 25] }, // the room behind the face, the spigot
+    "pod-sled": { object: models.pod["pod-sled"], rotation: [55, 0, 25] }, // as it sits on the bed
+  },
+  head: {
+    "head-front": { object: head.assembly.rotate([0, 180, 0]), rotation: [70, 0, 20], colors: true }, // what shows in the car
+    // Cut open across the Pico's standoffs: the stack, display, Pico, lid, the wedge under it.
+    "head-side": {
+      object: difference(head.assembly, box(head.picoHoles[0][0], 50, -50, 50, -50, 50)),
+      rotation: [90, 0, 90],
+      colors: true,
+    },
+    "head-shell-back": { object: head.shell, rotation: [55, 0, 25] }, // as it sits on the bed: the room, the bosses, the USB notch
+    "head-lid": { object: models.head["head-lid"], rotation: [55, 0, 25] }, // as it sits on the bed: the Pico's standoffs
+  },
 };
 
 async function renderStl(source: string, path: string): Promise<void> {
@@ -101,35 +107,38 @@ const dimensions = {
 };
 await Bun.write(join("faceplate", "data", "dimensions.json"), `${JSON.stringify(dimensions, null, 2)}\n`);
 
-// The assembly as OpenSCAD source, to turn around in its window (`mise run assembly`).
-await Bun.write(
-  join(rendersDir, "assembly.scad"),
-  `// Written by tools/render_faceplate.ts (mise run faceplate): don't edit. Preview (F5) keeps the colors.\n${assembly.serialize(vars)}`,
-);
-// The vent pod's the same way (`mise run pod`), the can cut open on the right.
-await Bun.write(
-  join(rendersDir, "pod.scad"),
-  `// Written by tools/render_faceplate.ts (mise run faceplate): don't edit. Preview (F5) keeps the colors.\n${pod.assembly.serialize(vars)}`,
-);
+// Each assembly as OpenSCAD source, to turn around in its window (`mise run assembly`, `pod`, `head`).
+const scads: Record<string, Record<string, ScadObject>> = {
+  plate: { assembly },
+  pod: { pod: pod.assembly }, // the can cut open on the right
+  head: { head: head.assembly },
+};
+for (const [model, files] of Object.entries(scads)) {
+  for (const [name, object] of Object.entries(files)) {
+    await Bun.write(
+      join("faceplate", model, "renders", `${name}.scad`),
+      `// Written by tools/render_faceplate.ts (mise run faceplate): don't edit. Preview (F5) keeps the colors.\n${object.serialize(vars)}`,
+    );
+  }
+}
 
-// The head's the same way (`mise run head`).
-await Bun.write(
-  join(rendersDir, "head.scad"),
-  `// Written by tools/render_faceplate.ts (mise run faceplate): don't edit. Preview (F5) keeps the colors.\n${head.assembly.serialize(vars)}`,
-);
-
-for (const [name, part] of Object.entries(parts)) {
-  console.log(`faceplate: rendering ${name}.stl...`);
-  await renderStl(part.serialize(vars), join("faceplate", "stl", `${name}.stl`));
+for (const [model, parts] of Object.entries(models)) {
+  for (const [name, part] of Object.entries(parts)) {
+    console.log(`faceplate: rendering ${model}/${name}.stl...`);
+    await renderStl(part.serialize(vars), join("faceplate", model, "stl", `${name}.stl`));
+  }
 }
 
 const tempDir = await mkdtemp(join(tmpdir(), "faceplate-"));
 try {
-  for (const [name, picture] of Object.entries(pictures)) {
-    console.log(`faceplate: rendering ${name}.png...`);
-    const scadPath = join(tempDir, `${name}.scad`);
-    await writeFile(scadPath, picture.object.serialize(vars));
-    await renderPicture(scadPath, picture.rotation, picture.colors ?? false, join(rendersDir, `${name}.png`));
+  for (const [model, shots] of Object.entries(pictures)) {
+    for (const [name, picture] of Object.entries(shots)) {
+      console.log(`faceplate: rendering ${model}/${name}.png...`);
+      const scadPath = join(tempDir, `${name}.scad`);
+      await writeFile(scadPath, picture.object.serialize(vars));
+      const png = join("faceplate", model, "renders", `${name}.png`);
+      await renderPicture(scadPath, picture.rotation, picture.colors ?? false, png);
+    }
   }
 } finally {
   await rm(tempDir, { recursive: true, force: true });

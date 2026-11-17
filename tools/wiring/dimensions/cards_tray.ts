@@ -1,7 +1,7 @@
 // The Dimensions tab's tray cards: each board on its standoffs, the
 // converter, and what the printed parts come out as.
 
-import type { Config } from "../../../faceplate/model/config";
+import type { Config } from "../../../faceplate/shared/config";
 import { type CardSpec, HOLE, PCB, partDrawing, type Row } from "./drawing";
 
 type Board = Config["boards"]["pico"] | Config["boards"]["mcp2515"];

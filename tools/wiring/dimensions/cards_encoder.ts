@@ -1,7 +1,7 @@
 // The Dimensions tab's encoder card: the body in its recess, the board on
 // its standoffs, the shaft through the plate.
 
-import type { Config } from "../../../faceplate/model/config";
+import type { Config } from "../../../faceplate/shared/config";
 import { type CardSpec, HOLE, partDrawing } from "./drawing";
 
 export function encoderCard(
