@@ -5,12 +5,24 @@ set -euo pipefail
 volume=/Volumes/RPI-RP2
 uf2="${UF2:-bin/firmware.uf2}"
 
+fail() {
+  echo "      error: $1" >&2
+  exit 1
+}
+
+# The volume really mounted, not just its folder: macOS creates the
+# folder before the drive is ready to write to.
+volume_mounted() {
+  mount | grep -q " on $volume ("
+}
+
 echo "[1/4] building..."
 "$(dirname "$0")/firmware" >/dev/null
+[ -f "$uf2" ] || fail "$uf2 wasn't built"
 echo "      built in ${SECONDS}s"
 
 echo "[2/4] waiting for the Pico in BOOTSEL ($volume)..."
-if [ ! -d "$volume" ]; then
+if ! volume_mounted; then
   port="${PORT:-$( (ls /dev/cu.usbmodem* 2>/dev/null || true) | head -1)}"
   if [ -n "$port" ]; then
     echo "      asking the firmware running on $port to reboot into BOOTSEL"
@@ -20,27 +32,33 @@ if [ ! -d "$volume" ]; then
   fi
 fi
 for _ in $(seq 60); do
-  [ -d "$volume" ] && break
+  volume_mounted && [ -w "$volume" ] && break
   sleep 1
 done
-[ -d "$volume" ] || { echo "      no $volume after 60s, giving up"; exit 1; }
+volume_mounted || fail "no $volume after 60s: hold BOOTSEL while replugging the Pico"
+[ -w "$volume" ] || fail "$volume is mounted but not writable"
 
 echo "[3/4] copying $uf2 ($(du -h "$uf2" | cut -f1 | tr -d ' ')) to the Pico..."
-# dd, not cp: macOS cp goes through copyfile, which the bootloader's fake
-# FAT drive refuses. The Pico reboots as soon as it has the whole file,
-# so dd can still fail on close after a good copy: the volume going away
-# is the real check.
-copied=true
-dd if="$uf2" of="$volume/firmware.uf2" bs=64k status=progress || copied=false
+# dd, not cp: the bootloader's FAT drive refuses macOS copyfile. dd can
+# fail on close after a good copy (the Pico reboots as soon as it has the
+# whole file): the drive gone after a failure is a success.
+copied=false
+for attempt in 1 2 3; do
+  if dd if="$uf2" of="$volume/firmware.uf2" bs=64k status=progress; then
+    copied=true
+    break
+  fi
+  volume_mounted || { echo "done in ${SECONDS}s"; exit 0; }
+  echo "      copy attempt $attempt failed, $volume still mounted: retrying in 2s"
+  sleep 2
+done
+if [ "$copied" = false ]; then
+  fail "couldn't write $volume/firmware.uf2 (see dd's error above). \"Permission denied\" with the drive mounted: the app running this terminal needs access to removable volumes, System Settings > Privacy & Security > Files and Folders > that app > Removable Volumes"
+fi
 
 echo "[4/4] waiting for the Pico to reboot..."
 for _ in $(seq 15); do
-  [ -d "$volume" ] || { echo "done in ${SECONDS}s"; exit 0; }
+  volume_mounted || { echo "done in ${SECONDS}s"; exit 0; }
   sleep 1
 done
-if [ "$copied" = false ]; then
-  echo "      the copy failed, see the error above"
-else
-  echo "      $volume is still mounted: the Pico rejected the file"
-fi
-exit 1
+fail "$volume is still mounted 15s after the copy: the Pico rejected the file (a UF2 for another chip?)"

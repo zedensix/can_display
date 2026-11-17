@@ -7,6 +7,15 @@ if [ ! -d "$PICO_SDK_PATH" ]; then
   git clone -q --depth 1 --branch "$PICO_SDK_VERSION" --recurse-submodules --shallow-submodules \
     https://github.com/raspberrypi/pico-sdk "$PICO_SDK_PATH"
 fi
+# A clone cut short, or a cache emptied behind our back, leaves submodules
+# missing or at the wrong commit ('-' or '+' in the status): CMake then
+# builds without USB nor Bluetooth, and fails on pico_btstack_make_gatt_header.
+# (Captured first: with pipefail, grep -q stopping early fails the pipe.)
+submodules_state="$(git -C "$PICO_SDK_PATH" submodule status)"
+if grep -q '^[-+U]' <<<"$submodules_state"; then
+  echo "repairing pico-sdk $PICO_SDK_VERSION's submodules (btstack, cyw43-driver, lwip, mbedtls, tinyusb)"
+  git -C "$PICO_SDK_PATH" submodule update --init --force --depth 1
+fi
 cmake -S . -B build/firmware -G Ninja >/dev/null
 cmake --build build/firmware
 mkdir -p bin
