@@ -6,19 +6,25 @@
 // encoder will: so the Pico sits behind the display.
 //
 // - The shell: the front with the display's window and pockets (the
-//   faceplate's, turned to landscape), walls just around its board, a room
-//   behind it for the Pico, a notch in the end by its USB socket for the
-//   plug, 2 bosses for the lid's screws, and a wedge under it so the screen
-//   leans back toward the driver's eyes, its face for 3M VHB tape.
-// - The lid closes the back, the Pico screwed under it on 4 standoffs,
-//   components toward the lid (the wires soldered on its pins' tips), its
-//   header's plastic toward the display, the pins cut flush with it. Vents
-//   around them, and the cable's hole under the Pico.
+//   faceplate's, turned to landscape), 4 pins through the display board's
+//   holes, melted into heads with the soldering iron; walls just around the
+//   board, nothing standing into the room (the board goes in from the back,
+//   as wide as the room); a notch in the end by the Pico's USB socket for
+//   the plug, 2 slots for the lid's hooks, and a wedge under it so the
+//   screen leans back toward the driver's eyes, its face for 3M VHB tape.
+// - The lid lies on the walls' back edge all round, 2 snap tabs hanging
+//   along the top and bottom walls, their hooks clicking into the slots; a
+//   small screwdriver through a slot pushes its hook back in. The Pico lies
+//   on it, components toward the display (its USB socket and the wires
+//   soldered on its pins' tips), its header's plastic on the lid, the pins
+//   cut flush with it, on 4 standoffs as tall, their pins through its holes
+//   melted into heads: on that face the USB socket isn't between them.
+//   Vents around them, and the cable's slot, out the back.
 //
 // Seen from the back like the faceplate: x across, y up, the front at
 // z = 0, the display board centered. Both print with no supports: the
-// shell front down (the window's bevel, the bosses' 45 degree
-// undersides), the lid outside down.
+// shell front down (the window's bevel, the slots' short bridges), the lid
+// outside down (the hooks' 0.5 mm ledges).
 
 import type { ScadObject } from "scad-js";
 import { cylinder, difference, hull, intersection, square, union } from "scad-js";
@@ -34,15 +40,16 @@ export class Head {
   readonly halfY: number;
   /** The front's thickness: the display board's back. */
   readonly plate: number;
-  /** The Pico's board, its side toward the display, and the lid's inner face. */
+  /** The Pico's board, its components' side (toward the display), and the lid's inner face, where the walls end. */
   readonly picoFace: number;
   readonly lidFace: number;
   readonly depth: number;
   /** The Pico's board along x, its USB socket at the left end (seen from the back). */
   readonly picoX: [number, number];
   readonly picoHoles: [number, number][];
-  /** The lid's screws, in the 2 bosses. */
-  readonly screws: [number, number][];
+  readonly displayHoles: [number, number][];
+  /** Where each tab ends, its hook's ramp starting there. */
+  readonly tabTip: number;
   readonly cable: [number, number];
 
   constructor(
@@ -53,8 +60,8 @@ export class Head {
     this.halfX = d.pcbLength / 2 + clearance;
     this.halfY = d.pcbWidth / 2 + clearance;
     this.plate = faceplate.thickness;
-    this.picoFace = this.plate + h.displayBackGap + h.picoHeaderHeight;
-    this.lidFace = this.picoFace + h.picoPcbThickness + h.picoStandoff;
+    this.picoFace = this.plate + h.picoComponents;
+    this.lidFace = this.picoFace + h.picoPcbThickness + h.picoHeaderHeight;
     this.depth = this.lidFace + h.lidThickness;
     const x0 = -this.halfX + h.picoUsbOverhang + clearance;
     this.picoX = [x0, x0 + boards.pico.width];
@@ -65,18 +72,27 @@ export class Head {
         (sy * boards.pico.holesApartY) / 2,
       ]),
     );
-    this.screws = [-1, 1].map((sy): [number, number] => [0, sy * (this.halfY - h.bossDepth / 2)]);
-    // Under the Pico, toward the hood, clear of the bottom boss.
+    const px = d.pcbLength / 2 - d.holeInset;
+    const py = d.pcbWidth / 2 - d.holeInset;
+    this.displayHoles = [-1, 1].flatMap((sx) => [-1, 1].map((sy): [number, number] => [sx * px, sy * py]));
+    this.tabTip = this.lidFace - h.tabLength;
+    // Under the Pico, toward the hood.
     this.cable = [this.halfX / 2, -(boards.pico.length / 2 + this.halfY) / 2];
 
     if (this.halfY - boards.pico.length / 2 < h.cableHole + 1) {
-      throw new Error("head: no room for the cable's hole under the Pico: check head.cableHole");
+      throw new Error("head: no room for the cable's slot under the Pico: check head.cableHole");
     }
-    if (this.halfY - h.bossDepth < boards.pico.length / 2) {
-      throw new Error("head: the lid's bosses reach the Pico: check head.bossDepth");
+    if (
+      this.cable[0] - h.cableSlotLength / 2 < h.tabWidth / 2 + 1 ||
+      this.cable[0] + h.cableSlotLength / 2 > this.halfX - 1
+    ) {
+      throw new Error("head: the cable's slot reaches a tab or the wall: check head.cableSlotLength");
     }
-    if (this.lidFace - h.screwDepth - h.bossDepth < this.plate) {
-      throw new Error("head: the bosses' undersides reach the display's board: check head.screwDepth and bossDepth");
+    if (this.tabTip < this.plate + 0.5) {
+      throw new Error("head: the lid's tabs reach the display's board: check head.tabLength");
+    }
+    if (this.halfY - clearance - h.tabThickness < boards.pico.length / 2) {
+      throw new Error("head: the lid's tabs reach the Pico: check head.tabThickness");
     }
   }
 
@@ -93,112 +109,148 @@ export class Head {
       .translate([0, 0, z0]);
   }
 
-  /** The wedge under the bottom: its face, flat on the hood, leans the screen back by head.tilt. */
+  /** The outline's half sizes, the walls included. */
+  private get outerX(): number {
+    return this.halfX + this.c.head.wall;
+  }
+
+  private get outerY(): number {
+    return this.halfY + this.c.head.wall;
+  }
+
+  /** How far the wedge stands under the bottom at the front: its face, flat on the hood, leans the screen back by head.tilt. */
+  private get drop(): number {
+    return this.depth * Math.tan((this.c.head.tilt * Math.PI) / 180);
+  }
+
+  /** The wedge under the bottom, from the front to the lid. */
   private get foot(): ScadObject {
-    const { head: h } = this.c;
-    const x = this.halfX + h.wall - h.cornerRadius;
-    const bottom = -this.halfY - h.wall;
-    const drop = this.depth * Math.tan((h.tilt * Math.PI) / 180);
+    const x = this.outerX - this.c.head.cornerRadius;
+    const bottom = -this.outerY;
+    const atLid = (this.drop * (this.depth - this.lidFace)) / this.depth;
     return hull(
-      box(-x, x, bottom - drop, bottom + 0.01, 0, 0.01),
-      box(-x, x, bottom - 0.01, bottom + 0.01, this.depth - 0.01, this.depth),
+      box(-x, x, bottom - this.drop, bottom + 0.01, 0, 0.01),
+      box(-x, x, bottom - atLid, bottom + 0.01, this.lidFace - 0.01, this.lidFace),
     );
   }
 
-  /** The lid's 2 bosses, on the top and bottom walls, their undersides at 45 degrees. */
-  private get bosses(): ScadObject {
-    const { head: h } = this.c;
-    const w = h.bossWidth / 2;
-    const bottom = this.lidFace - h.screwDepth;
-    return union(
-      ...[-1, 1].map((sy) => {
-        const wall = sy * this.halfY;
-        const inner = sy * (this.halfY - h.bossDepth);
-        const [y0, y1] = sy > 0 ? [inner, wall + 0.01] : [wall - 0.01, inner];
-        return hull(
-          box(-w, w, y0, y1, bottom, this.lidFace),
-          box(-w, w, wall - 0.01, wall + 0.01, bottom - h.bossDepth, bottom),
-        );
-      }),
-    );
+  /** y0..y1 on the top wall's side (sy = 1), mirrored onto the bottom's (sy = -1). */
+  private side(sy: number, y0: number, y1: number): [number, number] {
+    return sy > 0 ? [y0, y1] : [-y1, -y0];
   }
 
-  /** The shell, as built: front at z = 0, open at the back. */
+  /** Pins through a board's holes, d across, from z0 to z1. */
+  private stakes(holes: [number, number][], d: number, z0: number, z1: number): ScadObject {
+    return union(...holes.map(([x, y]) => cylinder(z1 - z0, d / 2, { center: false }).translate([x, y, z0])));
+  }
+
+  /** The shell, as built: front at z = 0, its walls up to the lid. */
   get shell(): ScadObject {
-    const { head: h, screw } = this.c;
+    const { head: h, display: d, clearance } = this.c;
     const f = this.faceplate;
-    const socketZ = this.picoFace + h.picoPcbThickness + 1.3;
-    return difference(
-      union(
-        difference(
-          union(this.rounded(this.halfX + h.wall, this.halfY + h.wall, h.cornerRadius, 0, this.depth), this.foot),
-          box(-this.halfX, this.halfX, -this.halfY, this.halfY, this.plate, this.depth + 1),
+    const socketZ = this.picoFace - 1.3;
+    const boardFront = this.plate - d.pcbThickness;
+    return union(
+      difference(
+        union(this.rounded(this.outerX, this.outerY, h.cornerRadius, 0, this.lidFace), this.foot),
+        box(-this.halfX, this.halfX, -this.halfY, this.halfY, this.plate, this.lidFace + 1),
+        this.displayed(union(f.displayWindow, f.displayPockets)),
+        // The USB plug's notch, up to the lid.
+        box(
+          -this.outerX - 1,
+          -this.halfX + 0.01,
+          -h.usbSlotWidth / 2,
+          h.usbSlotWidth / 2,
+          socketZ - h.usbSlotHeight / 2,
+          this.lidFace + 1,
         ),
-        this.bosses,
+        // The hooks' slots, through the wall (and the wedge, at the bottom).
+        ...[-1, 1].map((sy) =>
+          box(
+            -h.tabWidth / 2 - clearance,
+            h.tabWidth / 2 + clearance,
+            ...this.side(sy, this.halfY - 0.01, this.outerY + this.drop + 1),
+            this.tabTip - 0.3,
+            this.tabTip + h.hookLength + 0.15,
+          ),
+        ),
       ),
-      this.displayed(union(f.displayWindow, f.displayPockets, f.displayScrewHoles)),
-      // The USB plug's notch, open at the back.
-      box(
-        -this.halfX - h.wall - 1,
-        -this.halfX + 0.01,
-        -h.usbSlotWidth / 2,
-        h.usbSlotWidth / 2,
-        socketZ - h.usbSlotHeight / 2,
-        this.depth + 1,
-      ),
-      ...this.screws.map(([x, y]) =>
-        cylinder(h.screwDepth + 1, screw.pilotDiameter / 2, { center: false }).translate([
-          x,
-          y,
-          this.lidFace - h.screwDepth,
-        ]),
+      this.stakes(this.displayHoles, d.holeDiameter - 2 * clearance, boardFront - 0.01, this.plate + h.stakeLength),
+    );
+  }
+
+  /** The 2 snap tabs, hanging from the lid along the top and bottom walls, a hook ramping out at each tip. */
+  private get tabs(): ScadObject {
+    const { head: h, clearance } = this.c;
+    const w = h.tabWidth / 2;
+    const outer = this.halfY - clearance;
+    return union(
+      ...[-1, 1].map((sy) =>
+        union(
+          box(-w, w, ...this.side(sy, outer - h.tabThickness, outer), this.tabTip, this.lidFace + 0.01),
+          hull(
+            box(-w, w, ...this.side(sy, outer - 0.01, outer), this.tabTip, this.tabTip + 0.01),
+            box(
+              -w,
+              w,
+              ...this.side(sy, outer - 0.01, this.halfY + h.hookDepth),
+              this.tabTip + h.hookLength - 0.01,
+              this.tabTip + h.hookLength,
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  /** The lid, as built: from lidFace to the back, the Pico's standoffs toward the front. */
+  /** The lid, as built: from lidFace to the back, its tabs, the Pico's standoffs and their pins toward the front. */
   get lid(): ScadObject {
-    const { head: h, screw, clearance } = this.c;
+    const { head: h, boards, clearance } = this.c;
     const lx = this.halfX - clearance;
     const ly = this.halfY - clearance;
     const standoffR = h.standoffDiameter / 2;
     const keepOut: Rect[] = [
       ...this.picoHoles.map(([x, y]): Rect => [x - standoffR, x + standoffR, y - standoffR, y + standoffR]),
-      ...this.screws.map(([x, y]): Rect => [x - h.bossWidth / 2, x + h.bossWidth / 2, y - 2.5, y + 2.5]),
+      ...[-1, 1].map(
+        (sy): Rect => [-h.tabWidth / 2, h.tabWidth / 2, ...this.side(sy, ly - h.tabThickness - 1, ly + 1)],
+      ),
       [
-        this.cable[0] - h.cableHole / 2,
-        this.cable[0] + h.cableHole / 2,
+        this.cable[0] - h.cableSlotLength / 2,
+        this.cable[0] + h.cableSlotLength / 2,
         this.cable[1] - h.cableHole / 2,
         this.cable[1] + h.cableHole / 2,
       ],
     ];
     const r = h.ventCell;
     const cells = honeycomb(r, h.ventWall, 0, Math.hypot(lx, ly), keepOut).filter(
-      ([x, y]) => Math.abs(x) + r + 1.5 <= lx && Math.abs(y) + r + 1.5 <= ly,
+      ([x, y]) => Math.abs(x) + r + 1 <= lx && Math.abs(y) + r + 1 <= ly,
     );
+    const standoffBase = this.lidFace - h.picoHeaderHeight;
     return difference(
       union(
-        box(-lx, lx, -ly, ly, this.lidFace, this.depth),
+        this.rounded(this.outerX, this.outerY, h.cornerRadius, this.lidFace, this.depth),
+        this.tabs,
+        this.stakes(this.picoHoles, h.standoffDiameter, standoffBase, this.lidFace + 0.01),
+        // Shorter by the USB socket, between them (stakeNearUsb).
         ...this.picoHoles.map(([x, y]) =>
-          cylinder(h.picoStandoff + 0.01, standoffR, { center: false }).translate([
-            x,
-            y,
-            this.lidFace - h.picoStandoff,
+          this.stakes(
+            [[x, y]],
+            boards.pico.holeDiameter - 2 * clearance,
+            this.picoFace - (x < this.picoX[0] + boards.pico.width / 2 ? h.stakeNearUsb : h.stakeLength),
+            standoffBase + 0.01,
+          ),
+        ),
+      ),
+      // The cable's slot, round at both ends.
+      hull(
+        ...[-1, 1].map((sx) =>
+          cylinder(h.lidThickness + 2, h.cableHole / 2, { center: false }).translate([
+            this.cable[0] + (sx * (h.cableSlotLength - h.cableHole)) / 2,
+            this.cable[1],
+            this.lidFace - 1,
           ]),
         ),
       ),
-      // Blind: the outside stays clean.
-      ...this.picoHoles.map(([x, y]) =>
-        cylinder(h.picoStandoff + 1, screw.pilotDiameter / 2, { center: false }).translate([
-          x,
-          y,
-          this.lidFace - h.picoStandoff - 0.5,
-        ]),
-      ),
-      ...this.screws.map(([x, y]) =>
-        cylinder(h.lidThickness + 2, h.screwClearance / 2, { center: false }).translate([x, y, this.lidFace - 1]),
-      ),
-      cylinder(h.lidThickness + 2, h.cableHole / 2, { center: false }).translate([...this.cable, this.lidFace - 1]),
       cellHoles(cells, r, this.lidFace - 1, this.depth + 1),
     );
   }
@@ -217,7 +269,7 @@ export class Head {
     const { boards, head: h } = c;
     const [x0, x1] = this.picoX;
     const y = boards.pico.length / 2;
-    const top = this.picoFace + h.picoPcbThickness;
+    const back = this.picoFace + h.picoPcbThickness;
     // The display's header cut past its plastic, its wires soldered on.
     const displayCut = intersection(
       this.displayed(display(c, this.faceplate)),
@@ -226,18 +278,18 @@ export class Head {
     return union(
       this.shell.color("gold"),
       displayCut,
-      box(x0, x1, -y, y, this.picoFace, top).color("green"),
+      box(x0, x1, -y, y, this.picoFace, back).color("green"),
       ...[-1, 1].map((sy) =>
         box(
           x0 + 1,
           x1 - 1,
           (sy * PICO_ROWS_APART) / 2 - 1.27,
           (sy * PICO_ROWS_APART) / 2 + 1.27,
-          this.picoFace - h.picoHeaderHeight,
-          this.picoFace,
+          back,
+          back + h.picoHeaderHeight,
         ).color("black"),
       ),
-      box(x0 - h.picoUsbOverhang, x0 + 4, -4, 4, top, top + 2.6).color("silver"),
+      box(x0 - h.picoUsbOverhang, x0 + 4, -4, 4, this.picoFace - 2.6, this.picoFace).color("silver"),
       this.lid.color("silver"),
     );
   }
