@@ -13,23 +13,24 @@ export const head = {
   picoHeaderHeight: 2.5, // the header's plastic under the Pico's board, on the lid, its pins cut flush with it; its standoffs as tall
   picoPcbThickness: 1,
   picoUsbOverhang: 1.3, // how far its micro-USB socket stands past its board's end
-  standoffDiameter: 4.4, // the Pico's 4 standoffs on the lid, on its header's side
+  standoffDiameter: 3.4, // the Pico's 4 standoffs on the lid, on its header's side, between its 2 rows of plastic (4.4 ran 0.2 mm into them); each cut flat inside, boards.pico.usbSocketWidth and clearance between them, so the USB socket passes whichever way up the Pico goes
   // Heat-staked pins hold the boards, no screws: through each board's
   // holes (clearance smaller than the hole), then flattened into a head with
   // the soldering iron.
   stakeLength: 1.5, // how far each pin stands past its board, to melt into a head
   // The Pico's 2 pins by its USB socket stand either side of it, 9.6 mm
-  // apart for a socket 8 mm wide: a full head (about 3 mm) would touch it.
-  // Shorter, they melt into a head about 2.3 mm across, 0.5 mm clear.
+  // apart (holes 11.2 apart, pins 1.6 across) for a socket 8 mm wide: a
+  // full head (about 3 mm) would touch it. Shorter, they melt into a head
+  // about 2.3 mm across, 0.5 mm clear.
   stakeNearUsb: 0.6,
   lidThickness: 1.2, // the lid, lying on the walls' back edge all round
   // 2 snap tabs hang from the lid along the top and bottom walls, a hook at
   // each tip clicking into a slot through the wall; a small screwdriver
   // through the slot pushes the hook back in to take the lid off.
-  tabWidth: 8,
-  tabThickness: 1, // thin enough to bend: PLA takes about 3% strain, the hook's bend here about 2.4%
-  tabLength: 7, // from the lid down, ending above the display's board
-  hookDepth: 0.5, // how far the hook stands out of the tab, into the slot
+  tabWidth: 10,
+  tabThickness: 1, // thin enough to bend: PLA takes about 3% strain, the hook's bend here (1.3 mm: the hook and the clearance) about 2.7%
+  tabLength: 8.5, // from the lid down, ending 0.5 mm above the display's board: the longer, the easier it bends
+  hookDepth: 1, // how far the hook reaches into the wall's slot (0.5 didn't hold)
   hookLength: 1.2, // the hook's ramp, from the tip back to its catch
   usbSlotWidth: 12, // the notch by the Pico's micro-USB socket, for the plug's overmold
   usbSlotHeight: 8,

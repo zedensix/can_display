@@ -18,8 +18,10 @@ const defaults = {
     pcbWidth: 37.5, // the module's board, across (the short side)
     pcbLength: 58, // the module's board, top to bottom (the long side)
     pcbThickness: 1.6, // the board alone, without the glass
-    holeInset: 2.5, // from the board's edges to the center of each of its 4 corner mounting holes
-    holeDiameter: 2.5, // those holes (a guess: measure them), for the head's heat-staked pins
+    // Its 4 corner mounting holes, on a rectangle centered on the board.
+    holesApartX: 30.5, // between their centers, across
+    holesApartY: 53, // between their centers, top to bottom
+    holeDiameter: 3, // for the head's heat-staked pins; the faceplate takes M2 screws in them (screw.pilotDiameter): an M3's pilot leaves too little plate beside the panel's pocket
     glassWidth: 35.7, // the panel glued on the board (glass and backlight), across
     glassLength: 48, // the panel, top to bottom, without its ribbon
     glassThickness: 2.6, // the panel, glass and backlight, from the board's face

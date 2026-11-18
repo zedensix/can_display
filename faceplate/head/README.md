@@ -27,9 +27,12 @@ parts, printed with no supports:
   goes through the wedge: take the head off the hood first). The Pico lies
   on the lid, components toward the display, its header's plastic on the
   lid, on 4 standoffs as tall whose pins go through its holes, flattened
-  the same way; on that face the USB socket isn't between them. The 2 by
-  the socket stand only 0.6 mm past the board, for a smaller head: they're
-  9.6 mm apart for a socket 8 mm wide, a full head would touch it. Cut the
+  the same way: the socket faces the display, away from them. The
+  standoffs (3.4 mm) fit between the header's 2 rows of plastic, each cut
+  flat inside, 8.6 mm between them: the socket passes whichever way up the
+  Pico goes. Their pins stand only 0.6 mm past the board, for a
+  smaller head: they're 9.6 mm apart for a socket 8 mm wide, a full head
+  would touch it. Cut the
   long pins flush with the plastic and solder the wires on their short tips
   before melting the pins; no Dupont plug fits. The display's header gets
   the same: pins cut past the plastic, wires soldered. A honeycomb in the
@@ -42,8 +45,8 @@ the Pico's pin tips and bent over, in 26 AWG silicone wire at most (30 AWG
 wire-wrap wire leaves plenty); beside the Pico, 8.5 mm above and below it
 for the wires to run along to the display's header and the slot.
 
-`display.holeDiameter` is a guess (2.5 mm): measure the display board's
-holes, the pins are made 0.6 mm thinner. The tabs bend about 2.4%: fine in
+The display board's holes are 30.5 x 53 mm apart (centers), 3 mm across:
+the pins are made 0.6 mm thinner. The tabs bend about 2.7%: fine in
 PLA, better in PETG or ASA.
 
 PLA is for the test print: the top of the dash in the sun gets past 60°C,

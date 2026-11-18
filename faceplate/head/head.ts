@@ -24,13 +24,13 @@
 // Seen from the back like the faceplate: x across, y up, the front at
 // z = 0, the display board centered. Both print with no supports: the
 // shell front down (the window's bevel, the slots' short bridges), the lid
-// outside down (the hooks' 0.5 mm ledges).
+// outside down (the hooks' 1.3 mm ledges, short enough to print in the air).
 
 import type { ScadObject } from "scad-js";
 import { cylinder, difference, hull, intersection, square, union } from "scad-js";
 import type { Faceplate } from "../plate/faceplate";
 import type { Config } from "../shared/config";
-import { box, HEADER_PLASTIC, PICO_ROWS_APART } from "../shared/geometry";
+import { box, HEADER_PLASTIC, PICO_ROWS_APART, PITCH } from "../shared/geometry";
 import { display } from "../shared/mockups";
 import { cellHoles, honeycomb, type Rect } from "../shared/vents";
 
@@ -72,9 +72,10 @@ export class Head {
         (sy * boards.pico.holesApartY) / 2,
       ]),
     );
-    const px = d.pcbLength / 2 - d.holeInset;
-    const py = d.pcbWidth / 2 - d.holeInset;
-    this.displayHoles = [-1, 1].flatMap((sx) => [-1, 1].map((sy): [number, number] => [sx * px, sy * py]));
+    // Landscape: the board's length along x.
+    this.displayHoles = [-1, 1].flatMap((sx) =>
+      [-1, 1].map((sy): [number, number] => [(sx * d.holesApartY) / 2, (sy * d.holesApartX) / 2]),
+    );
     this.tabTip = this.lidFace - h.tabLength;
     // Under the Pico, toward the hood.
     this.cable = [this.halfX / 2, -(boards.pico.length / 2 + this.halfY) / 2];
@@ -88,12 +89,39 @@ export class Head {
     ) {
       throw new Error("head: the cable's slot reaches a tab or the wall: check head.cableSlotLength");
     }
+    const standoffR = h.standoffDiameter / 2;
+    if (boards.pico.holesApartY / 2 + standoffR + clearance > PICO_ROWS_APART / 2 - PITCH / 2) {
+      throw new Error("head: the Pico's standoffs run into its header's plastic: check head.standoffDiameter");
+    }
+    if (boards.pico.holesApartY / 2 - boards.pico.holeDiameter / 2 + clearance < this.usbGap / 2) {
+      throw new Error("head: the Pico's pins by its USB socket leave under boards.pico.usbSocketWidth between them");
+    }
     if (this.tabTip < this.plate + 0.5) {
       throw new Error("head: the lid's tabs reach the display's board: check head.tabLength");
     }
     if (this.halfY - clearance - h.tabThickness < boards.pico.length / 2) {
       throw new Error("head: the lid's tabs reach the Pico: check head.tabThickness");
     }
+  }
+
+  /** Room between the standoffs across: the USB socket and its clearance, whichever way up the Pico goes. */
+  private get usbGap(): number {
+    return this.c.boards.pico.usbSocketWidth + 2 * this.c.clearance;
+  }
+
+  /** The Pico's standoffs, each cut flat inside to leave usbGap between them. */
+  private get standoffs(): ScadObject {
+    const { head: h } = this.c;
+    const base = this.lidFace - h.picoHeaderHeight;
+    const g = this.usbGap / 2;
+    return union(
+      ...this.picoHoles.map(([x, y]) =>
+        difference(
+          this.stakes([[x, y]], h.standoffDiameter, base, this.lidFace + 0.01),
+          box(x - 5, x + 5, -g, g, base - 1, this.lidFace + 1),
+        ),
+      ),
+    );
   }
 
   /** The faceplate's display cutouts or mockup, turned to landscape, the board centered. */
@@ -230,7 +258,7 @@ export class Head {
       union(
         this.rounded(this.outerX, this.outerY, h.cornerRadius, this.lidFace, this.depth),
         this.tabs,
-        this.stakes(this.picoHoles, h.standoffDiameter, standoffBase, this.lidFace + 0.01),
+        this.standoffs,
         // Shorter by the USB socket, between them (stakeNearUsb).
         ...this.picoHoles.map(([x, y]) =>
           this.stakes(

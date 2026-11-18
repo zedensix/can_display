@@ -21,13 +21,15 @@ export function checkFaceplate(f: Faceplate): void {
     throw new Error("display.glassFromPcbTop + glassLength + ribbonAllowance must fit within display.pcbLength");
   }
   const holeRadius = f.c.screw.pilotDiameter / 2;
-  // Under 1 mm of plate between a screw and the panel's pocket, the screw splits it.
+  const holeTop = -(display.pcbLength - display.holesApartY) / 2;
+  // Under 0.5 mm of plate between a screw and the panel's pocket, the screw
+  // splits it (the measured board leaves 0.85 with M2 pilots, M3's 0.45).
   if (
-    -display.holeInset - holeRadius - 1 < f.glassPocketTop ||
-    -(display.pcbLength - display.holeInset) + holeRadius + 1 > f.glassPocketBottom
+    holeTop - holeRadius - 0.5 < f.glassPocketTop ||
+    holeTop - display.holesApartY + holeRadius + 0.5 > f.glassPocketBottom
   ) {
     throw new Error(
-      "the display board's screw holes leave under 1 mm of plate beside the panel's pocket: check display.holeInset, glassFromPcbTop, glassLength and ribbonAllowance",
+      "the display board's screw holes leave under 1 mm of plate beside the panel's pocket: check display.holesApartY, glassFromPcbTop, glassLength and ribbonAllowance",
     );
   }
   if (encoder.panelThickness >= f.thickness) {
@@ -78,7 +80,7 @@ export function checkFaceplate(f: Faceplate): void {
   if (display.solderHeight >= display.glassThickness) {
     throw new Error("display.solderHeight must be less than display.glassThickness");
   }
-  if (display.solderRowWidth + 2 * clearance > 2 * (display.pcbWidth / 2 - display.holeInset - holeRadius)) {
+  if (display.solderRowWidth + 2 * clearance > display.holesApartX - 2 * holeRadius) {
     throw new Error("display.solderRowWidth runs into the display board's screw holes");
   }
   if (postX - tray.postDiameter / 2 < display.pcbWidth / 2 + clearance + 0.5) {

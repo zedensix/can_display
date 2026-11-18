@@ -157,18 +157,20 @@ export class Faceplate {
 
   /** Pilot holes for the display board's 4 screws, blind so the front stays clean. */
   get displayScrewHoles(): ScadObject {
-    const { display, screw, plate } = this.c;
-    const x = display.pcbWidth / 2 - display.holeInset;
+    const { plate, screw } = this.c;
     return union(
-      ...[-x, x].flatMap((holeX) =>
-        [-display.holeInset, -(display.pcbLength - display.holeInset)].map((holeY) =>
-          cylinder(this.thickness, screw.pilotDiameter / 2, { center: false }).translate([
-            holeX,
-            holeY,
-            plate.frontSkin,
-          ]),
-        ),
+      ...this.displayHoles.map(([x, y]) =>
+        cylinder(this.thickness, screw.pilotDiameter / 2, { center: false }).translate([x, y, plate.frontSkin]),
       ),
+    );
+  }
+
+  /** The display board's 4 holes, centered on it. */
+  get displayHoles(): [number, number][] {
+    const { display: d } = this.c;
+    const middle = -d.pcbLength / 2;
+    return [-1, 1].flatMap((sx) =>
+      [-1, 1].map((sy): [number, number] => [(sx * d.holesApartX) / 2, middle + (sy * d.holesApartY) / 2]),
     );
   }
 

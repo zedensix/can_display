@@ -7,7 +7,8 @@ import { type CardSpec, HOLE, PCB, partDrawing } from "./drawing";
 export function displayCard(d: Config["display"]): CardSpec {
   const W = d.pcbWidth,
     L = d.pcbLength;
-  const holeX = W / 2 - d.holeInset;
+  const holeX = d.holesApartX / 2;
+  const holeTop = -(L - d.holesApartY) / 2;
   const glassTop = -d.glassFromPcbTop;
   const glassBottom = glassTop - d.glassLength;
   const litTop = glassTop - d.activeFromGlassTop;
@@ -32,7 +33,11 @@ export function displayCard(d: Config["display"]): CardSpec {
         key: "display.activeWidth display.activeLength display.activeFromGlassTop",
       });
       for (const x of [-holeX, holeX])
-        for (const y of [-d.holeInset, -(L - d.holeInset)]) g.circle(x, y, 1.1, { ...HOLE, key: "display.holeInset" });
+        for (const y of [holeTop, holeTop - d.holesApartY])
+          g.circle(x, y, d.holeDiameter / 2, {
+            ...HOLE,
+            key: "display.holesApartX display.holesApartY display.holeDiameter",
+          });
       for (const y of [-L + 0.4, -1.6 - 0.4])
         g.rect(-d.solderRowWidth / 2, y, d.solderRowWidth, 1.6, {
           fill: "#d4a017",
@@ -45,8 +50,8 @@ export function displayCard(d: Config["display"]): CardSpec {
       g.across(-d.solderRowWidth / 2, d.solderRowWidth / 2, -L - 4, d.solderRowWidth, {
         key: "display.solderRowWidth",
       });
-      g.across(-W / 2, -holeX, 1.2, d.holeInset, { key: "display.holeInset", hover: true });
-      g.along(-d.holeInset, 0, -W / 2 - 1.5, d.holeInset, { key: "display.holeInset", hover: true });
+      g.across(-holeX, holeX, holeTop - 3, d.holesApartX, { key: "display.holesApartX", hover: true });
+      g.along(holeTop - d.holesApartY, holeTop, -holeX + 3, d.holesApartY, { key: "display.holesApartY", hover: true });
       g.across(-d.glassWidth / 2, d.glassWidth / 2, glassTop - 2.5, d.glassWidth, {
         key: "display.glassWidth",
         hover: true,
@@ -101,7 +106,9 @@ export function displayCard(d: Config["display"]): CardSpec {
       ["Board width", W, "display.pcbWidth"],
       ["Board length", L, "display.pcbLength"],
       ["Board thickness", d.pcbThickness, "display.pcbThickness"],
-      ["Holes from the board's edges", d.holeInset, "display.holeInset"],
+      ["Holes apart, across (centers)", d.holesApartX, "display.holesApartX"],
+      ["Holes apart, top to bottom (centers)", d.holesApartY, "display.holesApartY"],
+      ["Holes' diameter", d.holeDiameter, "display.holeDiameter"],
       ["Panel width", d.glassWidth, "display.glassWidth"],
       ["Panel length", d.glassLength, "display.glassLength"],
       ["Panel thickness (glass and backlight)", d.glassThickness, "display.glassThickness"],
