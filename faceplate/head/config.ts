@@ -7,13 +7,14 @@
 export const head = {
   wall: 1.6, // around the display's board: 4 lines of a 0.4 mm nozzle
   cornerRadius: 3,
-  // The Pico lies components toward the display, its header's plastic on
-  // the lid: under the lid, standoffs beside its USB socket would block the plug.
+  // The Pico stands on tall standoffs, either way up: its debug connector
+  // (about 5 mm), its USB socket and plug, and the wires fit on either side.
   picoComponents: 5.5, // from the Pico's board to the display board's back: the USB socket (2.6), the wires soldered on its pins' tips and bent over (a pin's tip and solder 1.5, a 26 AWG wire bent 2.5), the display board's own parts
-  picoHeaderHeight: 2.5, // the header's plastic under the Pico's board, on the lid, its pins cut flush with it; its standoffs as tall
+  picoHeaderHeight: 2.5, // the header's plastic under the Pico's board, its pins cut flush with it
+  picoStandoff: 6, // from the lid to the Pico's board: room for its debug connector (5), its USB plug and the wires
   picoPcbThickness: 1,
   picoUsbOverhang: 1.3, // how far its micro-USB socket stands past its board's end
-  standoffDiameter: 3.4, // the Pico's 4 standoffs on the lid, on its header's side, between its 2 rows of plastic (4.4 ran 0.2 mm into them); each cut flat inside, boards.pico.usbSocketWidth and clearance between them, so the USB socket passes whichever way up the Pico goes
+  standoffDiameter: 3.4, // the Pico's 4 standoffs on the lid, between its header's 2 rows of plastic (4.4 ran 0.2 mm into them); each cut flat inside, boards.pico.usbSocketWidth and clearance between them, so the USB socket passes whichever way up the Pico goes
   // Heat-staked pins hold the boards, no screws: through each board's
   // holes (clearance smaller than the hole), then flattened into a head with
   // the soldering iron.
@@ -33,10 +34,9 @@ export const head = {
   hookDepth: 1, // how far the hook reaches into the wall's slot (0.5 didn't hold)
   hookLength: 1.2, // the hook's ramp, from the tip back to its catch
   usbSlotWidth: 12, // the notch by the Pico's micro-USB socket, for the plug's overmold
-  usbSlotHeight: 8,
+  usbSlotHeight: 8, // around the socket, whichever way up the Pico lies
   cableHole: 7, // the cable's slot through the lid, under the Pico: across
   cableSlotLength: 16, // and along: room for 2 cables, to the OBD end (6 wires) and to the encoder (4)
-  tilt: 20, // degrees the screen leans back, a wedge under it, toward the eyes above it (guessed: set it from the hood's slope)
   ventCell: 1.8, // the lid's honeycomb, as the pod's
   ventWall: 0.8,
 };

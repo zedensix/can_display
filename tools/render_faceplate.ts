@@ -46,7 +46,7 @@ const pictures: Record<string, Record<string, Picture>> = {
   },
   head: {
     "head-front": { object: head.assembly.rotate([0, 180, 0]), rotation: [70, 0, 20], colors: true }, // what shows in the car
-    // Cut open across the Pico's standoffs: the stack, display, Pico, lid, the wedge under it.
+    // Cut open across the Pico's standoffs: the stack, display, Pico, lid.
     "head-side": {
       object: difference(head.assembly, box(head.picoHoles[0][0], 50, -50, 50, -50, 50)),
       rotation: [90, 0, 90],
@@ -99,7 +99,7 @@ const dimensions = {
     // The encoder board's ends from the shaft, its pins near the right one.
     encoderBoard: [faceplate.encoderBoardLeft, faceplate.encoderBoardRight],
     depth: faceplate.thickness + config.tray.gap + config.tray.thickness,
-    // The head's outside, its wedge aside.
+    // The head's outside.
     head: [2 * (head.halfX + config.head.wall), 2 * (head.halfY + config.head.wall), head.depth],
     // Each board's pilot hole, from its holes' size.
     pilots: Object.fromEntries(Object.entries(config.boards).map(([name, board]) => [name, tray.pilotOf(board)])),

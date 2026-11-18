@@ -9,16 +9,15 @@
 //   faceplate's, turned to landscape), 4 pins through the display board's
 //   holes, melted into heads with the soldering iron; walls just around the
 //   board, nothing standing into the room (the board goes in from the back,
-//   as wide as the room); a notch in the end by the Pico's USB socket for
-//   the plug, 2 slots for the lid's hooks, and a wedge under it so the
-//   screen leans back toward the driver's eyes, its face for 3M VHB tape.
+//   as wide as the room); a notch in the end by the Pico's USB socket
+//   for the plug, whichever way up the Pico lies, 2 slots for the lid's
+//   hooks; its bottom takes 3M VHB tape, no wedge: the hood's slope
+//   already leans it back.
 // - The lid lies on the walls' back edge all round, 2 snap tabs hanging
 //   along the top and bottom walls, their hooks clicking into the slots; a
-//   small screwdriver through a slot pushes its hook back in. The Pico lies
-//   on it, components toward the display (its USB socket and the wires
-//   soldered on its pins' tips), its header's plastic on the lid, the pins
-//   cut flush with it, on 4 standoffs as tall, their pins through its holes
-//   melted into heads: on that face the USB socket isn't between them.
+//   small screwdriver through a slot pushes its hook back in. The Pico
+//   stands on it, either way up, on 4 tall standoffs, their pins through
+//   its holes melted into heads, each cut flat inside for the USB socket.
 //   Vents around them, and the cable's slot, out the back.
 //
 // Seen from the back like the faceplate: x across, y up, the front at
@@ -61,7 +60,7 @@ export class Head {
     this.halfY = d.pcbWidth / 2 + clearance;
     this.plate = faceplate.thickness;
     this.picoFace = this.plate + h.picoComponents;
-    this.lidFace = this.picoFace + h.picoPcbThickness + h.picoHeaderHeight;
+    this.lidFace = this.picoFace + h.picoPcbThickness + h.picoStandoff;
     this.depth = this.lidFace + h.lidThickness;
     const x0 = -this.halfX + h.picoUsbOverhang + clearance;
     this.picoX = [x0, x0 + boards.pico.width];
@@ -112,7 +111,7 @@ export class Head {
   /** The Pico's standoffs, each cut flat inside to leave usbGap between them. */
   private get standoffs(): ScadObject {
     const { head: h } = this.c;
-    const base = this.lidFace - h.picoHeaderHeight;
+    const base = this.lidFace - h.picoStandoff;
     const g = this.usbGap / 2;
     return union(
       ...this.picoHoles.map(([x, y]) =>
@@ -146,22 +145,6 @@ export class Head {
     return this.halfY + this.c.head.wall;
   }
 
-  /** How far the wedge stands under the bottom at the front: its face, flat on the hood, leans the screen back by head.tilt. */
-  private get drop(): number {
-    return this.depth * Math.tan((this.c.head.tilt * Math.PI) / 180);
-  }
-
-  /** The wedge under the bottom, from the front to the lid. */
-  private get foot(): ScadObject {
-    const x = this.outerX - this.c.head.cornerRadius;
-    const bottom = -this.outerY;
-    const atLid = (this.drop * (this.depth - this.lidFace)) / this.depth;
-    return hull(
-      box(-x, x, bottom - this.drop, bottom + 0.01, 0, 0.01),
-      box(-x, x, bottom - atLid, bottom + 0.01, this.lidFace - 0.01, this.lidFace),
-    );
-  }
-
   /** y0..y1 on the top wall's side (sy = 1), mirrored onto the bottom's (sy = -1). */
   private side(sy: number, y0: number, y1: number): [number, number] {
     return sy > 0 ? [y0, y1] : [-y1, -y0];
@@ -180,10 +163,10 @@ export class Head {
     const boardFront = this.plate - d.pcbThickness;
     return union(
       difference(
-        union(this.rounded(this.outerX, this.outerY, h.cornerRadius, 0, this.lidFace), this.foot),
+        this.rounded(this.outerX, this.outerY, h.cornerRadius, 0, this.lidFace),
         box(-this.halfX, this.halfX, -this.halfY, this.halfY, this.plate, this.lidFace + 1),
         this.displayed(union(f.displayWindow, f.displayPockets)),
-        // The USB plug's notch, up to the lid.
+        // The USB plug's notch, up to the lid: either way up.
         box(
           -this.outerX - 1,
           -this.halfX + 0.01,
@@ -192,12 +175,12 @@ export class Head {
           socketZ - h.usbSlotHeight / 2,
           this.lidFace + 1,
         ),
-        // The hooks' slots, through the wall (and the wedge, at the bottom).
+        // The hooks' slots, through the wall.
         ...[-1, 1].map((sy) =>
           box(
             -h.tabWidth / 2 - clearance,
             h.tabWidth / 2 + clearance,
-            ...this.side(sy, this.halfY - 0.01, this.outerY + this.drop + 1),
+            ...this.side(sy, this.halfY - 0.01, this.outerY + 1),
             this.tabTip - 0.3,
             this.tabTip + h.hookLength + 0.15,
           ),
@@ -253,7 +236,7 @@ export class Head {
     const cells = honeycomb(r, h.ventWall, 0, Math.hypot(lx, ly), keepOut).filter(
       ([x, y]) => Math.abs(x) + r + 1 <= lx && Math.abs(y) + r + 1 <= ly,
     );
-    const standoffBase = this.lidFace - h.picoHeaderHeight;
+    const standoffBase = this.lidFace - h.picoStandoff;
     return difference(
       union(
         this.rounded(this.outerX, this.outerY, h.cornerRadius, this.lidFace, this.depth),
