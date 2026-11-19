@@ -23,6 +23,9 @@
  *   vent's gauge adapter, the boards on a sled in a can behind it.
  * - Head (head.ts): the smallest box for up high, the display in
  *   landscape and the Pico behind it, everything else on a cable.
+ * - Bar (bar.ts): one long, thin box on the steering column's shroud, the
+ *   head's display and Pico in the middle, the encoder and the MCP2515
+ *   either side, the converter on the cable.
  *
  * Every dimension is in shared/config.ts, each model's own in its folder's
  * config.ts; each part is a class in its own file, each model in its folder.
@@ -30,6 +33,7 @@
 
 import type { ScadObject, ScadSpecialVariables } from "scad-js";
 import { union } from "scad-js";
+import { Bar } from "./bar/bar";
 import { Head } from "./head/head";
 import { Faceplate } from "./plate/faceplate";
 import { mockups } from "./plate/mockups";
@@ -45,12 +49,14 @@ export const tray = new Tray(config, faceplate);
 export const ventMount = new VentMount(config, faceplate);
 export const pod = new Pod(config, faceplate);
 export const head = new Head(config, faceplate);
+export const bar = new Bar(config, faceplate);
 
 /** Each part to print, as it lies on the bed, by model: each model's folder gets its STLs. */
 export const models: Record<string, Record<string, ScadObject>> = {
   plate: { faceplate: faceplate.object, tray: tray.object, ...ventMount.print },
   pod: pod.print,
   head: head.print,
+  bar: bar.print,
 };
 
 const modules = mockups(config, faceplate);

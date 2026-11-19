@@ -1,5 +1,5 @@
 // Renders each model's printable parts (the faceplate and tray, the vent
-// pod, the head) to faceplate/<model>/stl/<part>.stl, pictures of them to
+// pod, the head, the bar) to faceplate/<model>/stl/<part>.stl, pictures of them to
 // faceplate/<model>/renders/*.png, each assembly with every module in place
 // to faceplate/<model>/renders/<name>.scad, and the dimensions they're built
 // from to faceplate/data/dimensions.json, which the wiring page's
@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { createOpenSCAD } from "openscad-wasm";
 import type { ScadObject } from "scad-js";
 import { difference } from "scad-js";
-import { assembly, faceplate, head, models, onVent, pod, tray, vars, ventMount } from "../faceplate";
+import { assembly, bar, faceplate, head, models, onVent, pod, tray, vars, ventMount } from "../faceplate";
 import { checked, config } from "../faceplate/shared/config";
 import { box } from "../faceplate/shared/geometry";
 
@@ -54,6 +54,17 @@ const pictures: Record<string, Record<string, Picture>> = {
     },
     "head-shell-back": { object: head.shell, rotation: [55, 0, 25] }, // as it sits on the bed: the room, the bosses, the USB notch
     "head-lid": { object: models.head["head-lid"], rotation: [55, 0, 25] }, // as it sits on the bed: the Pico's standoffs
+  },
+  bar: {
+    "bar-front": { object: bar.assembly.rotate([0, 180, 0]), rotation: [70, 0, 20], colors: true }, // what shows in the car
+    "bar-inside": {
+      object: bar.inside,
+      rotation: [40, 0, 20],
+      colors: true,
+    }, // the lid off: every module in place
+    "bar-shell-back": { object: bar.shell, rotation: [55, 0, 25] }, // as it sits on the bed
+    "bar-lid": { object: models.bar["bar-lid"], rotation: [55, 0, 25] }, // as it sits on the bed: the tabs, the Pico's standoffs
+    "bar-wireframe": { object: models.bar["bar-wireframe"], rotation: [55, 0, 25] }, // the test print: the outline, flat
   },
 };
 
@@ -101,17 +112,20 @@ const dimensions = {
     depth: faceplate.thickness + config.tray.gap + config.tray.thickness,
     // The head's outside.
     head: [2 * (head.halfX + config.head.wall), 2 * (head.halfY + config.head.wall), head.depth],
+    // The bar's outside, its height at the ends, the saddle's arc under them.
+    bar: [2 * (bar.right + config.head.wall), 2 * (bar.halfY + config.head.wall) + bar.sag, bar.depth],
     // Each board's pilot hole, from its holes' size.
     pilots: Object.fromEntries(Object.entries(config.boards).map(([name, board]) => [name, tray.pilotOf(board)])),
   },
 };
 await Bun.write(join("faceplate", "data", "dimensions.json"), `${JSON.stringify(dimensions, null, 2)}\n`);
 
-// Each assembly as OpenSCAD source, to turn around in its window (`mise run assembly`, `pod`, `head`).
+// Each assembly as OpenSCAD source, to turn around in its window (`mise run assembly`, `pod`, `head`, `bar`).
 const scads: Record<string, Record<string, ScadObject>> = {
   plate: { assembly },
   pod: { pod: pod.assembly }, // the can cut open on the right
   head: { head: head.assembly },
+  bar: { bar: bar.assembly },
 };
 for (const [model, files] of Object.entries(scads)) {
   for (const [name, object] of Object.entries(files)) {

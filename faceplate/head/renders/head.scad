@@ -72,13 +72,16 @@ union()
         {
           cube(size = [2.610000000000003, 12, 13.299999999999999], center = false);
         }
-        translate(v = [-5.3, -21.650000000000002, 9.099999999999998])
+        union()
         {
-          cube(size = [10.6, 2.610000000000003, 1.6500000000000004], center = false);
-        }
-        translate(v = [-5.3, 19.04, 9.099999999999998])
-        {
-          cube(size = [10.6, 2.610000000000003, 1.6500000000000004], center = false);
+          translate(v = [-5.3, -21.650000000000002, 9.099999999999998])
+          {
+            cube(size = [10.6, 2.610000000000003, 1.6500000000000004], center = false);
+          }
+          translate(v = [-5.3, 19.04, 9.099999999999998])
+          {
+            cube(size = [10.6, 2.610000000000003, 1.6500000000000004], center = false);
+          }
         }
       }
       union()
@@ -102,166 +105,169 @@ union()
       }
     }
   }
-  intersection()
+  union()
   {
-    translate(v = [29, 0, 0])
+    intersection()
     {
-      rotate(a = [0, 0, -90], v = undef)
+      translate(v = [29, 0, 0])
       {
-        union()
+        rotate(a = [0, 0, -90], v = undef)
         {
-          color(c = "black", alpha = 1)
+          union()
           {
-            translate(v = [-17.6, -53.5, 1.2])
+            color(c = "black", alpha = 1)
             {
-              cube(size = [35.2, 48.5, 3], center = false);
-            }
-          }
-          color(c = "orangered", alpha = 1)
-          {
-            translate(v = [-15.5, -48.5, 1.15])
-            {
-              cube(size = [31, 41.5, 0.050000000000000044], center = false);
-            }
-          }
-          color(c = "royalblue", alpha = 1)
-          {
-            translate(v = [-18.75, -58, 4.2])
-            {
-              cube(size = [37.5, 58, 1.2000000000000002], center = false);
-            }
-          }
-          color(c = "goldenrod", alpha = 1)
-          {
-            translate(v = [-10, -3, 2.7])
-            {
-              cube(size = [20, 2, 1.5], center = false);
-            }
-          }
-          color(c = "goldenrod", alpha = 1)
-          {
-            translate(v = [-10, -57, 2.7])
-            {
-              cube(size = [20, 2, 1.5], center = false);
-            }
-          }
-          color(c = "black", alpha = 1)
-          {
-            translate(v = [-10.16, -3.27, 5.4])
-            {
-              cube(size = [20.32, 2.54, 2.5], center = false);
-            }
-          }
-          color(c = "gold", alpha = 1)
-          {
-            union()
-            {
-              translate(v = [-9.21, -2.32, 2.7])
+              translate(v = [-17.6, -53.5, 1.2])
               {
-                cube(size = [0.6400000000000006, 0.6399999999999999, 11.2], center = false);
-              }
-              translate(v = [-6.67, -2.32, 2.7])
-              {
-                cube(size = [0.6400000000000006, 0.6399999999999999, 11.2], center = false);
-              }
-              translate(v = [-4.13, -2.32, 2.7])
-              {
-                cube(size = [0.6399999999999997, 0.6399999999999999, 11.2], center = false);
-              }
-              translate(v = [-1.59, -2.32, 2.7])
-              {
-                cube(size = [0.6400000000000001, 0.6399999999999999, 11.2], center = false);
-              }
-              translate(v = [0.95, -2.32, 2.7])
-              {
-                cube(size = [0.6400000000000001, 0.6399999999999999, 11.2], center = false);
-              }
-              translate(v = [3.49, -2.32, 2.7])
-              {
-                cube(size = [0.6399999999999997, 0.6399999999999999, 11.2], center = false);
-              }
-              translate(v = [6.029999999999999, -2.32, 2.7])
-              {
-                cube(size = [0.6400000000000006, 0.6399999999999999, 11.2], center = false);
-              }
-              translate(v = [8.57, -2.32, 2.7])
-              {
-                cube(size = [0.6400000000000006, 0.6399999999999999, 11.2], center = false);
+                cube(size = [35.2, 48.5, 3], center = false);
               }
             }
-          }
-          color(c = "dimgray", alpha = 1)
-          {
-            union()
+            color(c = "orangered", alpha = 1)
             {
-              translate(v = [-10.11, -3.22, 7.9])
+              translate(v = [-15.5, -48.5, 1.15])
               {
-                cube(size = [2.4399999999999986, 2.4400000000000004, 13.999999999999998], center = false);
+                cube(size = [31, 41.5, 0.050000000000000044], center = false);
               }
-              translate(v = [-7.569999999999999, -3.22, 7.9])
+            }
+            color(c = "royalblue", alpha = 1)
+            {
+              translate(v = [-18.75, -58, 4.2])
               {
-                cube(size = [2.4399999999999995, 2.4400000000000004, 13.999999999999998], center = false);
+                cube(size = [37.5, 58, 1.2000000000000002], center = false);
               }
-              translate(v = [-5.03, -3.22, 7.9])
+            }
+            color(c = "goldenrod", alpha = 1)
+            {
+              translate(v = [-10, -3, 2.7])
               {
-                cube(size = [2.4400000000000004, 2.4400000000000004, 13.999999999999998], center = false);
+                cube(size = [20, 2, 1.5], center = false);
               }
-              translate(v = [-2.49, -3.22, 7.9])
+            }
+            color(c = "goldenrod", alpha = 1)
+            {
+              translate(v = [-10, -57, 2.7])
               {
-                cube(size = [2.4400000000000004, 2.4400000000000004, 13.999999999999998], center = false);
+                cube(size = [20, 2, 1.5], center = false);
               }
-              translate(v = [0.05, -3.22, 7.9])
+            }
+            color(c = "black", alpha = 1)
+            {
+              translate(v = [-10.16, -3.27, 5.4])
               {
-                cube(size = [2.4400000000000004, 2.4400000000000004, 13.999999999999998], center = false);
+                cube(size = [20.32, 2.54, 2.5], center = false);
               }
-              translate(v = [2.59, -3.22, 7.9])
+            }
+            color(c = "gold", alpha = 1)
+            {
+              union()
               {
-                cube(size = [2.4400000000000004, 2.4400000000000004, 13.999999999999998], center = false);
+                translate(v = [-9.21, -2.32, 2.7])
+                {
+                  cube(size = [0.6400000000000006, 0.6399999999999999, 11.2], center = false);
+                }
+                translate(v = [-6.67, -2.32, 2.7])
+                {
+                  cube(size = [0.6400000000000006, 0.6399999999999999, 11.2], center = false);
+                }
+                translate(v = [-4.13, -2.32, 2.7])
+                {
+                  cube(size = [0.6399999999999997, 0.6399999999999999, 11.2], center = false);
+                }
+                translate(v = [-1.59, -2.32, 2.7])
+                {
+                  cube(size = [0.6400000000000001, 0.6399999999999999, 11.2], center = false);
+                }
+                translate(v = [0.95, -2.32, 2.7])
+                {
+                  cube(size = [0.6400000000000001, 0.6399999999999999, 11.2], center = false);
+                }
+                translate(v = [3.49, -2.32, 2.7])
+                {
+                  cube(size = [0.6399999999999997, 0.6399999999999999, 11.2], center = false);
+                }
+                translate(v = [6.029999999999999, -2.32, 2.7])
+                {
+                  cube(size = [0.6400000000000006, 0.6399999999999999, 11.2], center = false);
+                }
+                translate(v = [8.57, -2.32, 2.7])
+                {
+                  cube(size = [0.6400000000000006, 0.6399999999999999, 11.2], center = false);
+                }
               }
-              translate(v = [5.13, -3.22, 7.9])
+            }
+            color(c = "dimgray", alpha = 1)
+            {
+              union()
               {
-                cube(size = [2.4399999999999995, 2.4400000000000004, 13.999999999999998], center = false);
-              }
-              translate(v = [7.670000000000001, -3.22, 7.9])
-              {
-                cube(size = [2.4399999999999986, 2.4400000000000004, 13.999999999999998], center = false);
+                translate(v = [-10.11, -3.22, 7.9])
+                {
+                  cube(size = [2.4399999999999986, 2.4400000000000004, 13.999999999999998], center = false);
+                }
+                translate(v = [-7.569999999999999, -3.22, 7.9])
+                {
+                  cube(size = [2.4399999999999995, 2.4400000000000004, 13.999999999999998], center = false);
+                }
+                translate(v = [-5.03, -3.22, 7.9])
+                {
+                  cube(size = [2.4400000000000004, 2.4400000000000004, 13.999999999999998], center = false);
+                }
+                translate(v = [-2.49, -3.22, 7.9])
+                {
+                  cube(size = [2.4400000000000004, 2.4400000000000004, 13.999999999999998], center = false);
+                }
+                translate(v = [0.05, -3.22, 7.9])
+                {
+                  cube(size = [2.4400000000000004, 2.4400000000000004, 13.999999999999998], center = false);
+                }
+                translate(v = [2.59, -3.22, 7.9])
+                {
+                  cube(size = [2.4400000000000004, 2.4400000000000004, 13.999999999999998], center = false);
+                }
+                translate(v = [5.13, -3.22, 7.9])
+                {
+                  cube(size = [2.4399999999999995, 2.4400000000000004, 13.999999999999998], center = false);
+                }
+                translate(v = [7.670000000000001, -3.22, 7.9])
+                {
+                  cube(size = [2.4399999999999986, 2.4400000000000004, 13.999999999999998], center = false);
+                }
               }
             }
           }
         }
       }
+      translate(v = [-50, -50, -1])
+      {
+        cube(size = [100, 100, 9.9], center = false);
+      }
     }
-    translate(v = [-50, -50, -1])
+    color(c = "green", alpha = 1)
     {
-      cube(size = [100, 100, 9.9], center = false);
+      translate(v = [-27.7, -10.5, 10.9])
+      {
+        cube(size = [51, 21, 1], center = false);
+      }
     }
-  }
-  color(c = "green", alpha = 1)
-  {
-    translate(v = [-27.7, -10.5, 10.9])
+    color(c = "black", alpha = 1)
     {
-      cube(size = [51, 21, 1], center = false);
+      translate(v = [-26.7, -10.16, 11.9])
+      {
+        cube(size = [49, 2.539999999999999, 2.5], center = false);
+      }
     }
-  }
-  color(c = "black", alpha = 1)
-  {
-    translate(v = [-26.7, -10.16, 11.9])
+    color(c = "black", alpha = 1)
     {
-      cube(size = [49, 2.539999999999999, 2.5], center = false);
+      translate(v = [-26.7, 7.620000000000001, 11.9])
+      {
+        cube(size = [49, 2.539999999999999, 2.5], center = false);
+      }
     }
-  }
-  color(c = "black", alpha = 1)
-  {
-    translate(v = [-26.7, 7.620000000000001, 11.9])
+    color(c = "silver", alpha = 1)
     {
-      cube(size = [49, 2.539999999999999, 2.5], center = false);
-    }
-  }
-  color(c = "silver", alpha = 1)
-  {
-    translate(v = [-29, -4, 8.3])
-    {
-      cube(size = [5.300000000000001, 8, 2.5999999999999996], center = false);
+      translate(v = [-29, -4, 8.3])
+      {
+        cube(size = [5.300000000000001, 8, 2.5999999999999996], center = false);
+      }
     }
   }
   color(c = "silver", alpha = 1)
@@ -377,33 +383,33 @@ union()
               cube(size = [10, 8.6, 8], center = false);
             }
           }
-        }
-        union()
-        {
-          translate(v = [-25.7, -5.6, 10.3])
+          union()
           {
-            cylinder(h = 1.6099999999999977, r = 0.8, center = false);
+            translate(v = [-25.7, -5.6, 10.3])
+            {
+              cylinder(h = 1.6099999999999977, r = 0.8, center = false);
+            }
           }
-        }
-        union()
-        {
-          translate(v = [-25.7, 5.6, 10.3])
+          union()
           {
-            cylinder(h = 1.6099999999999977, r = 0.8, center = false);
+            translate(v = [-25.7, 5.6, 10.3])
+            {
+              cylinder(h = 1.6099999999999977, r = 0.8, center = false);
+            }
           }
-        }
-        union()
-        {
-          translate(v = [21.3, -5.6, 9.4])
+          union()
           {
-            cylinder(h = 2.509999999999998, r = 0.8, center = false);
+            translate(v = [21.3, -5.6, 9.4])
+            {
+              cylinder(h = 2.509999999999998, r = 0.8, center = false);
+            }
           }
-        }
-        union()
-        {
-          translate(v = [21.3, 5.6, 9.4])
+          union()
           {
-            cylinder(h = 2.509999999999998, r = 0.8, center = false);
+            translate(v = [21.3, 5.6, 9.4])
+            {
+              cylinder(h = 2.509999999999998, r = 0.8, center = false);
+            }
           }
         }
       }

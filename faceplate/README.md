@@ -1,6 +1,6 @@
 # The enclosures
 
-Three ways to house the dash, each a model in TypeScript (scad-js) from
+Four ways to house the dash, each a model in TypeScript (scad-js) from
 the modules' dimensions, printed with no supports, built by
 `mise run faceplate` into each one's STLs and pictures:
 
@@ -10,8 +10,11 @@ the modules' dimensions, printed with no supports, built by
   in place of a 52 mm gauge.
 - [The head](head/README.md): the smallest box, for up high, the display
   in landscape and the Pico behind it, the rest on a cable.
+- [The bar](bar/README.md): one long, thin box on the steering column's
+  shroud, the head's display and Pico in the middle, the encoder and the
+  MCP2515 either side, the converter on the cable.
 
-The modules' dimensions are shared by the three; each model has its own
+The modules' dimensions are shared by the four; each model has its own
 on top of them.
 
 The wiring page's Dimensions tab (`bun run wiring`) draws every module
@@ -29,7 +32,7 @@ enter them in the Dimensions tab (or `data/measured.json`; every key is
 described in [`shared/config.ts`](shared/config.ts)). These matter most:
 
 1. The display board's width and length, and its mounting holes' distance
-   from the edges.
+   apart.
 2. The panel (glass and backlight): its width, length and thickness, and
    where its top edge sits on the board.
 3. The lit area's top edge, measured from the panel's top edge: it places

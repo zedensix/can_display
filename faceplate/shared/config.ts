@@ -8,6 +8,7 @@
 // x across (0 in the middle, + to the right), y up (0 at the display
 // board's top edge).
 
+import { bar } from "../bar/config";
 import measured from "../data/measured.json";
 import { head } from "../head/config";
 import { plateConfig } from "../plate/config";
@@ -110,6 +111,7 @@ const defaults = {
   },
   pod,
   head,
+  bar,
   clearance: 0.3, // play around each pocket and hole, each side
 };
 

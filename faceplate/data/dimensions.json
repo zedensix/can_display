@@ -164,6 +164,20 @@
       "ventCell": 1.8,
       "ventWall": 0.8
     },
+    "bar": {
+      "frontWall": 1.6,
+      "gap": 3,
+      "endRoom": 8,
+      "encoderEnd": 1,
+      "plugRoomMin": 24,
+      "mcpStandoff": 3,
+      "mcpStandoffDiameter": 6,
+      "mcpPcbThickness": 1.6,
+      "mcpTallest": 10,
+      "shroudRadius": 200,
+      "wireBar": 3,
+      "wireThickness": 2
+    },
     "clearance": 0.3
   },
   "checked": {
@@ -233,6 +247,11 @@
     "head": [
       61.800000000000004,
       41.300000000000004,
+      19.099999999999998
+    ],
+    "bar": [
+      163.79999999999998,
+      58.83797655402372,
       19.099999999999998
     ],
     "pilots": {
