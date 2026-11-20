@@ -12,7 +12,7 @@
 // Their dimensions are the head's (head/config.ts). Seen from the back like
 // the faceplate: x across, y up, the front at z = 0, the display board
 // centered, the Pico's USB socket at its -x end. Both parts print with no
-// supports: the shell front down, the lid outside down (the hooks' 1.8 mm
+// supports: the shell front down, the lid outside down (the hooks' 1.3 mm
 // ledges, short enough to print in the air).
 
 import type { ScadObject } from "scad-js";
@@ -186,8 +186,7 @@ export class Case {
             x + h.tabWidth / 2 + clearance,
             ...this.side(sy, this.halfY - 0.01, this.outerY + out),
             this.tabTip - 0.3,
-            // Room over the hook's catch for the slot's top, a bridge, sagging.
-            this.tabTip + h.hookLength + 0.3,
+            this.tabTip + h.hookLength + 0.15,
           ),
         ),
       ),
@@ -204,18 +203,26 @@ export class Case {
         [-1, 1].map((sy) =>
           union(
             box(x - w, x + w, ...this.side(sy, outer - h.tabThickness, outer), this.tabTip, this.lidFace + 0.01),
-            hull(
-              box(x - w, x + w, ...this.side(sy, outer - 0.01, outer), this.tabTip, this.tabTip + 0.01),
-              box(
-                x - w,
-                x + w,
-                ...this.side(sy, outer - 0.01, this.halfY + h.hookDepth),
-                this.tabTip + h.hookLength - 0.01,
-                this.tabTip + h.hookLength,
-              ),
-            ),
+            this.hook(x, sy, h.tabWidth, h.hookDepth),
           ),
         ),
+      ),
+    );
+  }
+
+  /** A hook at x on the top (sy = 1) or bottom wall's side, ramping out from tabTip to `depth` into its slot. */
+  protected hook(x: number, sy: number, width: number, depth: number): ScadObject {
+    const { head: h, clearance } = this.c;
+    const w = width / 2;
+    const outer = this.halfY - clearance;
+    return hull(
+      box(x - w, x + w, ...this.side(sy, outer - 0.01, outer), this.tabTip, this.tabTip + 0.01),
+      box(
+        x - w,
+        x + w,
+        ...this.side(sy, outer - 0.01, this.halfY + depth),
+        this.tabTip + h.hookLength - 0.01,
+        this.tabTip + h.hookLength,
       ),
     );
   }
@@ -252,19 +259,20 @@ export class Case {
     return cellHoles(cells, r, this.lidFace - 1, this.depth + 1);
   }
 
-  /** The display, its header cut past its plastic, and the Pico on its standoffs: for the pictures, never printed. */
-  protected get stackMockup(): ScadObject {
+  /** The display, its header cut past its plastic, and the Pico on its standoffs (picoShift further back): for the pictures, never printed. */
+  protected stackMockup(picoShift = 0): ScadObject {
     const { c } = this;
     const { boards, head: h } = c;
     const [x0, x1] = this.picoX;
     const y = boards.pico.length / 2;
-    const back = this.picoFace + h.picoPcbThickness;
+    const face = this.picoFace + picoShift;
+    const back = face + h.picoPcbThickness;
     return union(
       intersection(
         this.displayed(display(c, this.faceplate)),
         box(-50, 50, -50, 50, -1, this.plate + HEADER_PLASTIC + 1),
       ),
-      box(x0, x1, -y, y, this.picoFace, back).color("green"),
+      box(x0, x1, -y, y, face, back).color("green"),
       ...[-1, 1].map((sy) =>
         box(
           x0 + 1,
@@ -275,7 +283,7 @@ export class Case {
           back + h.picoHeaderHeight,
         ).color("black"),
       ),
-      box(x0 - h.picoUsbOverhang, x0 + 4, -4, 4, this.picoFace - 2.6, this.picoFace).color("silver"),
+      box(x0 - h.picoUsbOverhang, x0 + 4, -4, 4, face - 2.6, face).color("silver"),
     );
   }
 }

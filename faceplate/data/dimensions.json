@@ -156,9 +156,9 @@
       "lidThickness": 1.2,
       "tabWidth": 10,
       "tabThickness": 1,
-      "tabLength": 10,
-      "hookDepth": 1.5,
-      "hookLength": 2,
+      "tabLength": 8.5,
+      "hookDepth": 1,
+      "hookLength": 1.2,
       "usbSlotWidth": 12,
       "usbSlotHeight": 8,
       "cableHole": 7,
@@ -176,8 +176,11 @@
       "mcpStandoffDiameter": 6,
       "mcpPcbThickness": 1.6,
       "mcpTallest": 10,
-      "lipHeight": 2,
-      "lipWidth": 1.6,
+      "lidExtra": 15,
+      "skirtThickness": 1.2,
+      "bumpDepth": 0.6,
+      "ventWidth": 3,
+      "ventPitch": 8,
       "shroudSag": 5,
       "gaugeSags": [
         1,
@@ -263,7 +266,7 @@
     "bar": [
       163.79999999999998,
       46.300000000000004,
-      19.099999999999998
+      34.099999999999994
     ],
     "pilots": {
       "pico": 1.7,

@@ -24,10 +24,17 @@ export const bar = {
   mcpTallest: 10, // its terminal block, the tallest part, above its board: it must clear the lid
   // The bottom, hollowed into an arc along the bar, its axis front to back
   // like the steering column's: laid on the shroud's top.
-  // A lip under the lid, inside the walls all round, clear of the tabs: a
-  // flat lid that long bends, and lets its hooks out.
-  lipHeight: 2,
-  lipWidth: 1.6,
+  // The lid: a tray as deep as lidExtra, sitting on the shell's walls, the
+  // Pico on its back as deep further back; a skirt down inside the top and
+  // bottom walls, a bump into each of the shell's slots. No tab: a skirt
+  // that long bends along its length, a short tab across its layers, and
+  // snaps (the tabs all broke).
+  lidExtra: 15, // the wires' room: 19 mm deep wasn't enough
+  skirtThickness: 1.2,
+  bumpDepth: 0.6, // how far each bump reaches into the shell's slot
+  // The lid's vents: slots across its back, quicker to print than a honeycomb.
+  ventWidth: 3,
+  ventPitch: 8,
   shroudSag: 5, // how much deeper the arc is at the ends than in the middle: a straight edge on the shroud showed 5, bar-arcs' 1 to 3 agreed (not enough)
   // bar-arcs, a test print to pick shroudSag: a strip as long as the bar
   // for each sag, as many notches on its top as its rank.

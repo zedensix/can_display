@@ -12,32 +12,20 @@
 // The front is as thick as the display and the encoder need (the
 // faceplate's) under them, and thin under the MCP2515. The bottom is
 // hollowed into an arc to sit on the steering column's shroud, the slots
-// of the lid's hooks through it. The lid clips on with 3 pairs of tabs,
-// a lip under it inside the walls all round to stiffen it.
+// of the lid's bumps through it. The lid is a tray, the Pico on its back,
+// a skirt down inside the walls, its bumps clicking into the slots.
 // Both parts print with no supports, the shell front down, the lid
 // outside down.
 
 import type { ScadObject } from "scad-js";
-import { difference, intersection, polygon, union } from "scad-js";
+import { difference, intersection, polygon, square, union } from "scad-js";
 import type { Faceplate } from "../plate/faceplate";
 import { Case } from "../shared/case";
 import type { Config } from "../shared/config";
 import { box } from "../shared/geometry";
 import { encoder } from "../shared/mockups";
 import type { Rect } from "../shared/vents";
-
-/**
- * Points along an arc through (0, 0), every mm from -half to half, sag
- * below it at both ends: the bar's bottom.
- */
-function arc(sag: number, half: number): [number, number][] {
-  const r = (half * half + sag * sag) / (2 * sag);
-  const n = Math.ceil(half);
-  return Array.from({ length: 2 * n + 1 }, (_, i): [number, number] => {
-    const x = Math.max(-half, Math.min(half, i - n));
-    return [x, -(r - Math.sqrt(r * r - x * x))];
-  });
-}
+import { arc, arcGauge } from "./arcs";
 
 export class Bar extends Case {
   /** The room's ends, -right to right: the display in the middle. */
@@ -53,6 +41,10 @@ export class Bar extends Case {
   readonly cableX: number;
   /** How far the bottom's arc stands under the bottom wall at the ends. */
   readonly sag: number;
+  /** The lid's back, bar.lidExtra deeper than the head's. */
+  readonly back: number;
+  /** Where the encoder ends along x, toward the display: the lid's skirt starts there. */
+  readonly encoderEdge: number;
 
   constructor(c: Config, faceplate: Faceplate) {
     super(c, faceplate);
@@ -68,12 +60,22 @@ export class Bar extends Case {
     this.tabXs = [-mcpCenter, 0, mcpCenter];
     this.cableX = (this.mcp[1] + this.right) / 2;
     this.sag = b.shroudSag;
+    this.back = this.depth + b.lidExtra;
+    this.encoderEdge = this.shaftX + encoderHalf;
 
     if (e.boardLength / 2 > this.halfY || boards.mcp2515.length / 2 > this.halfY) {
       throw new Error("bar: the encoder's board or the MCP2515 is longer than the bar is tall");
     }
     if (b.frontWall + b.mcpStandoff + b.mcpPcbThickness + b.mcpTallest > this.lidFace) {
       throw new Error("bar: the MCP2515's terminal doesn't fit under the lid: check bar.mcpStandoff and mcpTallest");
+    }
+    if (this.halfY + this.sag - (this.halfY - c.clearance - b.skirtThickness) > b.lidExtra) {
+      throw new Error(
+        "bar: the lid's walls are too short for its 45 degree steps down to the skirt: check bar.lidExtra",
+      );
+    }
+    if (Math.min(...this.tabXs) - h.tabWidth / 2 < this.encoderEdge) {
+      throw new Error("bar: a bump of the lid sits past its skirt, over the encoder");
     }
     if (b.endRoom < h.cableHole + 1) {
       throw new Error("bar: no room for the cable's slot past the MCP2515: check bar.endRoom");
@@ -170,99 +172,94 @@ export class Bar extends Case {
     );
   }
 
-  /** The lid's lip, inside the walls all round, broken around each tab so it still bends. */
-  private get lip(): ScadObject {
-    const { bar: b, head: h, clearance } = this.c;
-    const lx = this.right - clearance;
+  /**
+   * The lid, as built: a tray from the walls' back edge (lidFace) to the
+   * back, the Pico's standoffs on its back, a skirt down inside the top and
+   * bottom walls from past the encoder, a bump into each slot.
+   */
+  get lid(): ScadObject {
+    const { bar: bc, head: h, clearance } = this.c;
+    const e = bc.lidExtra;
+    const half = (h.cableSlotLength - h.cableHole) / 2;
     const ly = this.halfY - clearance;
-    const w = b.lipWidth;
-    const z0 = this.lidFace - b.lipHeight;
+    const inner = ly - bc.skirtThickness;
+    const [a, b] = this.plugOpening;
+    const w = h.usbSlotWidth;
     return difference(
-      box(-lx, lx, -ly, ly, z0, this.lidFace + 0.01),
-      box(-lx + w, lx - w, -ly + w, ly - w, z0 - 1, this.lidFace + 1),
-      ...this.tabXs.map((x) =>
-        box(x - h.tabWidth / 2 - 1, x + h.tabWidth / 2 + 1, -ly - 1, ly + 1, z0 - 1, this.lidFace + 1),
+      union(
+        difference(this.outline.linear_extrude(this.back - this.lidFace).translate([0, 0, this.lidFace]), this.cavity),
+        ...[-1, 1].map((sy) =>
+          box(this.encoderEdge, this.right - clearance, ...this.side(sy, inner, ly), this.tabTip, this.lidFace + 0.01),
+        ),
+        ...this.tabXs.flatMap((x) => [-1, 1].map((sy) => this.hook(x, sy, h.tabWidth, bc.bumpDepth))),
+        this.picoMount.translate([0, 0, e]),
+      ),
+      union(
+        this.cableSlot([this.cableX, -half], [this.cableX, half]),
+        this.cableSlot(a, b, w),
+        this.ventSlots([
+          ...this.picoKeepOut,
+          [this.cableX - h.cableHole / 2, this.cableX + h.cableHole / 2, -h.cableSlotLength / 2, h.cableSlotLength / 2],
+          [a[0] - w / 2, b[0] + w / 2, -w / 2, w / 2],
+        ]),
+      ).translate([0, 0, e]),
+    );
+  }
+
+  /** The outline, its bottom's arc included: the shell's, flat. */
+  private get outline(): ScadObject {
+    const r = this.c.head.cornerRadius;
+    const x = this.right + this.c.head.wall;
+    return difference(
+      square([2 * x - 2 * r, 2 * this.outerY + this.sag - 2 * r])
+        .radius_offset(r)
+        .translate([0, -this.sag / 2, 0]),
+      this.underArc,
+    );
+  }
+
+  /**
+   * The lid's inside, from the walls' back edge to its back: head.wall in
+   * from the outline (along the arc too), but at the walls' edge only down
+   * to the skirt, widening to the walls in 45 degree steps above it: it
+   * prints back down, the skirt last.
+   */
+  private get cavity(): ScadObject {
+    const { bar: bc, head: h, clearance } = this.c;
+    const inner = this.halfY - clearance - bc.skirtThickness;
+    const top = this.lidFace + bc.lidExtra;
+    const step = 0.5;
+    const n = Math.ceil((this.halfY + this.sag - inner) / step);
+    return union(
+      box(-this.right, this.right, -inner, inner, this.lidFace - 1, top),
+      ...Array.from({ length: n + 1 }, (_, k) =>
+        this.outline
+          .delta_offset(-h.wall - (n - k) * step)
+          .linear_extrude(top - this.lidFace - k * step)
+          .translate([0, 0, this.lidFace + k * step]),
       ),
     );
   }
 
-  /** The lid, as built: from lidFace to the back, its lip, its tabs, the Pico's standoffs. */
-  get lid(): ScadObject {
-    const { bar: bc, head: h, clearance } = this.c;
-    const half = (h.cableSlotLength - h.cableHole) / 2;
-    const lx = this.right - clearance;
-    const ly = this.halfY - clearance;
-    const lw = bc.lipWidth;
-    const [a, b] = this.plugOpening;
-    const w = h.usbSlotWidth;
-    const slot: Rect = [
-      this.cableX - h.cableHole / 2,
-      this.cableX + h.cableHole / 2,
-      -h.cableSlotLength / 2,
-      h.cableSlotLength / 2,
-    ];
-    return difference(
-      union(
-        // The shell's outline, its bottom's arc included.
-        difference(
-          this.rounded(-this.right - h.wall, this.right + h.wall, this.outerY, this.lidFace, this.depth, this.sag),
-          this.saddle(this.lidFace, this.depth),
-        ),
-        this.lip,
-        this.tabs(this.tabXs),
-        this.picoMount,
-      ),
-      this.cableSlot([this.cableX, -half], [this.cableX, half]),
-      this.cableSlot(a, b, w),
-      this.vents(-this.right + clearance, this.right - clearance, [
-        ...this.picoKeepOut,
-        ...this.tabsKeepOut(this.tabXs),
-        slot,
-        [a[0] - w / 2, b[0] + w / 2, -w / 2, w / 2],
-        // The lip's 4 sides.
-        [-lx, lx, ly - lw, ly],
-        [-lx, lx, -ly, -ly + lw],
-        [-lx, -lx + lw, -ly, ly],
-        [lx - lw, lx, -ly, ly],
-      ]),
+  /** Slots across the lid's back, clear of keepOut: quicker to print than a honeycomb. */
+  private ventSlots(keepOut: Rect[]): ScadObject {
+    const { bar: bc, clearance } = this.c;
+    const r = bc.ventWidth / 2;
+    const half = this.halfY - clearance - r - 2;
+    const n = Math.floor((this.right - 4) / bc.ventPitch);
+    const xs = Array.from({ length: 2 * n + 1 }, (_, i) => (i - n) * bc.ventPitch).filter((x) =>
+      keepOut.every(([x0, x1, y0, y1]) => x + r + 1 < x0 || x - r - 1 > x1 || half + r + 1 < y0 || -half - r - 1 > y1),
     );
+    return union(...xs.map((x) => this.cableSlot([x, -half], [x, half], bc.ventWidth)));
   }
 
   /** Each part to print, as it lies on the bed. */
   get print(): Record<string, ScadObject> {
     return {
       "bar-shell": this.shell,
-      "bar-lid": this.lid.rotate([180, 0, 0]).translate([0, 0, this.depth]),
-      "bar-arcs": this.arcGauge,
+      "bar-lid": this.lid.rotate([180, 0, 0]).translate([0, 0, this.back]),
+      "bar-arcs": arcGauge(this.c, this.right + this.c.head.wall),
     };
-  }
-
-  /**
-   * A test print to pick the bottom's arc: a strip as long as the bar for
-   * each of bar.gaugeSags, its bottom that much deeper at the ends, as many
-   * notches on its top as its rank. Flat on the bed.
-   */
-  get arcGauge(): ScadObject {
-    const { bar: b, head: h } = this.c;
-    const half = this.right + h.wall;
-    const pitch = b.gaugeHeight + Math.max(...b.gaugeSags) + 3;
-    return union(
-      ...b.gaugeSags.map((sag, i) =>
-        difference(
-          polygon([...arc(sag, half), [half, b.gaugeHeight], [-half, b.gaugeHeight]]).linear_extrude(b.gaugeThickness),
-          ...Array.from({ length: i + 1 }, (_, k) =>
-            box(
-              k * 4 - i * 2 - 0.75,
-              k * 4 - i * 2 + 0.75,
-              b.gaugeHeight - 2,
-              b.gaugeHeight + 1,
-              -1,
-              b.gaugeThickness + 1,
-            ),
-          ),
-        ).translate([0, i * pitch, 0]),
-      ),
-    );
   }
 
   /** The MCP2515, components toward the lid, its header toward the display, its terminal toward the end. */
@@ -285,13 +282,14 @@ export class Bar extends Case {
   get inside(): ScadObject {
     const { c } = this;
     const socket = this.picoX[0] - c.head.picoUsbOverhang;
+    const face = this.picoFace + c.bar.lidExtra;
     return union(
       this.shell.color("gold"),
-      this.stackMockup,
+      this.stackMockup(this.c.bar.lidExtra),
       // The encoder's bent pins cut at the walls: their wires are soldered on.
       intersection(this.encoderPlaced(encoder(c, this.faceplate)), box(-500, 500, -this.halfY, this.halfY, -50, 50)),
       // The converter's plug in the Pico's socket.
-      box(socket - 18, socket, -5.5, 5.5, this.picoFace - 4.8, this.picoFace + 2.2).color("black"),
+      box(socket - 18, socket, -5.5, 5.5, face - 4.8, face + 2.2).color("black"),
       this.mcpMockup,
     );
   }

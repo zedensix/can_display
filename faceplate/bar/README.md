@@ -3,9 +3,8 @@
 ![Bar, front](renders/bar-front.png) ![Bar, the lid off](renders/bar-inside.png)
 
 The modules in one long, thin box laid on the steering column's shroud,
-along its length instead of stacked: 164 x 41 x 19 mm (46.5 at the ends,
-over the arc), the display in the
-middle. On one side the encoder, its knob out the front, then the
+along its length instead of stacked: 164 x 41 x 34 mm (46 at the ends,
+over the arc), the display in the middle. On one side the encoder, its knob out the front, then the
 converter's micro-USB plug in the Pico's socket; on the other the MCP2515.
 The display is in landscape with the Pico right behind it, built as
 [the head's](../head/README.md). The converter stays out, on the cable by
@@ -21,17 +20,20 @@ the fuse box. Two parts, printed with no supports:
   through its holes: flatten each pin's tip into a head with the soldering
   iron. `encoder.holeDiameter` (3 mm) is a guess: measure it. Its bottom is hollowed into an arc, its axis front to back like the
   column's, to sit on the shroud: `bar.shroudSag` deeper at the ends than
-  in the middle, VHB tape on it (not over a hook's slot). It prints front down.
-- **The lid** (`bar-lid`) clips on with 3 pairs of tabs, their hooks 1.5
-  mm into the walls, a lip 2 mm deep under it inside the walls all round
-  (`bar.lipHeight`, broken around each tab) to stiffen it: to take it off,
-  push the hooks of one side back in through their slots (the bottom ones
-  through the arc) with a small screwdriver and lift that side. The Pico
-  stands on it as in the head, either way up. Over the plug, an opening the
+  in the middle, VHB tape on it (not over a slot). It prints front down.
+- **The lid** (`bar-lid`) is a tray 15 mm deep (`bar.lidExtra`: the
+  wires' room) sitting on the shell's walls, a skirt down inside its top
+  and bottom walls, a bump on it clicking into each of the shell's 6 slots
+  (0.6 mm, `bar.bumpDepth`). No tab: snap tabs, printed standing, bend
+  across their layers and broke; a skirt that long bends along its
+  length. To take it off, push the 3 bumps of one side back in through
+  their slots (the bottom ones through the arc) with a small screwdriver
+  and lift that side. The Pico stands on its back as in the head, either
+  way up, 15 mm further back than in the head. Over the plug, an opening the
   converter's cable goes out through: pull the plug out through it to plug
   the computer in and flash, the lid on. CAN-H and CAN-L leave through the
-  slot over the MCP2515's terminal. A honeycomb lets the heat out. It prints
-  outside down.
+  slot over the MCP2515's terminal. Slots across its back let the heat out. Its walls are head.wall thick along the arc too, widening in 45 degree steps to the skirt: no support. It prints
+  back down.
 
 The plug gets what's left between the encoder and the display once the
 display sits in the middle (29 mm, `bar.plugRoomMin` at least). The

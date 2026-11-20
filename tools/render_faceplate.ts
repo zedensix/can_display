@@ -113,7 +113,7 @@ const dimensions = {
     // The head's outside.
     head: [2 * (head.halfX + config.head.wall), 2 * (head.halfY + config.head.wall), head.depth],
     // The bar's outside, its height at the ends, the saddle's arc under them.
-    bar: [2 * (bar.right + config.head.wall), 2 * (bar.halfY + config.head.wall) + bar.sag, bar.depth],
+    bar: [2 * (bar.right + config.head.wall), 2 * (bar.halfY + config.head.wall) + bar.sag, bar.back],
     // Each board's pilot hole, from its holes' size.
     pilots: Object.fromEntries(Object.entries(config.boards).map(([name, board]) => [name, tray.pilotOf(board)])),
   },
