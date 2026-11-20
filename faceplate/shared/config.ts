@@ -52,6 +52,8 @@ const defaults = {
     // self-tapping screws (screw.pilotDiameter); the 2 opposite standoffs
     // only hold the board level.
     holeSpacing: 13.75, // between the centers of the board's 2 mounting holes
+    holeDiameter: 3, // those holes (a guess: measure them), for the bar's heat-staked pins
+    pcbThickness: 1.6,
     holesFromShaft: 7.9, // from the shaft's center to the line through the 2 holes
     holesTowardPins: 2, // from the shaft's center to the holes' midpoint, along the board toward the pins: a KY-040's holes aren't centered on the shaft (2 read off a photo, measure it)
     standoffDiameter: 4.5, // the board's standoffs, cut flat where they meet the body

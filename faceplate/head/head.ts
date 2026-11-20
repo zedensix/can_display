@@ -23,7 +23,7 @@
 // Seen from the back like the faceplate: x across, y up, the front at
 // z = 0, the display board centered. Both print with no supports: the
 // shell front down (the window's bevel, the slots' short bridges), the lid
-// outside down (the hooks' 1.3 mm ledges, short enough to print in the air).
+// outside down (the hooks' 1.8 mm ledges, short enough to print in the air).
 
 import type { ScadObject } from "scad-js";
 import { difference, union } from "scad-js";

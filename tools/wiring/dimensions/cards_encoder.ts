@@ -185,6 +185,8 @@ export function encoderCard(
       ["Body, square side", e.bodySize, "encoder.bodySize"],
       ["Body height, board to face", e.bodyHeight, "encoder.bodyHeight"],
       ["Board's 2 holes apart, center to center", e.holeSpacing, "encoder.holeSpacing"],
+      ["Board's holes, diameter", e.holeDiameter, "encoder.holeDiameter"],
+      ["Board thickness", e.pcbThickness, "encoder.pcbThickness"],
       ["Holes from the shaft's center", e.holesFromShaft, "encoder.holesFromShaft"],
       ["Holes' midpoint from the shaft, toward the pins", e.holesTowardPins, "encoder.holesTowardPins"],
       ["Standoff diameter", e.standoffDiameter, "encoder.standoffDiameter"],

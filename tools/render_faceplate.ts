@@ -64,7 +64,7 @@ const pictures: Record<string, Record<string, Picture>> = {
     }, // the lid off: every module in place
     "bar-shell-back": { object: bar.shell, rotation: [55, 0, 25] }, // as it sits on the bed
     "bar-lid": { object: models.bar["bar-lid"], rotation: [55, 0, 25] }, // as it sits on the bed: the tabs, the Pico's standoffs
-    "bar-wireframe": { object: models.bar["bar-wireframe"], rotation: [55, 0, 25] }, // the test print: the outline, flat
+    "bar-arcs": { object: models.bar["bar-arcs"], rotation: [0, 0, 0] }, // the test print: a strip for each arc, from the front
   },
 };
 

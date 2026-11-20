@@ -23,12 +23,15 @@ export const bar = {
   mcpPcbThickness: 1.6,
   mcpTallest: 10, // its terminal block, the tallest part, above its board: it must clear the lid
   // The bottom, hollowed into an arc along the bar, its axis front to back
-  // like the steering column's: laid on the shroud's top. A guess: lay a
-  // ruler w long across the shroud, measure the gap h under its middle,
-  // the radius is (w * w / 4 + h * h) / (2 * h).
-  shroudRadius: 200,
-  // Its outline as a flat frame, to print first: a test of its length and
-  // its bottom's arc on the shroud (bar-wireframe).
-  wireBar: 3,
-  wireThickness: 2,
+  // like the steering column's: laid on the shroud's top.
+  // A lip under the lid, inside the walls all round, clear of the tabs: a
+  // flat lid that long bends, and lets its hooks out.
+  lipHeight: 2,
+  lipWidth: 1.6,
+  shroudSag: 5, // how much deeper the arc is at the ends than in the middle: a straight edge on the shroud showed 5, bar-arcs' 1 to 3 agreed (not enough)
+  // bar-arcs, a test print to pick shroudSag: a strip as long as the bar
+  // for each sag, as many notches on its top as its rank.
+  gaugeSags: [1, 1.5, 2, 2.5, 3],
+  gaugeHeight: 8,
+  gaugeThickness: 2,
 };

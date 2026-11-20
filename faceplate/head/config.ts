@@ -29,10 +29,10 @@ export const head = {
   // each tip clicking into a slot through the wall; a small screwdriver
   // through the slot pushes the hook back in to take the lid off.
   tabWidth: 10,
-  tabThickness: 1, // thin enough to bend: PLA takes about 3% strain, the hook's bend here (1.3 mm: the hook and the clearance) about 2.7%
-  tabLength: 8.5, // from the lid down, ending 0.5 mm above the display's board: the longer, the easier it bends
-  hookDepth: 1, // how far the hook reaches into the wall's slot (0.5 didn't hold)
-  hookLength: 1.2, // the hook's ramp, from the tip back to its catch
+  tabThickness: 1, // thin enough to bend: PLA takes about 3% strain, the hook's bend here (1.8 mm: the hook and the clearance) about 2.7%
+  tabLength: 10, // from the lid down, ending 2.5 mm above the display's board: the longer, the easier it bends
+  hookDepth: 1.5, // how far the hook reaches into the wall's slot, nearly through it (0.5 didn't hold, nor 1 on the bar)
+  hookLength: 2, // the hook's ramp, from the tip back to its catch: under 45 degrees, so the lid pushes it in
   usbSlotWidth: 12, // the notch by the Pico's micro-USB socket, for the plug's overmold
   usbSlotHeight: 8, // around the socket, whichever way up the Pico lies
   cableHole: 7, // the cable's slot through the lid, under the Pico: across

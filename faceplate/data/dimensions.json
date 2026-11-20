@@ -31,6 +31,8 @@
       "panelThickness": 1,
       "belowDisplay": 16,
       "holeSpacing": 13.75,
+      "holeDiameter": 3,
+      "pcbThickness": 1.6,
       "holesFromShaft": 7.9,
       "holesTowardPins": 2,
       "standoffDiameter": 5,
@@ -154,9 +156,9 @@
       "lidThickness": 1.2,
       "tabWidth": 10,
       "tabThickness": 1,
-      "tabLength": 8.5,
-      "hookDepth": 1,
-      "hookLength": 1.2,
+      "tabLength": 10,
+      "hookDepth": 1.5,
+      "hookLength": 2,
       "usbSlotWidth": 12,
       "usbSlotHeight": 8,
       "cableHole": 7,
@@ -174,9 +176,18 @@
       "mcpStandoffDiameter": 6,
       "mcpPcbThickness": 1.6,
       "mcpTallest": 10,
-      "shroudRadius": 200,
-      "wireBar": 3,
-      "wireThickness": 2
+      "lipHeight": 2,
+      "lipWidth": 1.6,
+      "shroudSag": 5,
+      "gaugeSags": [
+        1,
+        1.5,
+        2,
+        2.5,
+        3
+      ],
+      "gaugeHeight": 8,
+      "gaugeThickness": 2
     },
     "clearance": 0.3
   },
@@ -251,7 +262,7 @@
     ],
     "bar": [
       163.79999999999998,
-      58.83797655402372,
+      46.300000000000004,
       19.099999999999998
     ],
     "pilots": {

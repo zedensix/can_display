@@ -12,7 +12,7 @@
 // Their dimensions are the head's (head/config.ts). Seen from the back like
 // the faceplate: x across, y up, the front at z = 0, the display board
 // centered, the Pico's USB socket at its -x end. Both parts print with no
-// supports: the shell front down, the lid outside down (the hooks' 1.3 mm
+// supports: the shell front down, the lid outside down (the hooks' 1.8 mm
 // ledges, short enough to print in the air).
 
 import type { ScadObject } from "scad-js";
@@ -186,7 +186,8 @@ export class Case {
             x + h.tabWidth / 2 + clearance,
             ...this.side(sy, this.halfY - 0.01, this.outerY + out),
             this.tabTip - 0.3,
-            this.tabTip + h.hookLength + 0.15,
+            // Room over the hook's catch for the slot's top, a bridge, sagging.
+            this.tabTip + h.hookLength + 0.3,
           ),
         ),
       ),
