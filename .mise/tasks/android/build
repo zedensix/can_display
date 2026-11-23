@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Build the Android Auto app's debug APK (android/app/build/outputs/apk/debug)"
+#MISE depends=["android:sdk"]
+set -euo pipefail
+gradle -p android --console=plain assembleDebug

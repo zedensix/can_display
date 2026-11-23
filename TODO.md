@@ -1,6 +1,9 @@
 # TODO
 
 - [x] Switch to the wired mode with the MCP2515: the only source since, the ELM327 dongle taken out (its code in `9dc0432`), Send log kept and working on CAN
+- [x] Android Auto app (`android/`): the gauges drawn on a navigation app's surface, made-up readings, a preview on the phone
+- [ ] Android Auto app in the car: a Play Console app `com.zedensix.gt86dash`, an upload key, the internal test track; check it shows on the Pioneer, and its visible area there
+- [ ] Live readings over BLE: the dash streams them as a peripheral beside the CAN reader (BTstack's flash writes holding core1 first, see CLAUDE.md), the app connects to "GT86 DASH" and draws them instead of FakeSource
 - [x] Wiring diagram in HTML (`docs/wiring.html`): a color modules version, a blueprint version, two links to switch between them
 - [x] Diagram captures (color and blueprint) in `docs/resources/`, made by `mise run wiring`, shown in `docs/wiring.md`
 - [x] Code quality: prek hooks (clang-format for the C, Biome for the TS/Svelte/CSS/JSON, bun check for the types, web and host tests)

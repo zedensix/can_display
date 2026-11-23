@@ -11,7 +11,7 @@ permissions:
 env:
   # mise.toml pins OpenSCAD as a macOS .dmg, for the faceplate's renders:
   # not built here.
-  MISE_DISABLE_TOOLS: http:openscad
+  MISE_DISABLE_TOOLS: http:openscad,java,android-sdk,gradle
 
 jobs:
   checks:

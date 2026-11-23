@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+#MISE description="Build the app, install it on the only device or emulator adb sees, and open its preview; pass a scene (street, track, race, cold, alarm, stale) for fixed readings"
+#MISE depends=["android:build"]
+set -euo pipefail
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+extra=()
+[ -n "${1:-}" ] && extra=(--es scene "$1" --ei view "${2:-0}")
+adb shell am start -S -n com.zedensix.gt86dash/.PreviewActivity "${extra[@]}"

@@ -123,6 +123,23 @@ wiring page's Dimensions tab is where the measurements go in. More in
    on USB, rebooting it into BOOTSEL by itself.
 4. In the car: wire the MCP2515 to the OBD port, power the dash from a switched 12V.
 
+## On the head unit: Android Auto
+
+The same gauges, bigger, on the car's Android Auto screen: an app on the phone (`android/`,
+Kotlin) that Android Auto runs as a navigation app, its map the gauges. Every gauge with the
+oil as a big dial, arrows to turn the views and a cog for the settings (the shift light's RPM,
+the min and max reset), the track layout past comfort, each gauge alone with its session's lowest
+and highest, the oil too hot over the whole screen, the shift light across the top. Its
+readings are made up for now, until the dash streams live ones over Bluetooth.
+
+```sh
+mise run android:flash # build, install on the phone (USB or Wi-Fi debugging), open it
+mise run android:dhu   # Android Auto on the laptop, from the phone on USB
+```
+
+In the car, Android Auto only runs apps from the Play Store: the app goes through an internal
+test track.
+
 ## Development
 
 ```sh
@@ -180,7 +197,9 @@ this one's were found.
 ## License
 
 MIT ([LICENSE](LICENSE)), except the font data in `src/app/ui/fonts.c`: FreeSans Bold from
-GNU FreeFont, GPLv3 with the font exception. The 86 logo (`86.png`, `src/app/ui/logo.c`) is
+GNU FreeFont, GPLv3 with the font exception; and the Android app's Barlow Condensed
+(`android/app/src/main/res/font`), SIL Open Font License 1.1 (`android/app/src/main/assets/OFL.txt`), and its icons, Material
+Symbols, Apache 2.0. The 86 logo (`86.png`, `src/app/ui/logo.c`) is
 Toyota's trademark, not covered by the MIT license. The screensaver's other logos, the car's
 parts' makers', aren't in the repository: `mise run logos` builds them in from your own
 folder.

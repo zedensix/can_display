@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+#MISE description="Open the desktop head unit, Android Auto on the laptop, from the phone on USB: Android Auto's developer settings, 'Start head unit server' first"
+#MISE depends=["android:sdk"]
+set -euo pipefail
+adb forward tcp:5277 tcp:5277
+"$ANDROID_HOME/extras/google/auto/desktop-head-unit"

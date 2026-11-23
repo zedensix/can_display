@@ -8,6 +8,11 @@ bun = "1.4.4"
 # Git hooks (.pre-commit-config.yaml), set up by `mise install` (below).
 prek = "0.5.9"
 node = "latest"
+# The Android Auto app (android/): AGP 9 wants Java 21; its SDK packages
+# come from `mise run android:sdk`.
+java = "temurin-21.0.13+9.0.LTS"
+android-sdk = "23.0"
+gradle = "9.9.1"
 
 # OpenSCAD, for the faceplate's PNG previews (`mise run faceplate`; its STL
 # renders in-process with openscad-wasm). The last release (2021.01) is

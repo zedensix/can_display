@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+#MISE description="Build the app and install it on the phone (USB or Wi-Fi debugging, never the emulator), then open it"
+#MISE depends=["android:build"]
+set -euo pipefail
+# The first phone adb sees, whether on USB or paired over Wi-Fi; emulators skipped.
+phone=$(adb devices | awk 'NR > 1 && $2 == "device" && $1 !~ /^emulator-/ { print $1; exit }')
+if [ -z "$phone" ]; then
+  echo "No phone: plug it in with USB debugging on (Developer options), accept the prompt on it, or pair it over Wi-Fi (adb pair)" >&2
+  adb devices >&2
+  exit 1
+fi
+echo "Installing on $(adb -s "$phone" shell getprop ro.product.model | tr -d '\r') ($phone)"
+adb -s "$phone" install -r android/app/build/outputs/apk/debug/app-debug.apk
+adb -s "$phone" shell am start -S -n com.zedensix.gt86dash/.PreviewActivity >/dev/null
+echo "Installed. In the car or the desktop head unit, Android Auto needs Unknown sources on (its developer settings) to list it"

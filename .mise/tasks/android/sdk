@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+#MISE description="Install the Android SDK packages the app needs (platform, build tools, the desktop head unit) into mise's android-sdk"
+set -euo pipefail
+packages=(
+  "platform-tools"
+  "platforms/android-37.0"
+  "build-tools/36.1.0"
+  "extras/google/auto"
+)
+missing=()
+for package in "${packages[@]}"; do
+  [ -d "$ANDROID_HOME/$package" ] || missing+=("${package//\//;}")
+done
+[ ${#missing[@]} -eq 0 ] && exit 0
+sdkmanager --install "${missing[@]}"
