@@ -130,7 +130,9 @@ Kotlin) that Android Auto runs as a navigation app, its map the gauges. Every ga
 oil as a big dial, arrows to turn the views and a cog for the settings (the shift light's RPM,
 the min and max reset), the track layout past comfort, each gauge alone with its session's lowest
 and highest, the oil too hot over the whole screen, the shift light across the top. The dash
-sends it its readings over Bluetooth LE many times a second; a Demo setting makes them up.
+sends it its readings over Bluetooth LE many times a second; a Demo setting makes them up. On
+the phone itself, the gauges in landscape, a waiting screen in portrait until the dash answers,
+and a settings page that says how the link is doing and which dash it connects to.
 
 ```sh
 mise run android:flash # build, install on the phone (USB or Wi-Fi debugging), open it

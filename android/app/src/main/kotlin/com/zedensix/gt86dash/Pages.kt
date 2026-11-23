@@ -1,6 +1,7 @@
 package com.zedensix.gt86dash
 
 import android.graphics.Canvas
+import kotlin.math.min
 
 // The pages, laid out in the design's W x H pixels (an 800x480 screen
 // less Android Auto's rail and a margin): every gauge (street), the track
@@ -202,11 +203,14 @@ class Pages(private val d: Draw) {
     }
 
     // While there's nothing to show: what the app waits for, and what to
-    // do about it.
-    fun status(c: Canvas, title: String, line: String, now: Long) {
-        d.spinner(c, W / 2, 150f, 50f, now)
-        d.text(c, title, W / 2, 290f, 44f, Weight.BOLD, Colors.LABEL, Align.CENTER, 4f)
-        d.text(c, line, W / 2, 335f, 24f, Weight.MEDIUM, Colors.DIM, Align.CENTER)
+    // do about it, centered in w x h (the phone shows it in portrait); text
+    // too wide for it shrinks.
+    fun status(c: Canvas, w: Float, h: Float, title: String, line: String, now: Long) {
+        fun fit(s: String, size: Float, weight: Weight, spacing: Float) =
+            min(size, size * (w - 40) / d.width(s, size, weight, spacing))
+        d.spinner(c, w / 2, h / 2 - 80, 50f, now)
+        d.text(c, title, w / 2, h / 2 + 60, fit(title, 44f, Weight.BOLD, 4f), Weight.BOLD, Colors.LABEL, Align.CENTER, 4f)
+        d.text(c, line, w / 2, h / 2 + 105, fit(line, 24f, Weight.MEDIUM, 0f), Weight.MEDIUM, Colors.DIM, Align.CENTER)
     }
 
     // Near the limiter: SHIFT across the page (Dash floods it red).

@@ -26,10 +26,14 @@ class Dash(context: Context) {
     }
 
     // A frame from what's there: the made-up readings in demo, else the
-    // dash's, else what the link waits for.
-    fun frame(c: Canvas, area: Rect, now: Long) {
-        if (settings.demo) return draw(c, area, FakeSource.at(now), now)
-        LiveLink.readings()?.let { return draw(c, area, it, now) }
+    // dash's, else what the link waits for. Returns whether it drew the
+    // gauges.
+    fun frame(c: Canvas, area: Rect, now: Long): Boolean {
+        val r = if (settings.demo) FakeSource.at(now) else LiveLink.readings()
+        if (r != null) {
+            draw(c, area, r, now)
+            return true
+        }
         LiveLink.retry()
         val (title, line) = when (LiveLink.status) {
             LiveLink.Status.NO_PERMISSION -> "ALLOW BLUETOOTH" to "on the phone, for GT86 Dash to find the dash"
@@ -38,15 +42,17 @@ class Dash(context: Context) {
             LiveLink.Status.CONNECTING, LiveLink.Status.LIVE -> "CONNECTING" to "GT86 DASH"
         }
         c.drawColor(Colors.BACKGROUND)
-        place(c, area) { pages.status(c, title, line, now) }
+        val (w, h) = if (area.height() > area.width()) PORTRAIT_W to PORTRAIT_H else W to H
+        place(c, area, w, h) { pages.status(c, w, h, title, line, now) }
+        return false
     }
 
-    // Draws in the design's pixels, scaled into area and centered. The
-    // design's margins around W x H: 16 on the sides, 10 above and below.
-    private fun place(c: Canvas, area: Rect, draw: () -> Unit) {
-        val scale = min(area.width() / (W + 32), area.height() / (H + 20))
+    // Draws in the design's pixels, w x h scaled into area and centered.
+    // The design's margins around it: 16 on the sides, 10 above and below.
+    private fun place(c: Canvas, area: Rect, w: Float = W, h: Float = H, draw: () -> Unit) {
+        val scale = min(area.width() / (w + 32), area.height() / (h + 20))
         c.save()
-        c.translate(area.left + (area.width() - W * scale) / 2, area.top + (area.height() - H * scale) / 2)
+        c.translate(area.left + (area.width() - w * scale) / 2, area.top + (area.height() - h * scale) / 2)
         c.scale(scale, scale)
         draw()
         c.restore()
@@ -74,5 +80,11 @@ class Dash(context: Context) {
                 else -> pages.street(c, r, now)
             }
         }
+    }
+
+    private companion object {
+        // The waiting screen's design in portrait, the phone's.
+        const val PORTRAIT_W = 420f
+        const val PORTRAIT_H = 700f
     }
 }

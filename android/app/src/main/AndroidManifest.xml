@@ -43,15 +43,23 @@
             </intent-filter>
         </service>
 
-        <!-- The same gauges on the phone itself, landscape. -->
+        <!-- The same gauges on the phone itself: it turns itself, landscape
+             for the gauges, portrait while it waits, kept through the turn
+             (recreated, it would drop the dash's link). -->
         <activity
             android:name=".PreviewActivity"
-            android:exported="true"
-            android:screenOrientation="sensorLandscape">
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- The phone's settings page, kept through a turn as well. -->
+        <activity
+            android:name=".SettingsActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:exported="false" />
     </application>
 </manifest>

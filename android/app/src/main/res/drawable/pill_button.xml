@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A button in the phone's settings panel: a dark pill, a faint edge. -->
+<!-- A button on the phone's settings page: a dark pill, a faint edge. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
     <corners android:radius="24dp" />
     <solid android:color="#FF1C1C1C" />

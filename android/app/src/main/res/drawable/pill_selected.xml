@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The dash in use among the settings' dashes: the pill, its edge the accent. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="24dp" />
+    <solid android:color="#FF1C1C1C" />
+    <stroke android:width="2dp" android:color="#FFFF5A1E" />
+</shape>
