@@ -70,7 +70,7 @@ runs.
 
 <img src="docs/resources/web-session.png" alt="A session's charts in the log site, dark theme" width="100%">
 
-"Send log" turns the dash into a Bluetooth peripheral, the gauges paused meanwhile; the log
+"Send log" hands it over the dash's Bluetooth link, the gauges paused meanwhile; the log
 page, opened in Chrome on Android, downloads the whole log and sends it to its server. The server keeps each session
 once, however many times it's sent, even after the dash's flash ring has overwritten it.
 The list pages, searches and filters by date; a session can be named, and gets its peaks,
@@ -129,8 +129,8 @@ The same gauges, bigger, on the car's Android Auto screen: an app on the phone (
 Kotlin) that Android Auto runs as a navigation app, its map the gauges. Every gauge with the
 oil as a big dial, arrows to turn the views and a cog for the settings (the shift light's RPM,
 the min and max reset), the track layout past comfort, each gauge alone with its session's lowest
-and highest, the oil too hot over the whole screen, the shift light across the top. Its
-readings are made up for now, until the dash streams live ones over Bluetooth.
+and highest, the oil too hot over the whole screen, the shift light across the top. The dash
+sends it its readings over Bluetooth LE many times a second; a Demo setting makes them up.
 
 ```sh
 mise run android:flash # build, install on the phone (USB or Wi-Fi debugging), open it

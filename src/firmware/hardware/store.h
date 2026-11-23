@@ -27,10 +27,5 @@ void store_dump_log_on_request(void);
 // store_get_datalog is the data log, or NULL if flash storage is off.
 datalog_t *store_get_datalog(void);
 
-// store_hold_core1 holds core1 in RAM while hold, for flash writes made
-// outside the store: BTstack's, through the SDK's flash_safe_execute,
-// which doesn't hold it (see flash_op). Nothing on core1 runs meanwhile.
-void store_hold_core1(bool hold);
-
 settings_t store_load_settings(void);
 void store_save_settings(settings_t cfg);

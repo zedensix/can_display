@@ -126,6 +126,13 @@ class Draw(context: Context) {
         if (low != null) tick(c, cx, cy, r, width, -135 + 270 * range.fraction(low), Colors.COLD)
     }
 
+    // A ring with a quarter of it lit, turning once a second: waiting.
+    fun spinner(c: Canvas, cx: Float, cy: Float, r: Float, now: Long) {
+        arc(c, cx, cy, r, 0f, 360f, Colors.ACCENT, 8f, 0.16f)
+        val a = (now % 1000) * 360f / 1000
+        arc(c, cx, cy, r, a, a + 90, Colors.ACCENT, 8f, 1f)
+    }
+
     // A bar of n segments, w wide and 10 high, colored as a dial.
     fun bar(c: Canvas, x: Float, y: Float, w: Float, n: Int, range: Range, v: Float?) {
         val gap = 3f

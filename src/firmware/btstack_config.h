@@ -1,7 +1,8 @@
 #pragma once
 
 // BTstack configuration for a single BLE peripheral, the dash, for one
-// phone at a time (Send log), after the pico-sdk's examples. The buffer
+// phone at a time (the app's live readings, or Send log), after the
+// pico-sdk's examples. The buffer
 // limits keep the cyw43 shared bus from overrunning.
 
 #define ENABLE_LE_PERIPHERAL

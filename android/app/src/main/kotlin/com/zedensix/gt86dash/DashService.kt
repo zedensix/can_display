@@ -39,6 +39,14 @@ class DashSession : Session() {
 class GaugeScreen(carContext: CarContext) : Screen(carContext) {
     private val renderer = SurfaceRenderer(carContext, lifecycle)
 
+    init {
+        // Bluetooth's permissions, asked on the phone (the car's screen
+        // says to look there meanwhile).
+        if (!LiveLink.granted(carContext)) {
+            carContext.requestPermissions(LiveLink.permissions.toList()) { _, _ -> LiveLink.retry() }
+        }
+    }
+
     override fun onGetTemplate(): Template {
         val strip = ActionStrip.Builder()
             .addAction(iconAction(carContext, R.drawable.ic_previous) { renderer.dash.previousView() })

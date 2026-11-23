@@ -31,6 +31,7 @@ void source_start(state_t *state) {
         log_line("boot: data source CAN (MCP2515)");
         mcp2515_source_init(state);
     }
+    ble_start(state);
 }
 
 void poll_data_source(uint32_t now) {
@@ -55,7 +56,7 @@ void run_settings_action(action_t action) {
     datalog_t *log = store_get_datalog();
     if (action == ACTION_SEND_LOG && log) {
         datalog_flush(log);
-        ble_send_log(source_state, log);
+        ble_send_log(log);
     }
 }
 

@@ -75,6 +75,12 @@ void state_set_status(state_t *s, const char *status);
 // the UI shows "--" rather than a frozen or zero value.
 bool reading_is_stale(const reading_t *r, uint32_t now_ms, uint32_t max_age_ms);
 
+// How old a reading may get before it's stale. Most signals update
+// several times a second. The temperatures change slowly, and the ethanol
+// % comes in the MCP2515's slower round of requests: they get longer.
+#define FAST_STALE_MS 2000
+#define SLOW_STALE_MS 10000
+
 // THROTTLE_CLOSED_MARGIN is how far above the lowest throttle seen since
 // boot still counts as closed: the ECU's closed position isn't 0%, and
 // rather than a guessed figure, the session's minimum (idling, lifting

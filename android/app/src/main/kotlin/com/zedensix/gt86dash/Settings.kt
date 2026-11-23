@@ -4,7 +4,7 @@ import android.content.Context
 
 // The app's settings, kept on the phone, the same for the car's screen and
 // the phone's: the shift light's RPM as the Pico's (SHIFT_RPM_* in
-// settings.h), 0 for none.
+// settings.h), 0 for none; made-up readings instead of the dash's (demo).
 class Settings(context: Context) {
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
@@ -22,6 +22,10 @@ class Settings(context: Context) {
         val next = if (rpm < SHIFT_RPM_MIN) 0 else rpm.coerceAtMost(SHIFT_RPM_MAX)
         prefs.edit().putInt("shift_rpm", next).apply()
     }
+
+    var demo: Boolean
+        get() = prefs.getBoolean("demo", false)
+        set(on) = prefs.edit().putBoolean("demo", on).apply()
 
     fun shiftRpmText(): String = if (shiftRpm == 0) "Off" else "$shiftRpm rpm"
 

@@ -11,6 +11,7 @@ import androidx.car.app.model.Pane
 import androidx.car.app.model.PaneTemplate
 import androidx.car.app.model.Row
 import androidx.car.app.model.Template
+import androidx.car.app.model.Toggle
 
 // The settings on the car's screen, in Android Auto's own templates (a
 // navigation app draws only its map itself): the shift light, and the
@@ -26,6 +27,13 @@ class SettingsScreen(carContext: CarContext) : Screen(carContext) {
                     .addText(settings.shiftRpmText())
                     .setBrowsable(true)
                     .setOnClickListener { screenManager.push(ShiftLightScreen(carContext)) }
+                    .build(),
+            )
+            .addItem(
+                Row.Builder()
+                    .setTitle("Demo")
+                    .addText("Made-up readings instead of the dash's")
+                    .setToggle(Toggle.Builder { settings.demo = it }.setChecked(settings.demo).build())
                     .build(),
             )
             .addItem(

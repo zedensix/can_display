@@ -3,7 +3,8 @@
 - [x] Switch to the wired mode with the MCP2515: the only source since, the ELM327 dongle taken out (its code in `9dc0432`), Send log kept and working on CAN
 - [x] Android Auto app (`android/`): the gauges drawn on a navigation app's surface, made-up readings, a preview on the phone
 - [ ] Android Auto app in the car: a Play Console app `com.zedensix.gt86dash`, an upload key, the internal test track; check it shows on the Pioneer, and its visible area there
-- [ ] Live readings over BLE: the dash streams them as a peripheral beside the CAN reader (BTstack's flash writes holding core1 first, see CLAUDE.md), the app connects to "GT86 DASH" and draws them instead of FakeSource
+- [x] Live readings over BLE: the dash streams them beside the CAN reader (BTstack's flash writes hold core1 through the flash safety helper), the app connects to "GT86 DASH" and draws them
+- [ ] Check in the car: the app finds the dash with the contact on, the readings match the Pico's screen, the link comes back after the contact off and on; Send log still works with the radio always on (and the first boot of a fresh board, BTstack writing its keys with core1 running)
 - [x] Wiring diagram in HTML (`docs/wiring.html`): a color modules version, a blueprint version, two links to switch between them
 - [x] Diagram captures (color and blueprint) in `docs/resources/`, made by `mise run wiring`, shown in `docs/wiring.md`
 - [x] Code quality: prek hooks (clang-format for the C, Biome for the TS/Svelte/CSS/JSON, bun check for the types, web and host tests)

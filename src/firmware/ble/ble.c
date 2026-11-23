@@ -4,6 +4,7 @@
 
 #include "btstack.h"
 #include "dash.h"
+#include "data/live.h"
 #include "hardware/store.h"
 #include "pico/cyw43_arch.h"
 
@@ -12,6 +13,10 @@
 #define DATA_HANDLE ATT_CHARACTERISTIC_c0ff8602_4b1e_4c7a_9e2d_5a3f86d0a001_01_VALUE_HANDLE
 #define DATA_CCCD_HANDLE ATT_CHARACTERISTIC_c0ff8602_4b1e_4c7a_9e2d_5a3f86d0a001_01_CLIENT_CONFIGURATION_HANDLE
 #define CONTROL_HANDLE ATT_CHARACTERISTIC_c0ff8601_4b1e_4c7a_9e2d_5a3f86d0a001_01_VALUE_HANDLE
+// The live readings, a frame every LIVE_MS to a phone that subscribed.
+#define LIVE_HANDLE ATT_CHARACTERISTIC_c0ff8603_4b1e_4c7a_9e2d_5a3f86d0a001_01_VALUE_HANDLE
+#define LIVE_CCCD_HANDLE ATT_CHARACTERISTIC_c0ff8603_4b1e_4c7a_9e2d_5a3f86d0a001_01_CLIENT_CONFIGURATION_HANDLE
+#define LIVE_MS 50
 // From the phone's 'D' to the gauges back, for "downloaded" to be read.
 #define RESUME_MS 2500
 
@@ -20,8 +25,8 @@ static datalog_t *log_to_send;
 static bool stack_up;
 static btstack_packet_callback_registration_t hci_registration;
 static hci_con_handle_t phone = HCI_CON_HANDLE_INVALID;
-static bool streaming, header_sent;
-static uint32_t first, total, sent, now, received_at;
+static bool streaming, header_sent, live;
+static uint32_t first, total, sent, now, received_at, live_at;
 // What the screen showed before Send log, put back after it.
 static char status_before[sizeof((state_t *)0)->status];
 static wait_t wait_before;
@@ -41,7 +46,6 @@ static void advertise(void) {
     gap_advertisements_set_data(sizeof adv, adv);
     gap_scan_response_set_data(sizeof scan_response, scan_response);
     gap_advertisements_enable(1);
-    state_set_status(state, "SEND LOG\nopen the page\non your phone\npress: back");
 }
 
 static void send_next_log_chunk(void) {
@@ -85,6 +89,11 @@ static int handle_att_write(hci_con_handle_t con, uint16_t handle, uint16_t mode
                             uint16_t size) {
     (void)mode;
     (void)offset;
+    if (handle == LIVE_CCCD_HANDLE && size >= 1) {
+        live = buffer[0] & GATT_CLIENT_CHARACTERISTICS_CONFIGURATION_NOTIFICATION;
+        log_line("ble: live readings %s", live ? "on" : "off");
+        return 0;
+    }
     if (handle != CONTROL_HANDLE || size < 1 || !log_to_send) {
         return 0;
     }
@@ -115,7 +124,7 @@ static void handle_att_event(uint8_t packet_type, uint16_t channel, uint8_t *pac
 static void handle_hci_event(uint8_t packet_type, uint16_t channel, uint8_t *packet, uint16_t size) {
     (void)channel;
     (void)size;
-    if (packet_type != HCI_EVENT_PACKET || !log_to_send) {
+    if (packet_type != HCI_EVENT_PACKET) {
         return;
     }
     switch (hci_event_packet_get_type(packet)) {
@@ -130,31 +139,28 @@ static void handle_hci_event(uint8_t packet_type, uint16_t channel, uint8_t *pac
             gap_subevent_le_connection_complete_get_status(packet) == ERROR_CODE_SUCCESS) {
             phone = gap_subevent_le_connection_complete_get_connection_handle(packet);
             log_line("ble: phone connected");
-            state_set_status(state, "SEND LOG\nphone connected");
+            if (log_to_send) {
+                state_set_status(state, "SEND LOG\nphone connected");
+            }
         }
         break;
     case HCI_EVENT_DISCONNECTION_COMPLETE:
-        // The phone gone before it got it all: back on the air for it.
+        // The phone gone: back on the air for the next one.
         phone = HCI_CON_HANDLE_INVALID;
         streaming = false;
-        if (!received_at) {
-            advertise();
-        }
+        live = false;
+        advertise();
         break;
     default:
         break;
     }
 }
 
-// start_radio brings the radio and BTstack up the first time, powers the
-// radio on after; the HCI working event puts the dash on the air.
-static bool start_radio(void) {
-    if (stack_up) {
-        hci_power_control(HCI_POWER_ON);
-        return true;
-    }
+void ble_start(state_t *s) {
+    state = s;
     if (cyw43_arch_init()) {
-        return false;
+        log_line("ble: cyw43 init failed");
+        return;
     }
     stack_up = true;
     l2cap_init();
@@ -164,41 +170,29 @@ static bool start_radio(void) {
     att_server_register_packet_handler(handle_att_event);
     hci_registration.callback = handle_hci_event;
     hci_add_event_handler(&hci_registration);
+    // The HCI working event puts the dash on the air.
     hci_power_control(HCI_POWER_ON);
-    return true;
 }
 
-void ble_send_log(state_t *s, datalog_t *log) {
+void ble_send_log(datalog_t *log) {
     if (!log || log_to_send) {
         return;
     }
     log_line("ble: send log");
-    state = s;
     log_to_send = log;
     received_at = 0;
-    phone = HCI_CON_HANDLE_INVALID;
-    snprintf(status_before, sizeof status_before, "%s", s->status);
-    wait_before = s->wait;
-    s->wait = WAIT_NONE;
-    state_set_status(s, "SEND LOG\nstarting Bluetooth");
-    store_hold_core1(true);
-    if (!start_radio()) {
-        log_line("ble: cyw43 init failed");
-        state_set_status(s, "SEND LOG\nBluetooth didn't start\npress: back");
-    }
+    snprintf(status_before, sizeof status_before, "%s", state->status);
+    wait_before = state->wait;
+    state->wait = WAIT_NONE;
+    state_set_status(state, stack_up ? "SEND LOG\nopen the page\non your phone\npress: back"
+                                     : "SEND LOG\nBluetooth didn't start\npress: back");
 }
 
-// stop_sending ends Send log: off the air, the radio off (the phone let go
-// on the way), core1 and the screen as they were.
+// stop_sending ends Send log: the screen as it was.
 static void stop_sending(void) {
     log_line("ble: send log over");
     log_to_send = NULL;
     streaming = false;
-    if (stack_up) {
-        gap_advertisements_enable(0);
-        hci_power_control(HCI_POWER_OFF);
-    }
-    store_hold_core1(false);
     state_set_status(state, status_before);
     state->wait = wait_before;
 }
@@ -209,11 +203,20 @@ bool ble_sending(void) {
 
 void ble_poll_radio(uint32_t now_ms) {
     now = now_ms;
-    if (stack_up) {
-        cyw43_arch_poll();
+    if (!stack_up) {
+        return;
     }
+    cyw43_arch_poll();
     if (log_to_send && received_at && now - received_at > RESUME_MS) {
         stop_sending();
+    }
+    // A frame dropped for want of a buffer is no loss: the next one comes
+    // LIVE_MS later.
+    if (live && !streaming && phone != HCI_CON_HANDLE_INVALID && now - live_at >= LIVE_MS) {
+        live_at = now;
+        uint8_t frame[LIVE_SIZE];
+        live_encode(state, now, frame);
+        att_server_notify(phone, LIVE_HANDLE, frame, sizeof frame);
     }
 }
 

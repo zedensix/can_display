@@ -40,31 +40,47 @@ static void program_page_now(void *param) {
     flash_range_program(args->offset, args->page, FLASH_PAGE_SIZE);
 }
 
-// flash_op runs op with interrupts off (flash_safe_execute), from RAM.
-// Core1, once it reads the CAN bus (mcp2515.c), runs from flash too: it's
-// held in RAM meanwhile (multicore lockout). The SDK's own lockout is off
+// Every flash write, ours and BTstack's (its keys, through the SDK's
+// pico_btstack_flash_bank), goes through flash_safe_execute, which asks
+// this helper to make the flash safe: interrupts off on core0, and core1,
+// once it reads the CAN bus (mcp2515.c) from flash, held in RAM meanwhile
+// (multicore lockout). The SDK's own helper can't: with its lockout on it
+// refuses every write while core1 isn't running, so it's off
 // (PICO_FLASH_SAFE_EXECUTE_PICO_SUPPORT_MULTICORE_LOCKOUT=0 in
-// CMakeLists.txt): it refuses every write while core1 isn't running. A
-// lockout that times out (core1 crashed, a panic) writes anyway.
+// CMakeLists.txt) and this one replaces it. A lockout that times out
+// (core1 crashed, a panic) writes anyway. Core0 alone writes flash.
 #define LOCKOUT_US 500000
-// core1_held: store_hold_core1 holds it already, for as long as it says.
-static bool core1_held;
-static void flash_op(void (*op)(void *), void *param) {
-    bool held =
-        !core1_held && multicore_lockout_victim_is_initialized(1) && multicore_lockout_start_timeout_us(LOCKOUT_US);
-    flash_safe_execute(op, param, UINT32_MAX);
-    if (held) {
-        multicore_lockout_end_timeout_us(LOCKOUT_US);
-    }
+static bool core1_locked;
+static uint32_t irqs;
+
+static bool safety_init_deinit(bool init) {
+    (void)init;
+    return true;
 }
 
-void store_hold_core1(bool hold) {
-    if (hold && !core1_held && multicore_lockout_victim_is_initialized(1)) {
-        core1_held = multicore_lockout_start_timeout_us(LOCKOUT_US);
-    } else if (!hold && core1_held) {
+static int safety_enter(uint32_t timeout_ms) {
+    (void)timeout_ms;
+    core1_locked = multicore_lockout_victim_is_initialized(1) && multicore_lockout_start_timeout_us(LOCKOUT_US);
+    irqs = save_and_disable_interrupts();
+    return PICO_OK;
+}
+
+static int safety_exit(uint32_t timeout_ms) {
+    (void)timeout_ms;
+    restore_interrupts(irqs);
+    if (core1_locked) {
         multicore_lockout_end_timeout_us(LOCKOUT_US);
-        core1_held = false;
     }
+    return PICO_OK;
+}
+
+flash_safety_helper_t *get_flash_safety_helper(void) {
+    static flash_safety_helper_t helper = {safety_init_deinit, safety_enter, safety_exit};
+    return &helper;
+}
+
+static void flash_op(void (*op)(void *), void *param) {
+    flash_safe_execute(op, param, UINT32_MAX);
 }
 
 static void erase_sector(uint32_t offset) {

@@ -37,11 +37,13 @@ class SurfaceRenderer(private val carContext: CarContext, lifecycle: Lifecycle) 
 
     override fun onCreate(owner: LifecycleOwner) {
         carContext.getCarService(AppManager::class.java).setSurfaceCallback(this)
+        LiveLink.start(carContext)
     }
 
     override fun onDestroy(owner: LifecycleOwner) {
         handler.removeCallbacks(frame)
         surface = null
+        LiveLink.stop()
     }
 
     override fun onSurfaceAvailable(container: SurfaceContainer) {
@@ -66,7 +68,7 @@ class SurfaceRenderer(private val carContext: CarContext, lifecycle: Lifecycle) 
         val now = SystemClock.uptimeMillis() - started
         val canvas = s.lockHardwareCanvas()
         try {
-            dash.draw(canvas, visible ?: size, FakeSource.at(now), now)
+            dash.frame(canvas, visible ?: size, now)
         } finally {
             s.unlockCanvasAndPost(canvas)
         }

@@ -25,6 +25,8 @@ data class Readings(
     val gear: Int? = null,
     val outside: Float? = null,
     val km: Float? = null,
+    // km is the trip since the dash's boot, not the odometer.
+    val trip: Boolean = false,
     val mode: DriveMode = DriveMode.COMFORT,
     // Off the throttle the AFR reads lean from the fuel cut: no alarm.
     val offThrottle: Boolean = false,

@@ -10,12 +10,6 @@
 
 #define PI 3.14159265f
 
-// Most signals update several times a second. The temperatures change
-// slowly, and the ethanol % comes in the MCP2515's slower round of
-// requests: they get longer.
-#define FAST_STALE_MS 2000
-#define SLOW_STALE_MS 10000
-
 #define GRID_GAP 3
 
 // A canvas wider than tall: the panel turned (settings_t.landscape).

@@ -8,8 +8,8 @@ android {
 
     defaultConfig {
         applicationId = "com.zedensix.gt86dash"
-        // 30: Android 11, the window insets' types (the safe area).
-        minSdk = 30
+        // 33: Android 13, its Bluetooth calls without the deprecated ones.
+        minSdk = 33
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
@@ -32,4 +32,5 @@ kotlin {
 
 dependencies {
     implementation("androidx.car.app:app:1.7.0")
+    testImplementation("junit:junit:4.13.2")
 }

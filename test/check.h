@@ -44,3 +44,4 @@ void test_datalog(void);
 void test_wrap(void);
 void test_drive_mode(void);
 void test_choice_and_idle(void);
+void test_live(void);

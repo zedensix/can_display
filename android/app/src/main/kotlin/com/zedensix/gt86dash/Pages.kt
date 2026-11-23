@@ -90,7 +90,11 @@ class Pages(private val d: Draw) {
         }
         val outside = r.outside?.let { "%.0f°C".format(it) } ?: "--°C"
         d.text(c, outside, x, 452f, 24f, Weight.SEMIBOLD, Colors.LABEL)
-        val km = r.km?.let { "%,d km".format(it.toLong()).replace(',', ' ') } ?: "-- km"
+        val km = when {
+            r.km == null -> "-- km"
+            r.trip -> "%.1f km".format(r.km)
+            else -> "%,d km".format(r.km.toLong()).replace(',', ' ')
+        }
         d.text(c, km, W, 452f, 24f, Weight.SEMIBOLD, Colors.LABEL, Align.RIGHT)
     }
 
@@ -195,6 +199,14 @@ class Pages(private val d: Draw) {
         d.text(c, value, left, 312f, 240f, Weight.BOLD, fg)
         d.text(c, "°", left + wv, 312f - CAP * 240 + CAP * 80, 80f, Weight.BOLD, fg)
         d.text(c, "TOO HOT, LIFT OFF", cx, 388f, 52f, Weight.BOLD, fg, Align.CENTER, 4f)
+    }
+
+    // While there's nothing to show: what the app waits for, and what to
+    // do about it.
+    fun status(c: Canvas, title: String, line: String, now: Long) {
+        d.spinner(c, W / 2, 150f, 50f, now)
+        d.text(c, title, W / 2, 290f, 44f, Weight.BOLD, Colors.LABEL, Align.CENTER, 4f)
+        d.text(c, line, W / 2, 335f, 24f, Weight.MEDIUM, Colors.DIM, Align.CENTER)
     }
 
     // Near the limiter: SHIFT across the page (Dash floods it red).

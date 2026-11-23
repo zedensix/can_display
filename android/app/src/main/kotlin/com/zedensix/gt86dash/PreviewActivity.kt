@@ -2,6 +2,7 @@ package com.zedensix.gt86dash
 
 import android.app.Activity
 import android.content.Context
+import android.content.res.ColorStateList
 import android.graphics.Canvas
 import android.graphics.Rect
 import android.os.Bundle
@@ -15,11 +16,13 @@ import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 
 // The dash on the phone, full screen in landscape: arrows on either side
-// turn the views, the cog opens the settings panel on the right. Started
+// turn the views, the cog opens the settings panel on the right. It asks
+// for Bluetooth's permissions, for the dash's readings. Started
 // with a scene (adb shell am start -n com.zedensix.gt86dash/.PreviewActivity
 // --es scene track --ei view 1), it holds that scene's fixed readings, for
 // screenshots; --ez settings true opens the panel.
@@ -51,6 +54,17 @@ class PreviewActivity : Activity() {
         root.addView(panel, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
         showPanel(intent.getBooleanExtra("settings", false))
         setContentView(root)
+        if (!LiveLink.granted(this)) requestPermissions(LiveLink.permissions, 0)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        LiveLink.start(this)
+    }
+
+    override fun onStop() {
+        LiveLink.stop()
+        super.onStop()
     }
 
     private fun at(size: Int, gravity: Int) =
@@ -110,6 +124,20 @@ class PreviewActivity : Activity() {
         column.addView(text("The LEDs light over the last 1500 rpm before it, all blue from it", 15f, R.font.barlow_condensed_medium, Colors.DIM))
         stepShift(0)
 
+        column.addView(label("DEMO"))
+        val demo = Switch(this).apply {
+            text = "Made-up readings"
+            textSize = 20f
+            typeface = resources.getFont(R.font.barlow_condensed_semibold)
+            setTextColor(Colors.LABEL)
+            isChecked = settings.demo
+            val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
+            thumbTintList = ColorStateList(states, intArrayOf(Colors.ACCENT, 0xFFBDBDBD.toInt()))
+            trackTintList = ColorStateList(states, intArrayOf(Colors.FRAME, 0xFF333333.toInt()))
+            setOnCheckedChangeListener { _, on -> settings.demo = on }
+        }
+        column.addView(demo, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+
         column.addView(label("MIN AND MAX"))
         val reset = text("Reset every gauge's", 20f, R.font.barlow_condensed_semibold, Colors.LABEL).apply {
             setBackgroundResource(R.drawable.pill_button)
@@ -141,8 +169,7 @@ private class DashView(context: Context, private val scene: String?) : View(cont
     override fun onDraw(canvas: Canvas) {
         val now = SystemClock.uptimeMillis() - started
         area.set(0, 0, width, height)
-        val readings = if (scene != null) FakeSource.scene(scene) else FakeSource.at(now)
-        dash.draw(canvas, area, readings, if (scene != null) 0 else now)
+        if (scene != null) dash.draw(canvas, area, FakeSource.scene(scene), 0) else dash.frame(canvas, area, now)
         postInvalidateOnAnimation()
     }
 }
