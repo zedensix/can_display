@@ -78,28 +78,16 @@ void test_flashlog(void) {
 }
 
 void test_settings(void) {
-    settings_t cfg = {.source = SOURCE_CAN,
-                      .brightness = 40,
-                      .auto_connect = true,
-                      .flip = true,
-                      .landscape = true,
-                      .shift_rpm = 7100};
+    settings_t cfg = {.brightness = 40, .flip = true, .landscape = true, .shift_rpm = 7100};
     uint8_t buf[SETTINGS_SIZE];
     settings_encode(cfg, buf);
     CHECK(settings_equal(settings_decode(buf), cfg), "settings didn't round-trip");
-    cfg.source = SOURCE_BLE;
-    settings_encode(cfg, buf);
-    CHECK(settings_decode(buf).source == SOURCE_BLE, "the BLE source didn't round-trip");
+    buf[4] = 5; // saved with a BLE dongle, auto-connect and the CAN source's flag
+    buf[6] |= 1 << 0 | 1 << 4 | 1 << 5;
+    CHECK(settings_equal(settings_decode(buf), cfg), "version 5 settings misread");
     buf[4] = 1; // saved by a firmware without the shift light
     settings_t old = settings_decode(buf);
     CHECK(old.brightness == 40 && old.flip && old.shift_rpm == 0, "version 1 settings lost (shift %d)", old.shift_rpm);
-    cfg.dongle = (dongle_t){true, {0x33, 0xC0, 0x9A, 0x86, 0x42, 0x41}, 0, "IOS-Vlink"};
-    settings_encode(cfg, buf);
-    CHECK(settings_equal(settings_decode(buf), cfg), "the dongle didn't round-trip");
-    buf[4] = 4; // saved before the dongle's name was
-    CHECK(settings_decode(buf).dongle.set && settings_decode(buf).dongle.name[0] == 0, "version 4 dongle misread");
-    buf[4] = 3; // saved before the dongle was
-    CHECK(!settings_decode(buf).dongle.set && settings_decode(buf).brightness == 40, "version 3 settings misread");
     memset(buf, 0xFF, sizeof buf);
     CHECK(settings_equal(settings_decode(buf), SETTINGS_DEFAULT), "erased flash didn't give the defaults");
 }

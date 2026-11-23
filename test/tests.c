@@ -9,13 +9,6 @@ int main(void) {
     setvbuf(stdout, NULL, _IONBF, 0);
     test_obd_decode();
     test_gt86_decode();
-    test_elm_parsing();
-    test_elm_session();
-    test_elm_init_rejected();
-    test_elm_oil();
-    test_elm_oil_car_off();
-    test_elm_scan();
-    test_elm_multi_pid();
     test_isotp();
     test_flashlog();
     test_settings();
@@ -26,14 +19,11 @@ int main(void) {
     test_datalog();
     test_wrap();
     test_drive_mode();
-    test_elm_drive_mode();
     test_choice_and_idle();
     test_mcp_check();
     test_limiter_flash();
     test_gear_and_trip();
     test_orientations();
-    test_elm_listen();
-    test_elm_listen_cancel();
     test_doors();
     if (failures) {
         printf("%d check(s) failed\n", failures);

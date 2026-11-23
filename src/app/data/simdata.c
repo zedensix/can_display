@@ -18,33 +18,33 @@ typedef struct {
 
 static const scene_t scenes[] = {
     // Cold start, idling: oil and coolant blue.
-    {8000, 950, 950, 0, 15, 14.7f, 35, 30, 18, 14.4f, DRIVE_NORMAL, 0},
+    {8000, 950, 950, 0, 15, 14.7f, 35, 30, 18, 14.4f, DRIVE_COMFORT, 0},
     // Warming up, gently in 3rd.
-    {8000, 2000, 2600, 3, 25, 14.7f, 70, 72, 22, 14.3f, DRIVE_NORMAL, 0},
+    {8000, 2000, 2600, 3, 25, 14.7f, 70, 72, 22, 14.3f, DRIVE_COMFORT, 0},
     // Warm, cruising in 6th.
-    {10000, 2400, 2450, 6, 22, 14.6f, 95, 90, 26, 14.2f, DRIVE_NORMAL, 0},
+    {10000, 2400, 2450, 6, 22, 14.6f, 95, 90, 26, 14.2f, DRIVE_COMFORT, 0},
     // A pull in 2nd, the shift light filling up, then 3rd to the limiter:
     // the whole screen flashes for its last half second.
-    {4000, 3500, 7000, 2, 81, 12.3f, 98, 91, 27, 14.1f, DRIVE_NORMAL, 0},
-    {4500, 4600, 7450, 3, 81, 12.2f, 100, 92, 28, 14.1f, DRIVE_NORMAL, 0},
+    {4000, 3500, 7000, 2, 81, 12.3f, 98, 91, 27, 14.1f, DRIVE_COMFORT, 0},
+    {4500, 4600, 7450, 3, 81, 12.2f, 100, 92, 28, 14.1f, DRIVE_COMFORT, 0},
     // Lifting off: the fuel cut reads lean, white, no alarm.
-    {4000, 7000, 2500, 3, 14, 20.4f, 101, 92, 28, 14.2f, DRIVE_NORMAL, 0},
-    // On track: TRC off, VSC sport, then everything off, getting hot.
-    {8000, 4000, 6500, 3, 60, 12.6f, 112, 96, 40, 14.1f, DRIVE_TRC_OFF, 0},
+    {4000, 7000, 2500, 3, 14, 20.4f, 101, 92, 28, 14.2f, DRIVE_COMFORT, 0},
+    // On track: drift (TRC off), sport, then race (everything off), getting hot.
+    {8000, 4000, 6500, 3, 60, 12.6f, 112, 96, 40, 14.1f, DRIVE_DRIFT, 0},
     {8000, 4500, 6800, 3, 70, 12.4f, 116, 98, 45, 14.1f, DRIVE_SPORT, 0},
     // Everything off, the oil red, the intake heat-soaked: they blink.
-    {8000, 4200, 6600, 3, 70, 12.4f, 124, 100, 63, 14.0f, DRIVE_VSC_OFF, 0},
+    {8000, 4200, 6600, 3, 70, 12.4f, 124, 100, 63, 14.0f, DRIVE_RACE, 0},
     // The oil at 134: the whole screen.
-    {6000, 3000, 3000, 4, 30, 14.7f, 134, 102, 55, 14.1f, DRIVE_NORMAL, 0},
+    {6000, 3000, 3000, 4, 30, 14.7f, 134, 102, 55, 14.1f, DRIVE_COMFORT, 0},
     // Cooling down in 5th.
-    {10000, 2200, 2200, 5, 20, 14.7f, 104, 92, 32, 14.2f, DRIVE_NORMAL, 0},
+    {10000, 2200, 2200, 5, 20, 14.7f, 104, 92, 32, 14.2f, DRIVE_COMFORT, 0},
     // Lean under load: the AFR blinks red.
-    {6000, 3500, 4000, 4, 55, 17.2f, 100, 90, 30, 14.2f, DRIVE_NORMAL, 0},
+    {6000, 3500, 4000, 4, 55, 17.2f, 100, 90, 30, 14.2f, DRIVE_COMFORT, 0},
     // Idling with the battery low: it blinks.
-    {6000, 850, 850, 0, 15, 14.7f, 98, 90, 30, 11.4f, DRIVE_NORMAL, 0},
+    {6000, 850, 850, 0, 15, 14.7f, 98, 90, 30, 11.4f, DRIVE_COMFORT, 0},
     // Parked, the driver's door open, then the boot too: the door screen.
-    {4000, 850, 850, 0, 15, 14.7f, 96, 89, 30, 14.2f, DRIVE_NORMAL, DOOR_DRIVER},
-    {4000, 850, 850, 0, 15, 14.7f, 95, 89, 30, 14.2f, DRIVE_NORMAL, DOOR_DRIVER | DOOR_BOOT},
+    {4000, 850, 850, 0, 15, 14.7f, 96, 89, 30, 14.2f, DRIVE_COMFORT, DOOR_DRIVER},
+    {4000, 850, 850, 0, 15, 14.7f, 95, 89, 30, 14.2f, DRIVE_COMFORT, DOOR_DRIVER | DOOR_BOOT},
 };
 #define SCENES (int)(sizeof scenes / sizeof scenes[0])
 #define EASE_MS 2000

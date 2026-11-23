@@ -9,125 +9,61 @@
 #include "hardware/watchdog.h"
 #include "pico/stdlib.h"
 
-// The watchdog scratch registers boot_reason reads. The SDK uses 4 to 7.
-#define SCRATCH_CONNECT_NOW 0
+// The watchdog scratch register boot_reason reads (the SDK uses 4 to 7).
+// 0 held a reboot that connected to the BLE dongle right away.
 #define SCRATCH_CRASH 1
-#define CONNECT_NOW 0x86c0ffee
 #define HARD_FAULT 0xbadf0017
 
 boot_t boot_reason(void) {
     boot_t why = {
         .froze = watchdog_enable_caused_reboot(),
         .hard_fault = watchdog_hw->scratch[SCRATCH_CRASH] == HARD_FAULT,
-        .connect_now = watchdog_hw->scratch[SCRATCH_CONNECT_NOW] == CONNECT_NOW,
     };
-    watchdog_hw->scratch[SCRATCH_CONNECT_NOW] = watchdog_hw->scratch[SCRATCH_CRASH] = 0;
+    watchdog_hw->scratch[SCRATCH_CRASH] = 0;
     return why;
 }
 
-// The data source this boot runs, from the settings: changing it reboots.
-static source_t source;
+static state_t *source_state;
 
-// ble_active is true when the BLE dongle is the source (never in the sim build).
-static bool ble_active(void) {
-    return !SIM && source == SOURCE_BLE;
+void source_start(state_t *state) {
+    source_state = state;
+    if (!SIM) {
+        log_line("boot: data source CAN (MCP2515)");
+        mcp2515_source_init(state);
+    }
 }
 
 void poll_data_source(uint32_t now) {
-    if (SIM) {
-        return;
-    }
-    if (source == SOURCE_CAN) {
+    ble_poll_radio(now);
+    if (!SIM && !ble_sending()) {
         mcp2515_poll_bus(now);
-    } else {
-        ble_poll_radio(now);
     }
 }
 
-bool in_standby(void) {
-    return ble_active() && ble_in_standby();
-}
-
-bool give_click_to_prompt(uint32_t now, choice_t choice) {
+bool give_click_to_prompt(void) {
+    if (ble_handle_click()) {
+        return true;
+    }
     // The MCP2515's Retry reruns its self test from a fresh boot.
-    if (!SIM && source == SOURCE_CAN && mcp2515_wants_retry()) {
-        reboot_board(false);
+    if (!SIM && mcp2515_wants_retry()) {
+        reboot_board();
     }
-    return ble_active() && ble_handle_click(now, choice);
-}
-
-void remember_connected_dongle(settings_t *cfg) {
-    dongle_t d;
-    if (ble_active() && ble_take_connected_dongle(&d)) {
-        cfg->dongle = d;
-    }
-}
-
-void source_start(const settings_t *cfg, state_t *state, bool connect) {
-    source = cfg->source;
-    log_line("boot: data source %s", source == SOURCE_CAN ? "CAN (MCP2515)" : "BLE dongle");
-    if (SIM) {
-        (void)connect;
-    } else if (source == SOURCE_CAN) {
-        mcp2515_source_init(state);
-    } else {
-        ble_init(state, cfg->auto_connect || connect, &cfg->dongle);
-    }
-}
-
-source_t source_running(void) {
-    return source;
-}
-
-void hold_retries(bool hold) {
-    if (ble_active()) {
-        ble_hold_retries(hold);
-    }
+    return false;
 }
 
 void run_settings_action(action_t action) {
-    if (!ble_active()) {
-        return;
-    }
-    switch (action) {
-    case ACTION_SEND_LOG: {
-        datalog_t *log = store_get_datalog();
-        if (log) {
-            datalog_flush(log);
-            ble_send_log(log);
-        }
-        break;
-    }
-    case ACTION_SCAN:
-        ble_request_ram_scan();
-        break;
-    case ACTION_LISTEN:
-        ble_request_can_listen();
-        break;
-    case ACTION_DISCONNECT:
-        ble_go_offline();
-        break;
-    case ACTION_NONE:
-        break;
+    datalog_t *log = store_get_datalog();
+    if (action == ACTION_SEND_LOG && log) {
+        datalog_flush(log);
+        ble_send_log(source_state, log);
     }
 }
 
-void __attribute__((noreturn)) reboot_board(bool connect) {
-    if (ble_active()) {
-        ble_disconnect_before_reboot();
-        for (uint32_t until = now_ms() + 300; now_ms() < until;) {
-            poll_data_source(now_ms());
-        }
-    }
-    watchdog_hw->scratch[SCRATCH_CONNECT_NOW] = connect ? CONNECT_NOW : 0;
+void __attribute__((noreturn)) reboot_board(void) {
     watchdog_reboot(0, 0, 0);
     for (;;) {
         tight_loop_contents();
     }
-}
-
-void reboot_to_connect(void) {
-    reboot_board(true);
 }
 
 // isr_hardfault replaces the SDK's, which hangs: with nothing safe left to
@@ -149,5 +85,5 @@ void __attribute__((noreturn)) crash_panic(const char *fmt, ...) {
     vsnprintf(message, sizeof message, fmt, args);
     va_end(args);
     log_line("panic: %s", message);
-    reboot_board(false);
+    reboot_board();
 }

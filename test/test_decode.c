@@ -49,24 +49,6 @@ void test_gt86_decode(void) {
           "0x140 rpm = %f, want 3000", (double)s.readings[SIG_RPM].value);
 }
 
-void test_elm_parsing(void) {
-    can_frame_t f;
-    CHECK(elm_parse_frame("7E8 03 41 05 7B", &f) && f.id == 0x7E8 && f.dlc == 4 && f.data[3] == 0x7B,
-          "spaced frame line misparsed");
-    CHECK(elm_parse_frame("7E80341057B", &f) && f.dlc == 4, "compact frame line misparsed");
-    CHECK(!elm_parse_frame("NO DATA", &f), "NO DATA parsed as a frame");
-    CHECK(!elm_parse_frame("18DAF110034105", &f), "29bit frame parsed as 11bit");
-    float v;
-    CHECK(elm_parse_voltage("12.6V", &v) && nearly_equal(v, 12.6f), "12.6V misparsed");
-    CHECK(!elm_parse_voltage("?", &v), "? parsed as a voltage");
-
-    char raw[] = "ATZ\r\r\rELM327 v2.3\r\rSEARCHING...\r 7E8 03 41 05 7B \r";
-    char *lines[ELM_MAX_LINES];
-    int n = elm_split_lines(raw, "ATZ", lines, ELM_MAX_LINES);
-    CHECK(n == 2 && strcmp(lines[0], "ELM327 v2.3") == 0 && strcmp(lines[1], "7E8 03 41 05 7B") == 0,
-          "split gave %d lines", n);
-}
-
 void test_isotp(void) {
     isotp_t r = {0};
     can_frame_t first = {OBD_RESPONSE_ECU1, 8, {0x10, 0x0A, 0x61, 0x01, 1, 2, 3, 4}};
@@ -84,23 +66,23 @@ void test_isotp(void) {
 // DRIVE_MODE_STALE_MS ago no longer counts.
 void test_drive_mode(void) {
     state_t s = {0};
-    CHECK(state_drive_mode(&s, 0) == DRIVE_NORMAL, "no mode read isn't normal");
+    CHECK(state_drive_mode(&s, 0) == DRIVE_COMFORT, "no mode read isn't comfort");
     // Contact on, engine off: byte 3 bit 0 cleared, read as everything
-    // off, but the engine isn't running: normal.
+    // off, but the engine isn't running: comfort.
     can_frame_t engine_off = {GT86_ID_DRIVE_MODE, 7, {0x00, 0x06, 0xC0, 0x66, 0x00, 0x00, 0x90}};
     state_set_reading(&s, SIG_RPM, 0, 1000);
-    CHECK(gt86_decode_broadcast(&engine_off, &s, 1000) && state_drive_mode(&s, 1000) == DRIVE_NORMAL,
-          "engine off, the mode is %d, want normal", state_drive_mode(&s, 1000));
+    CHECK(gt86_decode_broadcast(&engine_off, &s, 1000) && state_drive_mode(&s, 1000) == DRIVE_COMFORT,
+          "engine off, the mode is %d, want comfort", state_drive_mode(&s, 1000));
     state_set_reading(&s, SIG_RPM, 800, 1000);
     static const struct {
         uint8_t data[7];
         drive_mode_t mode;
     } frames[] = {
-        {{0x00, 0x06, 0xC0, 0x0F, 0x00, 0x00, 0xE8}, DRIVE_NORMAL},
-        {{0x20, 0x06, 0xC0, 0x0F, 0x00, 0x00, 0x31}, DRIVE_TRC_OFF},
+        {{0x00, 0x06, 0xC0, 0x0F, 0x00, 0x00, 0xE8}, DRIVE_COMFORT},
+        {{0x20, 0x06, 0xC0, 0x0F, 0x00, 0x00, 0x31}, DRIVE_DRIFT},
         {{0x08, 0x0E, 0xC0, 0x0F, 0x00, 0x00, 0xA0}, DRIVE_SPORT},
-        {{0x28, 0x0E, 0xC0, 0x0F, 0x00, 0x00, 0xAA}, DRIVE_SPORT_TRC_OFF},
-        {{0x20, 0x0E, 0xC0, 0x0E, 0x00, 0x00, 0x8D}, DRIVE_VSC_OFF},
+        {{0x28, 0x0E, 0xC0, 0x0F, 0x00, 0x00, 0xAA}, DRIVE_TRACK},
+        {{0x20, 0x0E, 0xC0, 0x0E, 0x00, 0x00, 0x8D}, DRIVE_RACE},
     };
     for (size_t i = 0; i < sizeof frames / sizeof frames[0]; i++) {
         can_frame_t f = {GT86_ID_DRIVE_MODE, 7, {0}};
@@ -108,6 +90,6 @@ void test_drive_mode(void) {
         CHECK(gt86_decode_broadcast(&f, &s, 1000) && state_drive_mode(&s, 1000) == frames[i].mode,
               "frame %zu decoded mode %d, want %d", i, state_drive_mode(&s, 1000), frames[i].mode);
     }
-    CHECK(state_drive_mode(&s, 1000 + DRIVE_MODE_STALE_MS) == DRIVE_VSC_OFF, "the mode went stale too early");
-    CHECK(state_drive_mode(&s, 1001 + DRIVE_MODE_STALE_MS) == DRIVE_NORMAL, "a stale mode still counts");
+    CHECK(state_drive_mode(&s, 1000 + DRIVE_MODE_STALE_MS) == DRIVE_RACE, "the mode went stale too early");
+    CHECK(state_drive_mode(&s, 1001 + DRIVE_MODE_STALE_MS) == DRIVE_COMFORT, "a stale mode still counts");
 }

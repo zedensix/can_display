@@ -68,14 +68,12 @@ it's easy to test with tools that already exist:
 3. If you get a response: note whether it came back on the standard
    `0x7E8` address or something else, and roughly how long it took --
    `AFR_INTERVAL_MS` in `src/firmware/hardware/mcp2515.c` assumes the ECU can
-   keep up with a request every 250ms; slow it down if not. (Through
-   the ELM327 dongle, requests go back to back, paced by its answers.)
+   keep up with a request every 250ms; slow it down if not.
 4. If a functional-broadcast request (`0x7DF`, what this project sends
    by default) gets no response, try a *physical* request to `0x7E0`
    instead (the engine ECU's usual address) -- some ECUs are picky
    about which addressing mode they answer. That'd mean changing
-   `OBD_REQUEST_ID` (`src/app/obd/obd.h`) to `0x7E0`, and `ATSH7DF` in
-   `src/app/obd/elm327.c` to `ATSH7E0` for the dongle.
+   `OBD_REQUEST_ID` (`src/app/obd/obd.h`) to `0x7E0`.
 5. Sanity check the actual number: with the engine warm and idling,
    AFR should hover close to 14.7 (lambda ~1.0). If it's stuck at 0,
    pegged at max, or wildly implausible, something in the request
@@ -110,9 +108,10 @@ signal wire, which the injection depends on. Found on this car so far:
 - An Alientech log of this ECU puts every ethanol % on
   25 x n x 5/4096 - 12.5: a 12-bit ADC on 5V through the tune's scaling.
 
-"Scan ECU RAM" on the settings page scans it (`ELM_SCAN_*` in
-`src/app/obd/elm327.h`, 2 to 3 minutes, polling paused) and logs every float on that grid, as an ethanol %
-or as the sensor's voltage. To pin the address down, compare the
+"Scan ECU RAM", on the settings page while the dash read the car
+through an ELM327 dongle, scanned it (2 to 3 minutes, polling paused)
+and logged every float on that grid, as an ethanol % or as the sensor's
+voltage. It went with the dongle: `git show 9dc0432:src/app/obd/elm_scan.c`. To pin the address down, compare the
 candidates with what OFT or another logger shows at the same time, then
 across two tanks with different blends: the right address follows the
 blend.
@@ -121,18 +120,19 @@ Three scans on one tank (2026-11-15 and 16, engine running) found a
 single address every time: **0xFFF87C7C**, at 66.66, 65.72 and 66.79 %
 (the third scan also had 66.785 at 0xFFF8D410, a copy), and it matched
 OFT's reading. The dash polls it (`ETHANOL_RAM_READ` in `src/app/obd/obd.h`)
-with the oil temperature. Still worth checking on a tank of another
-blend; and it's this tune's RAM layout, a reflash may move it: rescan
-then.
+in the MCP2515's slower round of requests. Still worth checking on a
+tank of another blend; and it's this tune's RAM layout, a reflash may
+move it: rescan then.
 
 ## Finding the stability control's modes on the bus
 
 The GT86 has two buttons for it: TRC OFF and VSC SPORT. Together they
 make 5 modes: everything on; TRC off (a short press of TRC OFF); VSC
 sport; both; everything off (TRC OFF held a few seconds: VSC off too).
-"Listen CAN" on the settings page looked for the bits that tell them
-apart, through the dongle, and found them (below). Its steps have
-changed since (next section); this run's are in the history, `git show
+"Listen CAN", on the settings page while the dash read the car through
+an ELM327 dongle, looked for the bits that tell them apart and found
+them (below). It went with the dongle (its last version: `git show
+9dc0432:src/app/obd/sniff.c`); this run's steps are in `git show
 48b9d51:src/app/obd/sniff.c`. How it ran:
 
 1. Engine running, parked. Click Listen CAN.
@@ -187,7 +187,7 @@ the cluster's own lamps on a drive.
 
 ## Finding the doors, the boot and the cruise control stalk
 
-"Listen CAN" now looks for the doors, the boot, the cruise control
+"Listen CAN" then looked for the doors, the boot, the cruise control
 stalk and its main switch: the door screen and a stalk driving the dash
 need their bits. Contact on, engine off, parked:
 
@@ -215,14 +215,11 @@ The first run on this car (2026-11-17, contact on, engine off) found:
 - the doors and the boot in 0x375 (`GT86_ID_DOORS`), byte 1: bit 0 the
   driver's door, bit 1 the passenger's, bit 5 the boot; byte 3 bit 2 is
   set with either door open. 0x374 byte 3 has the same three bits. The
-  dash reads 0x375 (the dongle monitors it after 0x0D3, at a standstill
-  only, up to 1.5s: 400ms missed it every time; the MCP2515 gets it as
-  it streams);
+  dash reads 0x375 as the MCP2515 streams it;
 - the stalk in 0x144 byte 0: bit 4 held up, bit 5 pulled. Held down and
   the ON/OFF button changed nothing on the bus: perhaps they only count
-  with the engine running, a run to redo engine on. The dash doesn't
-  read the stalk: through the dongle, a press is shorter than the gap
-  between two monitors.
+  with the engine running, a run to redo engine on (Listen CAN would
+  need porting to the MCP2515 first). The dash doesn't read the stalk.
 
 ## Adding an aftermarket ethanol source
 

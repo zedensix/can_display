@@ -8,14 +8,14 @@
 
   type Tab = Style | "dimensions";
 
-  // Each board's face and the data source, kept per browser.
+  // Each board's face, kept per browser.
   const VIEW_KEY = "wiringView";
   function loadView(): WiringView {
     try {
       const saved = JSON.parse(localStorage.getItem(VIEW_KEY) ?? "null");
-      if (saved?.faces && saved?.source) return saved;
+      if (saved?.faces) return { faces: saved.faces };
     } catch {}
-    return { faces: { pico: "back", display: "back", encoder: "back", mcp: "back" }, source: "ble" };
+    return { faces: { pico: "back", display: "back", encoder: "back", mcp: "back" } };
   }
 
   // #color (the default), #blueprint, #dimensions.
@@ -64,13 +64,6 @@
       Drag to move · cmd+scroll or pinch to zoom · double-click to fit · click a wire to follow it, a board to turn it
       over
     </span>
-    <button
-      type="button"
-      title="How the car data comes in: Data source in the dash's settings. The MCP2515 can stay wired either way"
-      onclick={() => (view.source = view.source === "ble" ? "wired" : "ble")}
-    >
-      {view.source === "ble" ? "Data: BLE dongle" : "Data: wired CAN"}
-    </button>
     <button
       type="button"
       class:active={view.faces.pico === "back"}

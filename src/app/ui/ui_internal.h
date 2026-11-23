@@ -10,8 +10,9 @@
 
 #define PI 3.14159265f
 
-// Most signals update several times a second. The oil temperature and
-// the ethanol % come every 3s through the dongle (ELM_ENGINE_INTERVAL_MS).
+// Most signals update several times a second. The temperatures change
+// slowly, and the ethanol % comes in the MCP2515's slower round of
+// requests: they get longer.
 #define FAST_STALE_MS 2000
 #define SLOW_STALE_MS 10000
 
@@ -37,7 +38,7 @@ void draw_outline(canvas_t *c, int x, int y, int w, int h, color_t color);
 // bg, the color under them, like the spinner's ring.
 void fill_round_rect(canvas_t *c, int x, int y, int w, int h, int r, color_t color, color_t bg);
 void outline_round_rect(canvas_t *c, int x, int y, int w, int h, int r, color_t color, color_t bg);
-typedef enum { ICON_BLUETOOTH, ICON_GEAR, ICON_BACK, ICON_RETRY, ICON_NEXT } icon_t;
+typedef enum { ICON_GEAR, ICON_BACK, ICON_RETRY } icon_t;
 // draw_button draws a pill button, its icon and label centered: filled
 // when chosen (the knob's on it), else outlined.
 void draw_button(canvas_t *c, const theme_t *t, int x, int y, int w, int h, icon_t icon, const char *label,

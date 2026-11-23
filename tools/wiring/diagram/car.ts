@@ -1,6 +1,6 @@
 // The power and the car: the 12V to 5V converter, the fuse tap, the OBD port.
 
-import { CONVERTER, NET_NAMES, PICO, type Theme, type WiringView } from "./data";
+import { CONVERTER, NET_NAMES, PICO, type Theme } from "./data";
 import { svgElement, svgText, wireColor } from "./svg";
 
 // The 12V to 5V converter: 2 wires to the car's 12V, its micro-USB plug
@@ -104,7 +104,7 @@ export function drawConverter(svg: Element, theme: Theme) {
   });
 }
 
-export function drawCar(svg: Element, theme: Theme, view: WiringView) {
+export function drawCar(svg: Element, theme: Theme) {
   const stroke = theme.board ? "#1c1917" : theme.line;
   const c = CONVERTER;
   svgElement(
@@ -124,49 +124,7 @@ export function drawCar(svg: Element, theme: Theme, view: WiringView) {
   svgText(svg, theme, 1185, c.y + 34, "12V ACC", { size: 10, weight: 700, anchor: "middle" });
   svgText(svg, theme, 1185, c.y + 48, "fuse tap", { size: 9, anchor: "middle", color: theme.dim });
   svgText(svg, theme, 1185, c.y + 62, "+ chassis", { size: 9, anchor: "middle", color: theme.dim });
-  // The OBD port: the BLE dongle in it, or the MCP2515's CAN wires (labeled on the module).
-  if (view.source === "ble") {
-    svgElement(
-      "rect",
-      {
-        x: 540,
-        y: 694,
-        width: 120,
-        height: 56,
-        rx: 8,
-        fill: theme.board ? theme.board.dongle : "none",
-        stroke,
-        "stroke-width": 2,
-      },
-      svg,
-    );
-    svgText(svg, theme, 600, 720, "Vgate iCar", {
-      size: 12,
-      weight: 700,
-      anchor: "middle",
-      color: theme.board ? "#fff" : theme.text,
-    });
-    svgText(svg, theme, 600, 736, "Pro 2S", {
-      size: 11,
-      anchor: "middle",
-      color: theme.board ? "#d6d3d1" : theme.text,
-    });
-    const link = theme.board ? "#2563eb" : theme.line;
-    for (const r of [16, 30, 44]) {
-      svgElement(
-        "path",
-        {
-          d: `M ${600 - r} ${670 - r / 3} Q 600 ${670 + r / 2} ${600 + r} ${670 - r / 3}`,
-          fill: "none",
-          stroke: link,
-          "stroke-width": 2,
-          "stroke-dasharray": "5 4",
-        },
-        svg,
-      );
-    }
-    svgText(svg, theme, 660, 664, "BLE", { size: 12, weight: 700, color: link });
-  }
+  // The OBD port: the MCP2515's CAN wires (labeled on the module).
   svgElement(
     "rect",
     {
@@ -181,9 +139,9 @@ export function drawCar(svg: Element, theme: Theme, view: WiringView) {
     },
     svg,
   );
-  const port =
-    view.source === "ble"
-      ? "OBD-II port (BLE, nothing to wire)"
-      : "OBD-II port: CAN-H pin 6 (green), CAN-L pin 14 (green/white)";
-  svgText(svg, theme, 600, 786, port, { size: 11, anchor: "middle", color: theme.dim });
+  svgText(svg, theme, 600, 786, "OBD-II port: CAN-H pin 6 (green), CAN-L pin 14 (green/white)", {
+    size: 11,
+    anchor: "middle",
+    color: theme.dim,
+  });
 }

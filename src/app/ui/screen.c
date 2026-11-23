@@ -24,11 +24,6 @@ void screen_apply_turn(screen_t *s, int detents, int views, settings_t *cfg) {
     }
 }
 
-bool screen_row_needs_ble(int row) {
-    return row == ROW_AUTO_CONNECT || row == ROW_SEND_LOG || row == ROW_SCAN || row == ROW_LISTEN ||
-           row == ROW_DISCONNECT;
-}
-
 void screen_apply_click(screen_t *s, settings_t *cfg) {
     if (s->page == PAGE_GAUGES) {
         s->page = PAGE_SETTINGS;
@@ -36,19 +31,10 @@ void screen_apply_click(screen_t *s, settings_t *cfg) {
         s->editing = false;
         return;
     }
-    if (cfg->source != SOURCE_BLE && screen_row_needs_ble(s->cursor)) {
-        return;
-    }
     switch (s->cursor) {
     case ROW_BRIGHTNESS:
     case ROW_SHIFT_LIGHT:
         s->editing = !s->editing;
-        break;
-    case ROW_SOURCE:
-        cfg->source = cfg->source == SOURCE_BLE ? SOURCE_CAN : SOURCE_BLE;
-        break;
-    case ROW_AUTO_CONNECT:
-        cfg->auto_connect = !cfg->auto_connect;
         break;
     case ROW_FLIP:
         cfg->flip = !cfg->flip;
@@ -57,19 +43,9 @@ void screen_apply_click(screen_t *s, settings_t *cfg) {
         cfg->landscape = !cfg->landscape;
         break;
     case ROW_SEND_LOG:
-    case ROW_SCAN:
-    case ROW_LISTEN:
-    case ROW_DISCONNECT: {
-        static const action_t actions[SETTINGS_ROWS] = {
-            [ROW_SEND_LOG] = ACTION_SEND_LOG,
-            [ROW_SCAN] = ACTION_SCAN,
-            [ROW_LISTEN] = ACTION_LISTEN,
-            [ROW_DISCONNECT] = ACTION_DISCONNECT,
-        };
-        s->action = actions[s->cursor];
+        s->action = ACTION_SEND_LOG;
         s->page = PAGE_GAUGES;
         break;
-    }
     case ROW_BACK:
         s->page = PAGE_GAUGES;
         break;
@@ -96,19 +72,17 @@ bool screen_apply_input(screen_t *s, const state_t *state, int detents, bool pre
     }
     bool choosing = s->page == PAGE_GAUGES && state->wait != WAIT_NONE;
     if (choosing && detents) {
-        s->choice = detents > 0 ? CHOICE_SETTINGS : CHOICE_CONNECT;
+        s->choice = detents > 0 ? CHOICE_SETTINGS : CHOICE_RETRY;
     } else {
         screen_apply_turn(s, detents, views, cfg);
     }
-    if (press && choosing && s->choice == CHOICE_SETTINGS && state->wait != WAIT_STEP) {
+    if (press && choosing && s->choice == CHOICE_SETTINGS) {
         screen_apply_click(s, cfg);
         return false;
     }
-    // Nothing connected: a prompt, on the way to the dongle, a failure, or
-    // a status with nothing to choose (the MCP2515 waiting for the car to
-    // wake the bus). Not a scan's progress (Cancel): that one stays on screen.
-    bool unconnected =
-        state->wait == WAIT_CHOICE || state->wait == WAIT_RETRY || (state->wait == WAIT_NONE && state->status[0]);
+    // Nothing coming in: Retry, or a status with nothing to choose (the
+    // MCP2515 waiting for the car to wake the bus).
+    bool unconnected = state->status[0] != 0;
     s->idle = s->page == PAGE_GAUGES && unconnected && now - s->input_ms >= SCREEN_IDLE_MS;
     return press;
 }

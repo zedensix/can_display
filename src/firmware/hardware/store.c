@@ -47,11 +47,23 @@ static void program_page_now(void *param) {
 // CMakeLists.txt): it refuses every write while core1 isn't running. A
 // lockout that times out (core1 crashed, a panic) writes anyway.
 #define LOCKOUT_US 500000
+// core1_held: store_hold_core1 holds it already, for as long as it says.
+static bool core1_held;
 static void flash_op(void (*op)(void *), void *param) {
-    bool held = multicore_lockout_victim_is_initialized(1) && multicore_lockout_start_timeout_us(LOCKOUT_US);
+    bool held =
+        !core1_held && multicore_lockout_victim_is_initialized(1) && multicore_lockout_start_timeout_us(LOCKOUT_US);
     flash_safe_execute(op, param, UINT32_MAX);
     if (held) {
         multicore_lockout_end_timeout_us(LOCKOUT_US);
+    }
+}
+
+void store_hold_core1(bool hold) {
+    if (hold && !core1_held && multicore_lockout_victim_is_initialized(1)) {
+        core1_held = multicore_lockout_start_timeout_us(LOCKOUT_US);
+    } else if (!hold && core1_held) {
+        multicore_lockout_end_timeout_us(LOCKOUT_US);
+        core1_held = false;
     }
 }
 

@@ -37,18 +37,16 @@ typedef struct {
 } reading_t;
 
 // wait_t is what the data source offers the driver while it isn't
-// delivering, with Settings always beside it (to switch to the CAN source
-// when Bluetooth won't do): WAIT_CHOICE, Connect (READY, OFFLINE);
-// WAIT_RETRY, Retry (on the way to the dongle, or a failure);
-// WAIT_CANCEL, Cancel (a RAM scan, a CAN listen); WAIT_STEP, Next and
-// Cancel in place of Settings (a CAN listen's prompt). WAIT_NONE while
-// it's delivering, or busy with something of its own.
-typedef enum { WAIT_NONE, WAIT_CHOICE, WAIT_RETRY, WAIT_CANCEL, WAIT_STEP } wait_t;
+// delivering: WAIT_RETRY, Retry, with Settings beside it (the MCP2515's
+// self test failed); WAIT_NONE while it's delivering, or busy with
+// something of its own (waiting for the car, Send log).
+typedef enum { WAIT_NONE, WAIT_RETRY } wait_t;
 
 // drive_mode_t is the stability control's mode, from its two buttons:
-// everything on; TRC off (a short press on TRC OFF); VSC SPORT (its own
-// button); both; everything off (TRC OFF held a few seconds: VSC off).
-typedef enum { DRIVE_NORMAL, DRIVE_TRC_OFF, DRIVE_SPORT, DRIVE_SPORT_TRC_OFF, DRIVE_VSC_OFF, DRIVE_MODES } drive_mode_t;
+// comfort, everything on; drift, TRC off (a short press on TRC OFF: the
+// rear may spin); sport, VSC SPORT (its own button); track, both; race,
+// everything off (TRC OFF held 3 seconds: VSC off too).
+typedef enum { DRIVE_COMFORT, DRIVE_DRIFT, DRIVE_SPORT, DRIVE_TRACK, DRIVE_RACE, DRIVE_MODES } drive_mode_t;
 
 // state_t is everything the UI draws. status is the data source's own
 // report while it isn't delivering (scan, connect, failure): while it
@@ -119,7 +117,7 @@ int state_gear(const state_t *s, uint32_t now_ms, uint32_t max_age_ms);
 void state_set_drive_mode(state_t *s, drive_mode_t mode, uint32_t now_ms);
 
 // DRIVE_MODE_STALE_MS: a mode read longer ago than that no longer counts
-// (the dongle reads it every few seconds, the CAN bus many times a second).
+// (the CAN bus has it many times a second).
 #define DRIVE_MODE_STALE_MS 10000
 // DRIVE_MODE_MIN_RPM: with the engine off (contact on), 0x0D3 reads as
 // everything off (byte 3 bit 0 cleared: the VSC isn't running), so the
@@ -135,5 +133,5 @@ void state_set_doors(state_t *s, uint8_t doors, uint32_t now_ms);
 uint8_t state_doors(const state_t *s, uint32_t now_ms);
 
 // state_drive_mode is the mode the UI goes by: the last one read, or
-// DRIVE_NORMAL without a recent one or with the engine off.
+// DRIVE_COMFORT without a recent one or with the engine off.
 drive_mode_t state_drive_mode(const state_t *s, uint32_t now_ms);

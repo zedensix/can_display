@@ -12,12 +12,8 @@ void display_init(void);
 void display_set_orientation(bool flip, bool landscape);
 void display_set_brightness(int percent);
 
-// display_sleep turns the backlight off and puts the panel to sleep. Only
-// a reboot wakes it.
-void display_sleep(void);
-
 // display_push_rows starts sending c's band to the panel and returns at once:
-// keep the BLE stack running until display_push_in_progress is false, then call
+// keep the data source running until display_push_in_progress is false, then call
 // display_wait_for_push before drawing into the band again.
 void display_push_rows(const canvas_t *c);
 bool display_push_in_progress(void);

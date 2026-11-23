@@ -11,7 +11,6 @@
 
 enum {
     CMD_SWRESET = 0x01,
-    CMD_SLPIN = 0x10,
     CMD_SLPOUT = 0x11,
     CMD_NORON = 0x13,
     CMD_INVON = 0x21,
@@ -89,12 +88,6 @@ void display_set_orientation(bool flip, bool landscape) {
                      : flip    ? MADCTL_MX | MADCTL_MY
                                : 0;
     send_display_command(CMD_MADCTL, &madctl, 1);
-}
-
-void display_sleep(void) {
-    display_wait_for_push();
-    pwm_set_gpio_level(DISPLAY_BL, 0);
-    send_display_command(CMD_SLPIN, NULL, 0);
 }
 
 void display_set_brightness(int percent) {

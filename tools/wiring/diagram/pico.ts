@@ -45,7 +45,7 @@ export function drawPico(layer: Element, theme: Theme, view: WiringView) {
       anchor: "middle",
       color: onBoard,
     });
-    return drawPicoPins(svg, theme, view);
+    return drawPicoPins(svg, theme);
   }
   svgElement(
     "rect",
@@ -67,11 +67,11 @@ export function drawPico(layer: Element, theme: Theme, view: WiringView) {
     anchor: "middle",
     color: theme.board ? "#1c1917" : theme.text,
   });
-  drawPicoPins(svg, theme, view);
+  drawPicoPins(svg, theme);
 }
 
-function drawPicoPins(svg: Element, theme: Theme, view: WiringView) {
-  const used = usedPicoPins(view);
+function drawPicoPins(svg: Element, theme: Theme) {
+  const used = usedPicoPins();
   for (let n = 1; n <= 40; n++) {
     const p = picoPin(n);
     const isUsed = used.has(n);

@@ -7,7 +7,7 @@ can_frame_t obd_build_request(uint8_t pid) {
 }
 
 can_frame_t obd_build_ethanol_read(void) {
-    // The ELM's hex, one byte per 2 digits, after the single frame's length.
+    // The hex, one byte per 2 digits, after the single frame's length.
     can_frame_t f = {.id = OBD_ENGINE_ECU, .dlc = 8};
     const char *hex = ETHANOL_RAM_READ;
     int n = (int)strlen(hex) / 2;
@@ -176,10 +176,10 @@ bool gt86_decode_broadcast(const can_frame_t *f, state_t *state, uint32_t now_ms
         return true;
     case GT86_ID_DRIVE_MODE:
         state_set_drive_mode(state,
-                             !(f->data[3] & 0x01) ? DRIVE_VSC_OFF
-                             : f->data[0] & 0x08  ? (f->data[0] & 0x20 ? DRIVE_SPORT_TRC_OFF : DRIVE_SPORT)
-                             : f->data[0] & 0x20  ? DRIVE_TRC_OFF
-                                                  : DRIVE_NORMAL,
+                             !(f->data[3] & 0x01) ? DRIVE_RACE
+                             : f->data[0] & 0x08  ? (f->data[0] & 0x20 ? DRIVE_TRACK : DRIVE_SPORT)
+                             : f->data[0] & 0x20  ? DRIVE_DRIFT
+                                                  : DRIVE_COMFORT,
                              now_ms);
         return true;
     case GT86_ID_DOORS:

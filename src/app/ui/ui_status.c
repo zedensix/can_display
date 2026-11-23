@@ -105,31 +105,19 @@ void draw_spinner(canvas_t *c, const theme_t *t, int cx, int cy, uint32_t now_ms
 
 #define CHOICE_HEIGHT 26
 
-// draw_choice_buttons draws the data source's button (Connect, Retry,
-// Cancel, Next) and Settings (Cancel beside Next) along the bottom, the
-// one a click does filled.
-static void draw_choice_buttons(canvas_t *c, const theme_t *t, wait_t wait, choice_t choice) {
+// draw_choice_buttons draws Retry and Settings along the bottom, the one
+// a click does filled.
+static void draw_choice_buttons(canvas_t *c, const theme_t *t, choice_t choice) {
     int gap = 8, w = (c->width - 2 * STATUS_MARGIN - gap) / 2, y = c->height - CHOICE_HEIGHT - 8;
-    icon_t icon = wait == WAIT_RETRY    ? ICON_RETRY
-                  : wait == WAIT_CANCEL ? ICON_BACK
-                  : wait == WAIT_STEP   ? ICON_NEXT
-                                        : ICON_BLUETOOTH;
-    const char *label = wait == WAIT_RETRY    ? "Retry"
-                        : wait == WAIT_CANCEL ? "Cancel"
-                        : wait == WAIT_STEP   ? "Next"
-                                              : "Connect";
-    draw_button(c, t, STATUS_MARGIN, y, w, CHOICE_HEIGHT, icon, label, choice == CHOICE_CONNECT);
-    // A listen's prompt: Cancel in Settings' place.
-    bool step = wait == WAIT_STEP;
-    draw_button(c, t, STATUS_MARGIN + w + gap, y, w, CHOICE_HEIGHT, step ? ICON_BACK : ICON_GEAR,
-                step ? "Cancel" : "Settings", choice == CHOICE_SETTINGS);
+    draw_button(c, t, STATUS_MARGIN, y, w, CHOICE_HEIGHT, ICON_RETRY, "Retry", choice == CHOICE_RETRY);
+    draw_button(c, t, STATUS_MARGIN + w + gap, y, w, CHOICE_HEIGHT, ICON_GEAR, "Settings", choice == CHOICE_SETTINGS);
 }
 
 // draw_status_screen is the source's report while it isn't delivering: the
 // logo in a spinner (so a slow step doesn't look frozen), the first
 // paragraph as a title, the rest centered and wrapped under it (in
-// landscape, beside it). While it waits on the driver, its button
-// (Connect, Retry, Cancel) and Settings along the bottom.
+// landscape, beside it). While it waits on the driver, Retry and Settings
+// along the bottom.
 #define STATUS_MAX_LINES 14
 // The compact layout's logo, above the text, when the text needs the room.
 #define COMPACT_LOGO_Y 44
@@ -189,7 +177,7 @@ void draw_status_screen(canvas_t *c, const theme_t *t, const state_t *state, con
         draw_logo(c, ring_x, RING_Y, 2, t->accent);
     }
     if (choosing) {
-        draw_choice_buttons(c, t, state->wait, screen->choice);
+        draw_choice_buttons(c, t, screen->choice);
     }
     for (int i = 0; i < n && y <= bottom; i++) {
         draw_text_centered(c, title[i] ? &font_bold12 : label_font, text_left + text_w / 2, y, lines[i],

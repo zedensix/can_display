@@ -61,7 +61,7 @@ void state_set_drive_mode(state_t *s, drive_mode_t mode, uint32_t now_ms) {
 drive_mode_t state_drive_mode(const state_t *s, uint32_t now_ms) {
     bool running = s->readings[SIG_RPM].valid && s->readings[SIG_RPM].value >= DRIVE_MODE_MIN_RPM;
     return running && s->drive_mode_read && now_ms - s->drive_mode_ms <= DRIVE_MODE_STALE_MS ? s->drive_mode
-                                                                                             : DRIVE_NORMAL;
+                                                                                             : DRIVE_COMFORT;
 }
 
 void state_set_doors(state_t *s, uint8_t doors, uint32_t now_ms) {

@@ -2,11 +2,11 @@
 // in color or as a blueprint, the Pico from above or below.
 
 import { drawCar, drawConverter } from "./car";
-import { type Face, NET_NAMES, type Style, THEMES, type Theme, type WiringView } from "./data";
+import { type Face, MODULES, NET_NAMES, type Style, THEMES, type Theme, type WiringView } from "./data";
 import { drawDivider } from "./divider";
 import { drawModule } from "./module";
 import { drawPico } from "./pico";
-import { routeWires, shownModules, type Wire } from "./route";
+import { routeWires, type Wire } from "./route";
 import { PAPER, pathThrough, setMirrored, svgElement, svgText, wireColor } from "./svg";
 
 function drawGrid(svg: Element, theme: Theme) {
@@ -46,7 +46,7 @@ function drawGrid(svg: Element, theme: Theme) {
   svgElement("line", { x1: tb.x + 158, y1: tb.y + 40, x2: tb.x + 158, y2: tb.y + tb.h, stroke: theme.line }, svg);
   svgText(svg, theme, tb.x + 12, tb.y + 27, "GT86 GAUGE CLUSTER: WIRING", { size: 15, weight: 700 });
   svgText(svg, theme, tb.x + 12, tb.y + 62, "PICO W + ST7789", { size: 11 });
-  svgText(svg, theme, tb.x + 12, tb.y + 82, "KY-040 + BLE OBD", { size: 11 });
+  svgText(svg, theme, tb.x + 12, tb.y + 82, "KY-040 + MCP2515", { size: 11 });
   svgText(svg, theme, tb.x + 170, tb.y + 62, "SRC: board.h", { size: 11 });
   svgText(svg, theme, tb.x + 170, tb.y + 82, "PINS: GPn", { size: 11 });
 }
@@ -102,7 +102,7 @@ function drawWireLabel(svg: Element, theme: Theme, w: Wire) {
     label.setAttribute(k, String(v));
 }
 
-function drawLegend(svg: Element, theme: Theme, view: WiringView) {
+function drawLegend(svg: Element, theme: Theme) {
   const nets = theme.net;
   if (!nets) return;
   const items = [
@@ -112,8 +112,8 @@ function drawLegend(svg: Element, theme: Theme, view: WiringView) {
     ["gnd", "GND"],
     ["scl", "display SPI"],
     ["clk", "encoder"],
+    ["spi1", "MCP2515"],
   ];
-  if (view.source === "wired") items.push(["spi1", "MCP2515"]);
   items.forEach(([net, label], i) => {
     const x = 40 + (i % 4) * 120;
     const y = 730 + Math.floor(i / 4) * 26;
@@ -134,7 +134,7 @@ export function drawDiagram(svg: SVGSVGElement, style: Style, view: WiringView) 
   svg.replaceChildren();
   if (theme.grid) drawGrid(svg, theme);
   else svgElement("rect", { ...PAPER, fill: theme.background }, svg);
-  drawLegend(svg, theme, view);
+  drawLegend(svg, theme);
   // The Pico seen from below has its pin columns swapped: rather than
   // wires crossing it, the whole layout is mirrored, everything but the
   // legend and the title block. Mirroring also turns every module over,
@@ -145,14 +145,14 @@ export function drawDiagram(svg: SVGSVGElement, style: Style, view: WiringView) 
   const pinFaces = Object.fromEntries(
     Object.entries(view.faces).map(([id, face]) => [id, fromBelow ? OTHER_FACE[face] : face]),
   );
-  const wires = routeWires(view, pinFaces);
+  const wires = routeWires(pinFaces);
   for (const w of wires) drawWire(layer, theme, w);
   const labels = svgElement("g", {}, layer);
   for (const w of wires) drawWireLabel(labels, theme, w);
-  if (view.source === "wired") drawDivider(labels, theme, wires);
+  drawDivider(labels, theme, wires);
   drawConverter(layer, theme);
   drawPico(layer, theme, view);
-  for (const m of shownModules(view)) drawModule(layer, theme, m, view.faces[m.id], pinFaces[m.id]);
-  drawCar(layer, theme, view);
+  for (const m of MODULES) drawModule(layer, theme, m, view.faces[m.id], pinFaces[m.id]);
+  drawCar(layer, theme);
   setMirrored(false);
 }

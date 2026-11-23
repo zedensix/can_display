@@ -1,11 +1,9 @@
 #pragma once
 
-// BTstack configuration for a single BLE central talking to one dongle,
-// after the pico-sdk's examples. The buffer limits keep the cyw43 shared
-// bus from overrunning.
+// BTstack configuration for a single BLE peripheral, the dash, for one
+// phone at a time (Send log), after the pico-sdk's examples. The buffer
+// limits keep the cyw43 shared bus from overrunning.
 
-#define ENABLE_LE_CENTRAL
-// Not used, but this BTstack's hci.c doesn't build as a central only.
 #define ENABLE_LE_PERIPHERAL
 #define ENABLE_LOG_ERROR
 #define ENABLE_PRINTF_HEXDUMP

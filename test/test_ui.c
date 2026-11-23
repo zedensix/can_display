@@ -45,37 +45,9 @@ void test_screen(void) {
     CHECK(cfg.landscape, "a click on landscape didn't turn it on");
     screen_apply_turn(&s, 1, 6, &cfg);
     screen_apply_click(&s, &cfg);
-    CHECK(cfg.source == SOURCE_CAN, "a click on the data source didn't switch it to CAN");
-    // With the CAN source, the rows needing the dongle do nothing.
-    for (int row = 0; row < SETTINGS_ROWS; row++) {
-        if (screen_row_needs_ble(row)) {
-            screen_t at = {.page = PAGE_SETTINGS, .cursor = row};
-            settings_t before = cfg;
-            screen_apply_click(&at, &cfg);
-            CHECK(at.page == PAGE_SETTINGS && at.action == ACTION_NONE && settings_equal(cfg, before),
-                  "row %d acted with the CAN source", row);
-        }
-    }
+    CHECK(s.action == ACTION_SEND_LOG && s.page == PAGE_GAUGES, "a click on Send log gave action %d", s.action);
+    s.action = ACTION_NONE;
     screen_apply_click(&s, &cfg);
-    CHECK(cfg.source == SOURCE_BLE, "a second click didn't switch the data source back to BLE");
-    screen_apply_turn(&s, 1, 6, &cfg);
-    screen_apply_click(&s, &cfg);
-    CHECK(cfg.auto_connect, "a click on auto-connect didn't turn it on");
-    static const struct {
-        int row;
-        action_t action;
-    } actions[] = {{ROW_SEND_LOG, ACTION_SEND_LOG},
-                   {ROW_SCAN, ACTION_SCAN},
-                   {ROW_LISTEN, ACTION_LISTEN},
-                   {ROW_DISCONNECT, ACTION_DISCONNECT}};
-    for (size_t i = 0; i < sizeof actions / sizeof actions[0]; i++) {
-        screen_apply_turn(&s, actions[i].row - s.cursor, 6, &cfg);
-        screen_apply_click(&s, &cfg);
-        CHECK(s.action == actions[i].action && s.page == PAGE_GAUGES, "a click on row %d gave action %d, want %d",
-              actions[i].row, s.action, actions[i].action);
-        s.action = ACTION_NONE;
-        screen_apply_click(&s, &cfg);
-    }
     screen_apply_turn(&s, 10, 6, &cfg);
     screen_apply_click(&s, &cfg);
     CHECK(s.page == PAGE_GAUGES, "a click on Back didn't return to the gauges");
@@ -132,16 +104,16 @@ void test_wrap(void) {
     CHECK(strcmp(joined, text) == 0, "rejoined lines = %s", joined);
 }
 
-// Nothing connected, READY waits for a choice: turning picks Connect or
-// Settings, a click on Settings opens them, on Connect it's left for the
-// data source. Left alone SCREEN_IDLE_MS, the screensaver comes on; the
-// next input only wakes it.
+// The MCP2515's self test failed: turning picks Retry or Settings, a
+// click on Settings opens them, on Retry it's left for the data source.
+// Left alone SCREEN_IDLE_MS, the screensaver comes on; the next input
+// only wakes it.
 void test_choice_and_idle(void) {
     settings_t cfg = SETTINGS_DEFAULT;
-    state_t state = {.wait = WAIT_CHOICE};
+    state_t state = {.wait = WAIT_RETRY, .status = "CAN SELF TEST"};
     screen_t s = {0};
     CHECK(screen_apply_input(&s, &state, 0, true, 6, &cfg, 10) && s.page == PAGE_GAUGES,
-          "a click on Connect wasn't left for the data source");
+          "a click on Retry wasn't left for the data source");
     screen_apply_input(&s, &state, 1, false, 6, &cfg, 20);
     CHECK(s.choice == CHOICE_SETTINGS && s.view == 0, "turning picked %d, view %d: want Settings, no view change",
           s.choice, s.view);
@@ -149,7 +121,7 @@ void test_choice_and_idle(void) {
           "a click on Settings didn't open them");
     s.page = PAGE_GAUGES;
     screen_apply_input(&s, &state, -1, false, 6, &cfg, 40);
-    CHECK(s.choice == CHOICE_CONNECT, "turning back didn't pick Connect");
+    CHECK(s.choice == CHOICE_RETRY, "turning back didn't pick Retry");
 
     screen_apply_input(&s, &state, 0, false, 6, &cfg, 40 + SCREEN_IDLE_MS - 1);
     CHECK(!s.idle, "the screensaver came on before SCREEN_IDLE_MS");
@@ -158,16 +130,8 @@ void test_choice_and_idle(void) {
     CHECK(!screen_apply_input(&s, &state, 0, true, 6, &cfg, 50000) && !s.idle && s.page == PAGE_GAUGES,
           "waking the screensaver did more than wake it");
 
-    // On the way to the dongle, or failed: Retry beside Settings, the same way.
-    state.wait = WAIT_RETRY;
-    screen_t retry = {0};
-    CHECK(screen_apply_input(&retry, &state, 0, true, 6, &cfg, 60000),
-          "a click on Retry wasn't left for the data source");
-    screen_apply_input(&retry, &state, 1, false, 6, &cfg, 60010);
-    CHECK(!screen_apply_input(&retry, &state, 0, true, 6, &cfg, 60020) && retry.page == PAGE_SETTINGS,
-          "Settings beside Retry didn't open them");
-
     state.wait = WAIT_NONE;
+    state_set_status(&state, "");
     screen_apply_input(&s, &state, 0, false, 6, &cfg, 200000);
     CHECK(!s.idle, "the screensaver came on with the data source delivering");
     screen_apply_input(&s, &state, 1, false, 6, &cfg, 200001);
@@ -177,9 +141,6 @@ void test_choice_and_idle(void) {
     state_set_status(&state, "WAITING FOR THE CAR");
     screen_apply_input(&s, &state, 0, false, 6, &cfg, 200001 + SCREEN_IDLE_MS);
     CHECK(s.idle, "no screensaver while the CAN bus sleeps");
-    state.wait = WAIT_CANCEL;
-    screen_apply_input(&s, &state, 0, false, 6, &cfg, 200002 + SCREEN_IDLE_MS);
-    CHECK(!s.idle, "the screensaver hid a scan's progress");
 }
 
 // Near the rev limiter the whole page flashes red; under it, it doesn't.
@@ -217,8 +178,9 @@ void test_orientations(void) {
         for (int view = 0; view <= ui_view_count; view++) {
             ui_render(&c, &s, &(screen_t){.view = view}, &cfg, 1000);
         }
-        ui_render(&c, &s, &(screen_t){.page = PAGE_SETTINGS, .cursor = ROW_DISCONNECT}, &cfg, 1000);
-        state_t waiting = {.wait = WAIT_RETRY, .status = "NO LINK\nsomething long enough to wrap over a few lines"};
+        ui_render(&c, &s, &(screen_t){.page = PAGE_SETTINGS, .cursor = ROW_SEND_LOG}, &cfg, 1000);
+        state_t waiting = {.wait = WAIT_RETRY,
+                           .status = "CAN SELF TEST\nsomething long enough to wrap over a few lines"};
         ui_render(&c, &waiting, &(screen_t){0}, &cfg, 1000);
         // A door open takes the page, in either orientation.
         state_t open = s;

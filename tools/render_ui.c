@@ -5,6 +5,7 @@
 // and render_ui_screens.c (the rest).
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "render_ui.h"
@@ -46,7 +47,7 @@ static int save_ppm(const char *dir, const char *name, const unsigned char *data
 
 // The README's showcase: these screens side by side, twice their size
 // (each pixel a 2x2 block: crisp, not smoothed), on the log page's dark.
-static const char *const showcase_names[] = {"grid", "oil", "alarms", "ready", "settings", "showcar"};
+static const char *const showcase_names[] = {"grid", "oil", "alarms", "track_sport", "settings", "showcar"};
 #define SHOWCASE_COUNT (int)(sizeof showcase_names / sizeof showcase_names[0])
 #define SHOWCASE_SCALE 2
 #define SHOWCASE_GAP 32
@@ -66,6 +67,10 @@ static void compose_showcase(void) {
         int k = 0;
         while (k < shot_count && strcmp(shots[k].name, showcase_names[i]) != 0) {
             k++;
+        }
+        if (k == shot_count) {
+            fprintf(stderr, "showcase: no screen named %s\n", showcase_names[i]);
+            exit(1);
         }
         int left = SHOWCASE_GAP + i * (W * SHOWCASE_SCALE + SHOWCASE_GAP);
         for (int y = 0; y < H * SHOWCASE_SCALE && k < shot_count; y++) {

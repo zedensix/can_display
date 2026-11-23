@@ -1,25 +1,25 @@
 # TODO
 
-- [ ] Switch to the wired mode with the MCP2515
+- [x] Switch to the wired mode with the MCP2515: the only source since, the ELM327 dongle taken out (its code in `9dc0432`), Send log kept and working on CAN
+- [ ] Oil temperature: 0x360 is unverified on this car; ask Toyota's Mode 21 PID 01 (checked against another gauge) over the MCP2515 too, and compare
 - [x] Wiring diagram in HTML (`docs/wiring.html`): a color modules version, a blueprint version, two links to switch between them
 - [x] Diagram captures (color and blueprint) in `docs/resources/`, made by `mise run wiring`, shown in `docs/wiring.md`
 - [x] Code quality: prek hooks (clang-format for the C, Biome for the TS/Svelte/CSS/JSON, bun check for the types, web and host tests)
 - [x] Hooks set up: `mise install` runs `prek install` (mise.toml's postinstall)
 - [x] GitHub Actions CI: the prek hooks (clang-format, Biome, bun check, web and host tests under gcc) and the firmware build (UF2 as an artifact)
-- [ ] Ethanol without wiring: run "Scan ECU RAM" with the engine running, noting OFT's E%, then read the candidates in the logs
+- [x] Ethanol without wiring: three "Scan ECU RAM" runs found it at 0xFFF87C7C, matching OFT (the scan went with the dongle)
 - [x] Stability control modes: two Listen CAN runs found 0x0D3 (byte 0 bit 5 TRC off, byte 0 bit 3 VSC sport, byte 3 bit 0 cleared with everything off); Listen CAN removed since (in `48b9d51`)
 - [x] Scan ECU RAM: a Cancel button while it runs
 - [ ] Check in the car: each of the 5 modes shows its badge, matching the cluster's lamps
-- [ ] Check in the car: the two multi-PID requests (log `polling 6 PIDs a request`), each new reading against what's expected (pedal 0 to 100%, timing that drops on a pull, rail around 4 to 20 MPa, speed against the car's), the limiter flash from 7300 rpm
-- [ ] Check in the car: the gear shown in each gear (and N with the clutch in), the outside temperature against the car's own, the `01A0` bitmap in the log: whether the ECU has the gear (0xA4: then read it instead of working it out) and the odometer (0xA6; `01A6 (giving up)` if not), every screen in landscape on the panel itself (MADCTL MV)
-- [ ] Odometer if 01A6 isn't there: it's the cluster's, not the engine ECU's; find how the cluster gives it (a diagnostic read at its own address, captured from Techstream)
+- [ ] Check in the car: each reading the MCP2515 asks for against what's expected (pedal 0 to 100%, timing that drops on a pull, rail around 4 to 20 MPa, speed against the car's), the limiter flash from 7300 rpm
+- [ ] Check in the car: the gear shown in each gear (and N with the clutch in), the outside temperature against the car's own, every screen in landscape on the panel itself (MADCTL MV)
+- [ ] Odometer: ask PID 0xA6 over the MCP2515 (the ECU may not have it); if not there, it's the cluster's, not the engine ECU's; find how the cluster gives it (a diagnostic read at its own address, captured from Techstream)
 - [ ] Check the door screen in the car: each door and the boot, contact on and engine running (0x375 byte 1, found engine off)
-- [ ] Rerun Listen CAN engine running for the stalk held down and the cruise ON/OFF button (nothing on the bus engine off); the stalk's up and pulled are in 0x144 byte 0, but driving the dash with them needs the MCP2515 (through the dongle, a press falls between monitors)
+- [ ] Port Listen CAN to the MCP2515 (`git show 9dc0432:src/app/obd/sniff.c`) and rerun it engine running for the stalk held down and the cruise ON/OFF button (nothing on the bus engine off); the stalk's up and pulled are in 0x144 byte 0
 - [ ] Tyre pressures, on hold: first check the valves (metal with a nut at the base: a sensor; rubber: none). Sensors there aren't paired to the car, so its TPMS ECU has no pressures to give: pair them (a dealer or a TPMS tool), then capture what Techstream asks that ECU; or hear the sensors directly with a 433MHz receiver on the Pico and decode their protocol. Then a tyres view (designed: the car from above, a pressure at each corner)
 - [ ] Cruise control set speed: probably in the engine ECU's RAM, not on the bus (the cluster never shows it): RAM scans with the cruise set at two speeds
 - [ ] Knock: not in standard OBD; look for the FA20's knock retard and fine knock learning in the ECU's RAM
-- [ ] Check in the car: Send log to the phone, acknowledged, back to the gauges
-- [ ] Check in the car: the dongle's name read and shown on READY and OFFLINE, reconnecting from OFFLINE without a reboot
+- [ ] Check in the car: Send log on the CAN source, the gauges paused, back once the phone acknowledged it; the first one on a fresh board too (BTstack writes its keys to flash then, core1 held)
 - [ ] Check on the board: half-step encoder (one detent = one row), smooth loader
 - [ ] Host the web page on gt.ombrage.space (`Dockerfile` at the root, behind the https proxy)
 - [x] Wiring doc, MCP2515 section: no more references to the Go code, `DATA_SOURCE` and the CNF registers instead
@@ -74,8 +74,7 @@
 - [ ] Data log: real start and end times need a clock: the dash has none (see the choice: an RTC module or the phone's time)
 - [x] Types checked by `bun check --no-script` instead of tsc (10x faster); prek runs only on tracked files: Biome run over everything before a commit
 - [x] BLE: after Send log, connecting to the dongle waited for nothing: gap_connect 0x56 (BTstack's single connection still the phone's); now it waits for the phone's disconnection; failures name what the code means
-- [ ] Check in the car: Send log, then back to the dongle without 0x56
 - [x] Drive mode read from 0x0D3: the MCP2515 as it streams, the dongle every 3s (a raw monitor of that ID); a track layout with a TRC OFF / VSC OFF badge when off
-- [ ] Check in the car: the badge follows the buttons (TRC OFF short and held; VSC SPORT once its bit is decoded), the gauges barely slower with the dongle
+- [ ] Check in the car: the badge follows the buttons (TRC OFF short and held; VSC SPORT)
 - [x] CI red since the C moved into folders: `data/` in .gitignore (the log server's) also ignored src/app/data/; anchored at the root
 - [x] Every Bluetooth wait or failure screen: Retry beside Settings (auto-retry held in the settings), a compact layout for long errors

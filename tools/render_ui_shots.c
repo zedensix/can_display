@@ -31,7 +31,7 @@ state_t state_while_driving(void) {
     return s;
 }
 
-settings_t cfg = {.brightness = BRIGHTNESS_MAX, .auto_connect = true, .shift_rpm = 7000};
+settings_t cfg = {.brightness = BRIGHTNESS_MAX, .shift_rpm = 7000};
 
 void render_screen(canvas_t *c, const state_t *s, screen_t screen) {
     ui_render(c, s, &screen, &cfg, now);
@@ -64,15 +64,15 @@ static void shot_track(canvas_t *c, drive_mode_t mode) {
 }
 
 static void shot_track_trc(canvas_t *c) {
-    shot_track(c, DRIVE_TRC_OFF);
+    shot_track(c, DRIVE_DRIFT);
 }
 
 static void shot_track_vsc(canvas_t *c) {
-    shot_track(c, DRIVE_VSC_OFF);
+    shot_track(c, DRIVE_RACE);
 }
 
 static void shot_track_sport(canvas_t *c) {
-    shot_track(c, DRIVE_SPORT_TRC_OFF);
+    shot_track(c, DRIVE_TRACK);
 }
 
 static void shot_alarms(canvas_t *c) {

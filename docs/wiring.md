@@ -5,8 +5,7 @@ Change either the wiring or the constants if yours differs: they just
 need to agree. The wiring page draws it in a browser, in color or as a
 blueprint. It draws each module with its header in its real order, from
 the side you wire it from: the Pico from below, the modules from their
-back; a click turns any of them over, and a button switches between the
-BLE dongle and the wired MCP2515. A click on a wire follows it. `bun run
+back; a click turns any of them over. A click on a wire follows it. `bun run
 wiring` opens it, along with the modules' dimensions for the printed
 parts; `mise run wiring` captures it into the pictures below, as it
 opens (rerun it when the wiring changes).
@@ -90,62 +89,19 @@ socket, like a phone charger.
 | converter micro-USB plug | the Pico's USB socket | 5V on VBUS (physical pin 40) |
 
 - **Take a switched 12V, not OBD pin 16.** Pin 16 is live with the car
-  off: the Pico would keep scanning for the dongle and drain the
+  off: the Pico would keep listening to a sleeping bus and drain the
   battery overnight.
 - Anything needing 5V (the MCP2515 board, a 5V sensor) takes it from
   VBUS (physical pin 40).
 - The Pico has one USB socket: to flash or run `mise run logs` in the
   car, unplug the converter and plug the Mac's cable instead.
 
-## Car data, option A (default): ELM327 Bluetooth LE OBD dongle
+## Car data: MCP2515 SPI CAN controller module
 
-Selected by **Data source: BLE** in the dash's settings (the default);
-changing it reboots the dash. Nothing to wire: plug the dongle into the OBD port, the Pico W connects
-to it over BLE with its onboard radio. Written for a Vgate iCar Pro 2S,
-seen working on hardware: it advertises no name, and serves its serial
-port on service `18f0` (notify `2af0`, write `2af1`). It answers `ATI`
-with `ELM327 v2.3`. The car side (PIDs answering, values) isn't
-verified yet.
-
-- The dongle must speak **BLE**, not only Bluetooth Classic: the
-  firmware only does BLE. A dongle that works with iPhones does.
-- Only one client at a time. If your phone (Car Scanner...) is
-  connected to it, the Pico won't find it: turn the phone's Bluetooth
-  off.
-- What you get: RPM, coolant, AFR (standard OBD PIDs), battery
-  voltage (the dongle's `ATRV`), and oil temperature through Toyota's
-  Mode 21 PID 01 asked to the engine ECU (community-sourced, checked
-  on this car against another gauge). Ethanol % isn't available over
-  standard OBD (the ECU doesn't support PID 0x52): the dongle reads it
-  from the engine ECU's RAM, where the flex-fuel tune keeps it.
-- Slower than the CAN option: every value is a request/answer through
-  the dongle, a few refreshes per second at best.
-- No pairing: these dongles take any BLE client without a PIN. The
-  Pico connects to the first device that looks like one; set
-  `ELM_ADDRESS` in `src/firmware/ble/ble.c` to lock it to yours.
-- Until data flows, the panel shows a status screen: scanning (with
-  the last device it ignored), connecting to (name and MAC), reading
-  services, init. The flash log (`mise run logs`) also lists the
-  dongle's GATT services and its raw answers to a few probes.
-- If the scan never stops on your dongle, its name and services match
-  nothing known: read them with a phone BLE scanner (nRF Connect), then
-  set `ELM_ADDRESS` or add its service to `profiles` (both in
-  `src/firmware/ble/ble.c`). The scan gives up after 30s.
-- The connection starts with a click on the encoder ("press to
-  connect"), or at power-on with Auto-connect on in the settings. Any
-  error (dongle unplugged, car off) shows on the panel and waits for a
-  click to retry; with Auto-connect, it retries by itself after 5s.
-
-## Car data, option B: MCP2515 SPI CAN controller module
-
-Selected by **Data source: CAN** in the dash's settings; changing it
-reboots the dash. It can stay wired while the BLE dongle is the source:
-it has its own pins (SPI1) and is left alone. With both on the car, plug
-the dongle and the MCP2515's wires into the OBD port through a Y
-splitter. With the CAN source, the rows that need the dongle (Auto-connect,
-Send log, Scan ECU RAM, Disconnect) are dimmed and do
-nothing. Wired straight to the CAN bus:
-faster, and gets oil temperature, but needs the wiring below.
+Wired straight to the CAN bus through the OBD port, on its own pins
+(SPI1). An ELM327 Bluetooth dongle was the other source until it was
+taken out (see the git history): every value a request and an answer
+through it, a few refreshes a second at best.
 
 | MCP2515 pin | Pico W pin | Notes |
 |---|---|---|
@@ -233,7 +189,7 @@ bus, and the panel says which wire to look at:
    with the ignition on: CAN-H and CAN-L not reaching OBD pins 6 and 14. Receive errors and no frame: CAN-H and
    CAN-L swapped, or a crystal other than 8MHz.
 
-Retry (after a failure, not a silent bus) reruns it from a fresh boot; Settings (a click while waiting) goes back to the dongle. The
+Retry (after a failure, not a silent bus) reruns it from a fresh boot; Settings sits beside it. The
 flash log (`mise run logs`) keeps each step's readings. The test can't
 see a missing SO divider: 5V reads as a 1 just as well.
 

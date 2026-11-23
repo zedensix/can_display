@@ -45,7 +45,7 @@ typedef struct {
 // ECU may not have (its bitmaps from 0x60 on were never asked).
 #define PID_ODOMETER 0xA6
 // The engine ECU's supply voltage (V, /1000): the battery's, a few tenths
-// under it, for a source without the dongle's ATRV (the MCP2515).
+// under it.
 #define PID_VOLTAGE 0x42
 // The relative pedal position: 0 to 100% of its travel, where 0x49 (the
 // absolute one) stops short of both ends. On this car its byte is the
@@ -75,7 +75,7 @@ typedef struct {
 // obd_build_request is the Mode 01 single-frame request for pid.
 can_frame_t obd_build_request(uint8_t pid);
 // obd_build_ethanol_read is ETHANOL_RAM_READ as a single frame to the
-// engine ECU, for a source without the dongle (the MCP2515).
+// engine ECU.
 can_frame_t obd_build_ethanol_read(void);
 
 // obd_decode_frame handles an ECU1 single-frame answer (see
@@ -100,8 +100,7 @@ typedef struct {
 // message (len bytes, mode byte first).
 bool isotp_add_frame(isotp_t *r, const can_frame_t *f);
 
-// GT86 broadcast frames, seen by a direct CAN tap (MCP2515), never by an
-// OBD dongle. IDs and formulas come from community reverse-engineering
+// GT86 broadcast frames, read off the bus by the MCP2515. IDs and formulas come from community reverse-engineering
 // and are unverified on this car.
 #define GT86_ID_RPM 0x140
 #define GT86_ID_TEMPERATURES 0x360
@@ -120,8 +119,7 @@ bool isotp_add_frame(isotp_t *r, const can_frame_t *f);
 // Listen CAN run on this car, contact on, engine off (2026-11-17).
 // That run also found the cruise control stalk in 0x144 byte 0: bit 4
 // held up, bit 5 pulled; held down and the ON/OFF button changed
-// nothing there (with the engine off). Not read: a press is too short
-// for the dongle's monitor between polls.
+// nothing there (with the engine off). Not read: nothing uses it.
 #define GT86_ID_DOORS 0x375
 
 // gt86_decode_broadcast handles the broadcast frames above. It returns false for

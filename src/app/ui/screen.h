@@ -13,18 +13,15 @@
 // On the gauges, turning cycles the views: every gauge, then each one
 // alone. A click opens the settings. There, turning moves the cursor, a
 // click toggles the row under it or, on brightness and the shift light,
-// makes turning change the value until the next click. The action rows
-// (Send log, Scan ECU RAM, Listen CAN, Disconnect) return
-// to the gauges and set action. Back returns to the gauges. With the CAN
-// source, the rows that need the dongle (screen_row_needs_ble) do nothing.
+// makes turning change the value until the next click. Send log returns
+// to the gauges and sets action. Back returns to the gauges.
 //
-// While the data source waits on the driver (state_t.wait: READY,
-// OFFLINE, on the way to the dongle, a failure, a RAM scan), turning on
-// the gauges picks between its button (Connect, Retry, Cancel) and
+// While the data source waits on the driver (state_t.wait: the MCP2515's
+// self test failed), turning on the gauges picks between Retry and
 // Settings instead, and a click does it. On the door screen, a click
-// dismisses it until another door opens. Nothing connected and
-// no input for SCREEN_IDLE_MS, the screensaver comes on; the next input
-// only wakes it.
+// dismisses it until another door opens. Nothing coming in (a status with
+// nothing to do but wait, or Retry) and no input for SCREEN_IDLE_MS, the
+// screensaver comes on; the next input only wakes it.
 
 typedef enum {
     PAGE_GAUGES,
@@ -32,18 +29,13 @@ typedef enum {
 } page_t;
 
 // Rows of the settings page, top to bottom, in its groups: display,
-// connection, tools, then Back.
+// tools, then Back.
 enum {
     ROW_BRIGHTNESS,
     ROW_SHIFT_LIGHT,
     ROW_FLIP,
     ROW_LANDSCAPE,
-    ROW_SOURCE,
-    ROW_AUTO_CONNECT,
     ROW_SEND_LOG,
-    ROW_SCAN,
-    ROW_LISTEN,
-    ROW_DISCONNECT,
     ROW_BACK,
     SETTINGS_ROWS,
 };
@@ -53,16 +45,12 @@ enum {
 typedef enum {
     ACTION_NONE,
     ACTION_SEND_LOG,
-    ACTION_SCAN,
-    ACTION_LISTEN,
-    ACTION_DISCONNECT,
 } action_t;
 
 // choice_t is what a click does while the data source waits on the
-// driver: CHOICE_CONNECT is its own button (Connect, Retry, Cancel,
-// Next); CHOICE_SETTINGS opens the settings, or, beside Next
-// (WAIT_STEP), is Cancel, left to the caller like CHOICE_CONNECT.
-typedef enum { CHOICE_CONNECT, CHOICE_SETTINGS } choice_t;
+// driver: CHOICE_RETRY is left to the caller, CHOICE_SETTINGS opens the
+// settings.
+typedef enum { CHOICE_RETRY, CHOICE_SETTINGS } choice_t;
 
 #define SCREEN_IDLE_MS 30000
 
@@ -101,7 +89,3 @@ void screen_apply_turn(screen_t *s, int detents, int views, settings_t *cfg);
 
 // screen_apply_click applies a click.
 void screen_apply_click(screen_t *s, settings_t *cfg);
-
-// screen_row_needs_ble tells the settings rows that only work with the
-// BLE dongle as the source (the radio is off with the CAN source).
-bool screen_row_needs_ble(int row);

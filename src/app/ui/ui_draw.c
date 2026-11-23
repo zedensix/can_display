@@ -86,16 +86,12 @@ void outline_round_rect(canvas_t *c, int x, int y, int w, int h, int r, color_t 
 
 // The buttons' icons, a row of pixels per string, X lit.
 static const char *const icon_rows[][13] = {
-    [ICON_BLUETOOTH] = {"...X....", "...XX...", "...X.X..", "X..X..X.", ".X.X.X..", "..XXX...", "...X....", "..XXX...",
-                        ".X.X.X..", "X..X..X.", "...X.X..", "...XX...", "...X...."},
     [ICON_GEAR] = {"....XXX....", ".XX.XXX.XX.", ".XXXXXXXXX.", "..XXX.XXX..", "XXXX...XXXX", "XXX.....XXX",
                    "XXXX...XXXX", "..XXX.XXX..", ".XXXXXXXXX.", ".XX.XXX.XX.", "....XXX...."},
     [ICON_RETRY] = {"....XXXX..X.", "..XXX..XXXX.", ".XX......XX.", ".X......XXX.", "XX..........", "X...........",
                     "X...........", "XX.........X", ".X........XX", ".XX......XX.", "..XXX..XXX..", "....XXXX...."},
     [ICON_BACK] = {"...X.......", "..XX.......", ".XXXXXXXXXX", "XXXXXXXXXXX", ".XXXXXXXXXX", "..XX.......",
                    "...X......."},
-    [ICON_NEXT] = {".......X...", ".......XX..", "XXXXXXXXXX.", "XXXXXXXXXXX", "XXXXXXXXXX.", ".......XX..",
-                   ".......X..."},
 };
 
 static int icon_height(icon_t icon) {

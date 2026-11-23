@@ -218,23 +218,24 @@ static const tile_t *tile_for(signal_t signal) {
 // draw_track_grid is the gauges in a sport mode, on track: what matters
 // there big (the oil and the AFR across the screen, the coolant and the
 // intake under them; in landscape, the four as 2 by 2), the battery and
-// the ethanol left out, and a badge saying which mode: VSC SPORT in the
-// accent, TRC OFF (alone or with it) amber, VSC OFF (everything off) red.
+// the ethanol left out, and a badge saying which mode: SPORT MODE in the
+// accent, DRIFT MODE and TRACK MODE (TRC off) amber, RACE MODE
+// (everything off) red.
 void draw_track_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, int bottom, drive_mode_t mode,
                      uint32_t now_ms) {
     static const char *const labels[DRIVE_MODES] = {
-        [DRIVE_TRC_OFF] = "TRC OFF",
-        [DRIVE_SPORT] = "VSC SPORT",
-        [DRIVE_SPORT_TRC_OFF] = "SPORT + TRC OFF",
-        [DRIVE_VSC_OFF] = "VSC OFF",
+        [DRIVE_DRIFT] = "DRIFT MODE",
+        [DRIVE_SPORT] = "SPORT MODE",
+        [DRIVE_TRACK] = "TRACK MODE",
+        [DRIVE_RACE] = "RACE MODE",
     };
     const char *label = labels[mode] ? labels[mode] : "";
-    color_t badge = mode == DRIVE_VSC_OFF ? t->danger : mode == DRIVE_SPORT ? t->accent : t->warning;
+    color_t badge = mode == DRIVE_RACE ? t->danger : mode == DRIVE_SPORT ? t->accent : t->warning;
     int badge_w = gfx_text_width(label_font, label) + 28;
     fill_round_rect(c, (c->width - badge_w) / 2, top + 3, badge_w, BADGE_HEIGHT, BADGE_HEIGHT / 2, badge,
                     t->background);
     draw_text_centered(c, label_font, c->width / 2, top + 3 + BADGE_HEIGHT / 2 + 5, label,
-                       mode == DRIVE_VSC_OFF ? t->alarm_text : t->background, 1);
+                       mode == DRIVE_RACE ? t->alarm_text : t->background, 1);
 
     int y0 = top + BADGE_HEIGHT + 6, half = c->width / 2;
     if (is_landscape(c)) {

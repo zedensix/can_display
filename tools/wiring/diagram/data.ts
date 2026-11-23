@@ -7,8 +7,8 @@ export type Style = "color" | "blueprint";
 
 // What the drawing shows, kept per browser: each board's face (back is
 // the side you wire from: the Pico from below, the modules from their
-// pins' side), and how the car data comes in (Data source in the dash's settings).
-export type WiringView = { faces: Record<string, Face>; source: "ble" | "wired" };
+// pins' side).
+export type WiringView = { faces: Record<string, Face> };
 
 export type ModulePin = { label: string; pico?: number; net?: string; wire?: string; note?: string };
 export type EdgePin = { label: string; note: string; net: string };
@@ -17,7 +17,6 @@ export type Module = {
   kind: string;
   name: string;
   sub: string;
-  wired?: boolean;
   x: number;
   y: number;
   w: number;
@@ -160,7 +159,6 @@ export const MODULES: Module[] = [
     kind: "mcp",
     name: "MCP2515 + TJA1050",
     sub: "wired CAN",
-    wired: true,
     x: 160,
     y: 420,
     w: 140,
@@ -228,7 +226,7 @@ export const THEMES: Record<Style, Theme> = {
       spi1: "#64748b",
     },
     wireWidth: 4,
-    board: { pico: "#1f7a3c", display: "#1e3a8a", encoder: "#0f172a", mcp: "#1e40af", dongle: "#18181b" },
+    board: { pico: "#1f7a3c", display: "#1e3a8a", encoder: "#0f172a", mcp: "#1e40af" },
     pin: "#d4a017",
     grid: false,
   },

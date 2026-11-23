@@ -1,7 +1,6 @@
-// The Raspberry Pi Pico W firmware: reads the GT86's data through an
-// ELM327 Bluetooth LE OBD dongle (ble.c) or straight off the CAN bus
-// through an MCP2515 (mcp2515.c), and draws src/app's UI on the ST7789
-// panel. The `sim`
+// The Raspberry Pi Pico W firmware: reads the GT86's data off the CAN bus
+// through an MCP2515 (mcp2515.c), draws src/app's UI on the ST7789 panel,
+// and hands the data log to a phone over Bluetooth LE (ble.c). The `sim`
 // build (SIM=1) shows fake data instead, to check the panel without a
 // car.
 
@@ -87,7 +86,7 @@ int main(void) {
     display_set_brightness(cfg.brightness);
     knob_init();
 
-    source_start(&cfg, &state, boot.connect_now);
+    source_start(&state);
 
     // The boot animation stays within the spinner's rows: after a first
     // whole frame, only those are drawn and pushed.
@@ -105,7 +104,6 @@ int main(void) {
     char shown[sizeof state.status] = "";
     choice_t shown_choice = screen.choice;
 
-    bool asleep = false;
     for (;;) {
         uint32_t start = now_ms();
         watchdog_update();
@@ -116,20 +114,17 @@ int main(void) {
 
         bool press, long_press;
         int turn = knob_read_input(start, &press, &long_press);
-        // On the gauges (and in standby, where nothing is shown), a waiting
-        // connection prompt takes the click.
+        // On the gauges, what waits for a click takes it (Send log, Retry).
         if (screen_apply_input(&screen, &state, turn, press, ui_view_count, &cfg, start) &&
-            !((screen.page == PAGE_GAUGES || in_standby()) && give_click_to_prompt(start, screen.choice))) {
+            !(screen.page == PAGE_GAUGES && give_click_to_prompt())) {
             screen_apply_click(&screen, &cfg);
         }
-        hold_retries(screen.page == PAGE_SETTINGS);
-        remember_connected_dongle(&cfg);
         run_settings_action(screen.action);
         screen.action = ACTION_NONE;
         record_datalog_sample(start);
         if (long_press) {
             log_line("knob: reboot");
-            reboot_board(false);
+            reboot_board();
         }
         if (!settings_equal(cfg, applied)) {
             display_wait_for_push();
@@ -141,26 +136,8 @@ int main(void) {
         if (screen.page == PAGE_GAUGES && !settings_equal(cfg, saved)) {
             store_save_settings(cfg);
             saved = cfg;
-            if (cfg.source != source_running()) {
-                log_line("settings: data source changed, rebooting");
-                reboot_board(false);
-            }
         }
 
-        // In standby, only a click matters: no drawing, no busy loop.
-        if (in_standby()) {
-            if (!asleep) {
-                datalog_t *log = store_get_datalog();
-                if (log) {
-                    datalog_flush(log);
-                }
-                display_sleep();
-                asleep = true;
-            }
-            poll_data_source(now_ms());
-            sleep_ms(FRAME_MS);
-            continue;
-        }
         // On an unchanged status screen, only the spinner moves: its rows
         // alone, as often as they can go, for a smooth spin.
         bool status = ui_shows_status_screen(&state, &screen, start);

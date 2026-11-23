@@ -1,16 +1,6 @@
 // Where each wire runs, from the Pico's pin to its module's.
 
-import {
-  type Face,
-  MODULES,
-  type Module,
-  type ModulePin,
-  PICO,
-  PIN_PITCH,
-  picoPin,
-  type Side,
-  type WiringView,
-} from "./data";
+import { type Face, MODULES, type Module, type ModulePin, PICO, PIN_PITCH, picoPin, type Side } from "./data";
 
 export type Wire = ModulePin & {
   net: string;
@@ -23,26 +13,23 @@ export type Wire = ModulePin & {
   points: [number, number][];
 };
 
-/** The modules drawn: the MCP2515 only with the wired data source. */
-export const shownModules = (view: WiringView) => MODULES.filter((m) => !m.wired || view.source === "wired");
-
 /** The y of a module's pin: its place in the header, reversed for the back. */
 export function modulePinY(m: Module, index: number, face: Face): number {
   const order = face === "front" ? index : m.pins.length - 1 - index;
   return m.pinTop + order * PIN_PITCH;
 }
 
-/** The Pico's pins something is wired to, in the current mode. */
-export function usedPicoPins(view: WiringView): Set<number> {
-  return new Set(shownModules(view).flatMap((m) => m.pins.flatMap((pin) => (pin.pico ? [pin.pico] : []))));
+/** The Pico's pins something is wired to. */
+export function usedPicoPins(): Set<number> {
+  return new Set(MODULES.flatMap((m) => m.pins.flatMap((pin) => (pin.pico ? [pin.pico] : []))));
 }
 
 // Wires from the Pico to the modules, routed in the channel between the
 // two: along from the Pico's pin to a lane, up or down the lane, along
 // to the module's pin. A module on the Pico's other side goes over the
 // top. Each wire gets a lane of its own, so none overlaps another.
-export function routeWires(view: WiringView, faces: Record<string, Face>): Wire[] {
-  const wires: Wire[] = shownModules(view).flatMap((m) =>
+export function routeWires(faces: Record<string, Face>): Wire[] {
+  const wires: Wire[] = MODULES.flatMap((m) =>
     m.pins.flatMap((pin, index) => {
       if (!pin.pico) return [];
       const from = picoPin(pin.pico);

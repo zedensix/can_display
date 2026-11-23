@@ -2,9 +2,9 @@
 // window. It draws through the same src/app code into the same RGB565
 // canvas, so it's a pixel-exact preview: UI changes are developed here.
 // The keyboard stands in for the rotary encoder: arrows turn, space
-// clicks; r shows or hides a READY prompt, as with nothing connected (its
-// Connect clears it; left alone 30s, the screensaver comes on); m steps
-// through the drive modes (normal, TRC off, VSC sport, both, VSC off); l
+// clicks; r shows or hides the MCP2515 waiting for the car to wake the bus
+// (left alone 30s, the screensaver comes on); m steps
+// through the drive modes (comfort, drift, sport, track, race); l
 // turns the screen a quarter turn, as the Landscape setting does. The
 // fake data is a tour of the dash's scenarios (simdata.c).
 
@@ -12,6 +12,7 @@
 #include <stdbool.h>
 
 #include "data/simdata.h"
+#include "obd/mcp_check.h"
 #include "ui/ui.h"
 
 #define PANEL_WIDTH 240
@@ -71,8 +72,7 @@ int main(void) {
                                          SDL_GetTicks());
                     break;
                 case SDLK_r:
-                    state_set_status(&state, state.status[0] ? "" : "READY\nIOS-Vlink\n(last used)");
-                    state.wait = state.status[0] ? WAIT_CHOICE : WAIT_NONE;
+                    state_set_status(&state, state.status[0] ? "" : mcp_bus_status(BUS_SILENT));
                     break;
                 }
             }
@@ -80,12 +80,7 @@ int main(void) {
 
         uint32_t now = SDL_GetTicks();
         if (screen_apply_input(&screen, &state, turn, press, ui_view_count, &cfg, now)) {
-            if (screen.page == PAGE_GAUGES && state.wait == WAIT_CHOICE) {
-                state_set_status(&state, ""); // Connect: as if it worked
-                state.wait = WAIT_NONE;
-            } else {
-                screen_apply_click(&screen, &cfg);
-            }
+            screen_apply_click(&screen, &cfg);
         }
         simdata_update(&state, now);
         if (state.drive_mode_read) {
