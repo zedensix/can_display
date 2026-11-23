@@ -30,7 +30,7 @@ a race-wheel shift light across the top, and every drive logged to your phone.
 - **Says what matters.** From 130°C the oil temperature takes the whole screen. The AFR stays
   calm off the throttle, when the fuel cut reads lean. A reading too old shows `--`, never a
   frozen number.
-- **Reads what the ECU doesn't publish.** The oil temperature through Toyota's Mode 21, the
+- **Reads what the ECU doesn't publish.** The oil temperature off the car's own bus, the
   ethanol % of a flex-fuel tune straight from the engine ECU's RAM.
 - **Logs what checks the tune.** Besides the gauges: pedal, throttle, load, timing, both fuel
   trims, the AFR the ECU commands beside the one it gets, the direct injection rail's pressure
@@ -148,21 +148,22 @@ The CI runs every hook (clang-format, Biome, `bun check` for the types, the test
 
 | Signal          | Source                                              | Status |
 | --------------- | --------------------------------------------------- | ------ |
-| RPM (shift light) | Broadcast `0x140`                                 | **Unverified on this car** |
-| Coolant temp    | Broadcast `0x360`                                   | **Unverified on this car** |
-| Oil temp        | Broadcast `0x360`                                   | **Unverified**; Toyota's Mode 21 PID 01, checked on this car against another gauge, isn't asked |
-| Intake air temp | OBD PID 0x0F                                        | PID is standard; the ECU lists it as supported |
-| AFR             | OBD PID 0x24 (wide-range O2 sensor 1)               | The ECU lists the PID as supported; values **not cross-checked** |
-| Throttle        | OBD PID 0x11                                        | Read on this car; tells a lean AFR off the throttle from a real one |
-| Battery voltage | OBD PID 0x42, the engine ECU's supply               | A few tenths under the battery's |
+| RPM (shift light) | Broadcast `0x140`                                 | Checked on this car (reads right in use) |
+| Coolant temp    | Broadcast `0x360`                                   | Checked on this car (reads right in use) |
+| Oil temp        | Broadcast `0x360`                                   | Checked on this car (reads right in use) |
+| Intake air temp | OBD PID 0x0F                                        | Checked on this car |
+| AFR             | OBD PID 0x24 (wide-range O2 sensor 1)               | Checked on this car |
+| Throttle        | OBD PID 0x11                                        | Checked on this car; tells a lean AFR off the throttle from a real one |
+| Battery voltage | OBD PID 0x42, the engine ECU's supply               | Checked on this car; a few tenths under the battery's |
 | Ethanol %       | The engine ECU's RAM at 0xFFF87C7C                  | Found by scans and matched against OFT on this car; specific to this tune |
-| Pedal, load, timing, fuel trims, commanded AFR, DI rail pressure, speed, outside temperature | OBD PIDs 0x5A, 0x04, 0x0E, 0x06/0x07, 0x44, 0x23, 0x0D, 0x46 | The ECU lists them all as supported; values **not read yet** |
-| Gear | RPM over speed, the manual gearbox's ratios | Worked out, **not checked in the car** |
+| Pedal, load, timing, fuel trims, commanded AFR, DI rail pressure, speed, outside temperature | OBD PIDs 0x5A, 0x04, 0x0E, 0x06/0x07, 0x44, 0x23, 0x0D, 0x46 | Checked on this car |
+| Gear | RPM over speed, the manual gearbox's ratios | Checked on this car |
 | Odometer | Not asked | The dash shows the trip since boot |
 
-The CAN IDs and formulas come from community reverse-engineering, not factory documentation:
-**don't trust them blindly**. [docs/can-reverse-engineering.md](docs/can-reverse-engineering.md)
-covers how to check them on your own car, and how this one's were found.
+Every reading above is checked on this car, a 2015 GT86. The CAN IDs and formulas come from
+community reverse-engineering, not factory documentation: on another car or another tune, check
+them first. [docs/can-reverse-engineering.md](docs/can-reverse-engineering.md) covers how, and how
+this one's were found.
 
 ## Design notes
 

@@ -49,8 +49,7 @@ typedef struct {
 #define PID_VOLTAGE 0x42
 // The relative pedal position: 0 to 100% of its travel, where 0x49 (the
 // absolute one) stops short of both ends. On this car its byte is the
-// percent (seen floored: about half, read as A*100/255), unverified at
-// part throttle.
+// percent (seen floored: about half, read as A*100/255).
 #define PID_PEDAL 0x5A
 
 // GASOLINE_STOICH_AFR turns lambda into a gasoline AFR.
@@ -100,8 +99,8 @@ typedef struct {
 // message (len bytes, mode byte first).
 bool isotp_add_frame(isotp_t *r, const can_frame_t *f);
 
-// GT86 broadcast frames, read off the bus by the MCP2515. IDs and formulas come from community reverse-engineering
-// and are unverified on this car.
+// GT86 broadcast frames, read off the bus by the MCP2515. IDs and formulas come from community reverse-engineering,
+// checked on this car.
 #define GT86_ID_RPM 0x140
 #define GT86_ID_TEMPERATURES 0x360
 // The stability control's mode, broadcast: byte 0 bit 5 set with TRC off

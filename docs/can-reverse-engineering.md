@@ -4,21 +4,20 @@
 
 The IDs and formulas in `src/app/obd/obd.c` come from community
 reverse-engineering (see the source link in that package's doc comment),
-not from Toyota/Subaru factory documentation. They have **not** been
-verified against this specific car. Treat every value as "probably
-right, please confirm" before trusting anything the dash shows you —
-especially before making driving decisions based on it.
+not from Toyota/Subaru factory documentation. Every one the dash shows
+reads right on this car (a 2015 GT86, its tune); on another car or a
+reflash, check them before trusting what the dash shows.
 
 ## What's already wired up
 
 | Signal | Status |
 |---|---|
-| RPM | Decoded from `0x140` bytes 2-3, 14-bit little-endian, no scaling. Unverified on this car. (`0x141` bytes 4-5 carries a second copy, per the same source, if this one needs cross-checking.) |
-| Coolant temp | Decoded from `0x360` byte 3, `value - 40`°C. Unverified on this car. |
-| Oil temp | Decoded from `0x360` byte 2, `value - 40`°C. Unverified on this car. |
-| AFR | Polled via OBD-II Mode 01 PID 0x24 (standard, not reverse-engineered) from the factory wideband sensor. Whether this ECU actually answers it hasn't been confirmed — see the dedicated section below. |
-| Battery voltage | **Not found** in any factory-bus reverse-engineering doc so far. Needs new reverse-engineering work (see below). |
-| Ethanol % | Not on CAN nor a PID: read from the engine ECU's RAM (below). |
+| RPM | Decoded from `0x140` bytes 2-3, 14-bit little-endian, no scaling. Checked on this car. (`0x141` bytes 4-5 carries a second copy, per the same source.) |
+| Coolant temp | Decoded from `0x360` byte 3, `value - 40`°C. Checked on this car: the gauge reads right in use. |
+| Oil temp | Decoded from `0x360` byte 2, `value - 40`°C. Checked on this car: the gauge reads right in use. |
+| AFR | Polled via OBD-II Mode 01 PID 0x24 (standard, not reverse-engineered) from the factory wideband sensor. Checked on this car. |
+| Battery voltage | Polled via OBD-II Mode 01 PID 0x42, the engine ECU's supply, a few tenths under the battery's. Checked on this car. No broadcast found. |
+| Ethanol % | Not on CAN nor a PID: read from the engine ECU's RAM (below). Checked on this car against OFT. |
 
 ## How to check (or find) an ID
 

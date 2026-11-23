@@ -1,7 +1,6 @@
 # TODO
 
 - [x] Switch to the wired mode with the MCP2515: the only source since, the ELM327 dongle taken out (its code in `9dc0432`), Send log kept and working on CAN
-- [ ] Oil temperature: 0x360 is unverified on this car; ask Toyota's Mode 21 PID 01 (checked against another gauge) over the MCP2515 too, and compare
 - [x] Wiring diagram in HTML (`docs/wiring.html`): a color modules version, a blueprint version, two links to switch between them
 - [x] Diagram captures (color and blueprint) in `docs/resources/`, made by `mise run wiring`, shown in `docs/wiring.md`
 - [x] Code quality: prek hooks (clang-format for the C, Biome for the TS/Svelte/CSS/JSON, bun check for the types, web and host tests)
