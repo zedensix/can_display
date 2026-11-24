@@ -5,10 +5,13 @@ import kotlin.math.min
 
 // The pages, laid out in the design's W x H pixels (an 800x480 screen
 // less Android Auto's rail and a margin): every gauge (street), the track
-// layout, one gauge alone, the oil too hot.
+// layout, one gauge alone, the oil too hot; their portrait layouts, the
+// phone's, in PortraitPages.kt, on PORTRAIT_W x PORTRAIT_H.
 
 const val W = 692f
 const val H = 460f
+const val PORTRAIT_W = 460f
+const val PORTRAIT_H = 900f
 
 // The main area, between the shift light and the strip.
 private const val TOP = 40f
@@ -16,30 +19,34 @@ private const val BOTTOM = 412f
 
 // A dial's text: its label, its value with the unit up beside it, a line
 // under; sizes are the value's, the rest follows.
-private class DialText(val label: Float, val value: Float, val unit: Float, val extra: Float)
+internal class DialText(val label: Float, val value: Float, val unit: Float, val extra: Float)
 
-private val BIG = DialText(20f, 112f, 30f, 18f)
-private val TRACK = DialText(17f, 76f, 22f, 15f)
-private val ALONE = DialText(22f, 132f, 34f, 0f)
+internal val BIG = DialText(20f, 112f, 30f, 18f)
+internal val TRACK = DialText(17f, 76f, 22f, 15f)
+internal val ALONE = DialText(22f, 132f, 34f, 0f)
 
 // Digits and capitals stand about this much of their size above the
 // baseline: what text is centered by.
-private const val CAP = 0.7f
+internal const val CAP = 0.7f
 
-class Pages(private val d: Draw) {
+class Pages(internal val d: Draw) {
     // The shift light's RPM, 0 for none (Settings).
     var shiftRpm = 0
 
-    private fun blinkOn(now: Long, period: Long) = (now / period) % 2 == 0L
+    // The design's size this frame: W x H, or PORTRAIT_W x PORTRAIT_H.
+    var w = W
+    var h = H
 
-    private fun color(g: Gauge, r: Readings, v: Float?): Int =
+    internal fun blinkOn(now: Long, period: Long) = (now / period) % 2 == 0L
+
+    internal fun color(g: Gauge, r: Readings, v: Float?): Int =
         when {
             v == null -> Colors.DIM
             g === AFR && r.offThrottle -> Colors.LABEL
             else -> g.range.color(v)
         }
 
-    private fun inDanger(g: Gauge, r: Readings, v: Float?): Boolean =
+    internal fun inDanger(g: Gauge, r: Readings, v: Float?): Boolean =
         v != null && g.range.danger(v) && !(g === AFR && r.offThrottle)
 
     private fun dialText(c: Canvas, cx: Float, cy: Float, t: DialText, label: String, value: String, unit: String, color: Int, extra: String) {
@@ -61,7 +68,7 @@ class Pages(private val d: Draw) {
         }
     }
 
-    private fun dial(c: Canvas, x: Float, y: Float, size: Float, width: Float, n: Int, t: DialText, g: Gauge, r: Readings, extra: String, now: Long) {
+    internal fun dial(c: Canvas, x: Float, y: Float, size: Float, width: Float, n: Int, t: DialText, g: Gauge, r: Readings, extra: String, now: Long) {
         val v = g.value(r)
         val blink = inDanger(g, r, v) && blinkOn(now, DANGER_BLINK_MS)
         d.dial(c, x, y, size, width, n, g.range, v, Extremes.max(g), if (t === ALONE) Extremes.min(g) else null)
@@ -70,7 +77,7 @@ class Pages(private val d: Draw) {
     }
 
     // A gauge as a row: its label, its value on the right, a bar under.
-    private fun row(c: Canvas, x: Float, y: Float, w: Float, g: Gauge, r: Readings, now: Long) {
+    internal fun row(c: Canvas, x: Float, y: Float, w: Float, g: Gauge, r: Readings, now: Long) {
         val v = g.value(r)
         if (inDanger(g, r, v) && blinkOn(now, DANGER_BLINK_MS)) d.rect(c, x - 8, y - 6, w + 16, 62f, Colors.ALARM, 6f)
         d.text(c, g.short, x, y + 30, 17f, Weight.SEMIBOLD, Colors.LABEL, spacing = 2.5f)
@@ -81,35 +88,36 @@ class Pages(private val d: Draw) {
 
     // Along the bottom: the gear (unless the page shows it big), the
     // outside temperature, the odometer. No labels: the units say it.
-    private fun strip(c: Canvas, r: Readings, gear: Boolean) {
-        d.line(c, 0f, 420.5f, W, 420.5f, Colors.FRAME, 1f)
+    internal fun strip(c: Canvas, r: Readings, gear: Boolean) {
+        d.line(c, 0f, h - 39.5f, w, h - 39.5f, Colors.FRAME, 1f)
         var x = 0f
         if (gear) {
-            d.outline(c, 0f, 426f, 38f, 34f, Colors.ACCENT, 2f, 8f)
-            d.text(c, gearText(r.gear), 19f, 453f, 28f, Weight.BOLD, Colors.ACCENT, Align.CENTER)
+            d.outline(c, 0f, h - 34, 38f, 34f, Colors.ACCENT, 2f, 8f)
+            d.text(c, gearText(r.gear), 19f, h - 7, 28f, Weight.BOLD, Colors.ACCENT, Align.CENTER)
             x = 58f
         }
         val outside = r.outside?.let { "%.0f°C".format(it) } ?: "--°C"
-        d.text(c, outside, x, 452f, 24f, Weight.SEMIBOLD, Colors.LABEL)
+        d.text(c, outside, x, h - 8, 24f, Weight.SEMIBOLD, Colors.LABEL)
         val km = when {
             r.km == null -> "-- km"
             r.trip -> "%.1f km".format(r.km)
             else -> "%,d km".format(r.km.toLong()).replace(',', ' ')
         }
-        d.text(c, km, W, 452f, 24f, Weight.SEMIBOLD, Colors.LABEL, Align.RIGHT)
+        d.text(c, km, w, h - 8, 24f, Weight.SEMIBOLD, Colors.LABEL, Align.RIGHT)
     }
 
-    private fun gearText(gear: Int?): String = when (gear) {
+    internal fun gearText(gear: Int?): String = when (gear) {
         null -> "-"
         0 -> "N"
         else -> gear.toString()
     }
 
-    private fun shiftLight(c: Canvas, r: Readings, now: Long) {
-        if (shiftRpm > 0) d.shiftLight(c, 0f, 9f, 620f, r.rpm, shiftRpm, now)
+    // Clear of the car's buttons at the top right in landscape.
+    internal fun shiftLight(c: Canvas, r: Readings, now: Long, width: Float = 620f) {
+        if (shiftRpm > 0) d.shiftLight(c, 0f, 9f, width, r.rpm, shiftRpm, now)
     }
 
-    private fun scaleEnds(c: Canvas, x: Float, y: Float, size: Float, inset: Float, g: Gauge) {
+    internal fun scaleEnds(c: Canvas, x: Float, y: Float, size: Float, inset: Float, g: Gauge) {
         val baseline = y + size - inset
         d.text(c, g.text(g.range.min).substringBefore('.'), x + inset * 2.3f, baseline, 16f, Weight.MEDIUM, Colors.DIM)
         d.text(c, g.text(g.range.max).substringBefore('.'), x + size - inset * 2.1f, baseline, 16f, Weight.MEDIUM, Colors.DIM, Align.RIGHT)
@@ -134,18 +142,23 @@ class Pages(private val d: Draw) {
         dial(c, W - 240, 55f, 240f, 16f, 32, TRACK, AFR, r, lean, now)
         // The mode's badge over the gear, big, between the dials.
         val cx = W / 2
-        val badgeColor = when (r.mode) {
-            DriveMode.RACE -> Colors.DANGER
-            DriveMode.SPORT -> Colors.ACCENT
-            else -> Colors.WARNING
-        }
-        val bw = d.width(r.mode.badge, 17f, Weight.BOLD, 1.5f) + 24
-        d.outline(c, cx - bw / 2, 87f, bw, 30f, badgeColor, 2f, 14f)
-        d.text(c, r.mode.badge, cx + 0.75f, 108f, 17f, Weight.BOLD, badgeColor, Align.CENTER, 1.5f)
+        badge(c, cx, 87f, r.mode)
         d.text(c, gearText(r.gear), cx, 262f, 180f, Weight.BOLD, Colors.LABEL, Align.CENTER)
         row(c, 0f, 338f, 330f, COOLANT, r, now)
         row(c, W - 330, 338f, 330f, INTAKE, r, now)
         strip(c, r, gear = false)
+    }
+
+    // The drive mode's name, outlined in its color, centered on cx from y.
+    internal fun badge(c: Canvas, cx: Float, y: Float, mode: DriveMode) {
+        val color = when (mode) {
+            DriveMode.RACE -> Colors.DANGER
+            DriveMode.SPORT -> Colors.ACCENT
+            else -> Colors.WARNING
+        }
+        val bw = d.width(mode.badge, 17f, Weight.BOLD, 1.5f) + 24
+        d.outline(c, cx - bw / 2, y, bw, 30f, color, 2f, 14f)
+        d.text(c, mode.badge, cx + 0.75f, y + 21, 17f, Weight.BOLD, color, Align.CENTER, 1.5f)
     }
 
     // One gauge alone: a big dial, the session's lowest and highest
@@ -154,16 +167,20 @@ class Pages(private val d: Draw) {
         shiftLight(c, r, now)
         dial(c, 0f, TOP, 372f, 24f, 44, ALONE, g, r, "", now)
         scaleEnds(c, 0f, TOP, 372f, 30f, g)
-        val x = 404f
-        val top = TOP + (BOTTOM - TOP - 230) / 2
+        legend(c, g, 404f, TOP + (BOTTOM - TOP - 230) / 2, 120f)
+    }
+
+    // The session's lowest and highest side by side, column apart, then
+    // what the gauge's colors mean, from x to the right edge.
+    internal fun legend(c: Canvas, g: Gauge, x: Float, top: Float, column: Float) {
         val unit = if (g.unit == "°C") "°" else g.unit
         listOf("MIN" to Extremes.min(g), "MAX" to Extremes.max(g)).forEachIndexed { i, (name, v) ->
-            val left = x + i * 120
+            val left = x + i * column
             d.text(c, name, left, top + 12, 16f, Weight.SEMIBOLD, Colors.DIM, spacing = 2.5f)
             val valueColor = if (v == null) Colors.DIM else if (i == 0) Colors.COLD else g.range.color(v)
             d.text(c, g.text(v) + unit, left, top + 62, 52f, Weight.BOLD, valueColor)
         }
-        d.line(c, x, top + 90.5f, W, top + 90.5f, Colors.FRAME, 1f)
+        d.line(c, x, top + 90.5f, w, top + 90.5f, Colors.FRAME, 1f)
         val bands = g.range.bands()
         bands.forEachIndexed { i, (from, color) ->
             val baseline = top + 122 + i * 30
@@ -188,18 +205,24 @@ class Pages(private val d: Draw) {
     }
 
     // The oil from OIL_CRITICAL: the whole screen, blinking (Dash fills
-    // the background).
+    // the background); in portrait, the last words on two lines.
     fun oilAlarm(c: Canvas, r: Readings, lit: Boolean) {
         val fg = if (lit) Colors.ALARM_TEXT else Colors.DANGER
-        val cx = W / 2
-        d.text(c, "OIL TEMP", cx, 108f, 52f, Weight.BOLD, fg, Align.CENTER, 8f)
+        val cx = w / 2
+        val y = (h - H) / 2
+        d.text(c, "OIL TEMP", cx, y + 108, 52f, Weight.BOLD, fg, Align.CENTER, 8f)
         val value = OIL.text(r.oil)
         val wv = d.width(value, 240f, Weight.BOLD)
         val wu = d.width("°", 80f, Weight.BOLD)
         val left = cx - (wv + wu) / 2
-        d.text(c, value, left, 312f, 240f, Weight.BOLD, fg)
-        d.text(c, "°", left + wv, 312f - CAP * 240 + CAP * 80, 80f, Weight.BOLD, fg)
-        d.text(c, "TOO HOT, LIFT OFF", cx, 388f, 52f, Weight.BOLD, fg, Align.CENTER, 4f)
+        d.text(c, value, left, y + 312, 240f, Weight.BOLD, fg)
+        d.text(c, "°", left + wv, y + 312 - CAP * 240 + CAP * 80, 80f, Weight.BOLD, fg)
+        if (w > h) {
+            d.text(c, "TOO HOT, LIFT OFF", cx, y + 388, 52f, Weight.BOLD, fg, Align.CENTER, 4f)
+            return
+        }
+        d.text(c, "TOO HOT,", cx, y + 400, 52f, Weight.BOLD, fg, Align.CENTER, 4f)
+        d.text(c, "LIFT OFF", cx, y + 466, 52f, Weight.BOLD, fg, Align.CENTER, 4f)
     }
 
     // While there's nothing to show: what the app waits for, and what to
@@ -213,8 +236,10 @@ class Pages(private val d: Draw) {
         d.text(c, line, w / 2, h / 2 + 105, fit(line, 24f, Weight.MEDIUM, 0f), Weight.MEDIUM, Colors.DIM, Align.CENTER)
     }
 
-    // Near the limiter: SHIFT across the page (Dash floods it red).
+    // Near the limiter: SHIFT across the page (Dash floods it red), as
+    // big as fits.
     fun limiter(c: Canvas) {
-        d.text(c, "SHIFT", W / 2, H / 2 + CAP * 200 / 2, 200f, Weight.BOLD, Colors.ALARM_TEXT, Align.CENTER, 12f)
+        val size = min(200f, 200f * (w - 20) / d.width("SHIFT", 200f, Weight.BOLD, 12f))
+        d.text(c, "SHIFT", w / 2, h / 2 + CAP * size / 2, size, Weight.BOLD, Colors.ALARM_TEXT, Align.CENTER, size * 0.06f)
     }
 }

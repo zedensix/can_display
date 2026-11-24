@@ -16,7 +16,7 @@ if grep -q '^[-+U]' <<<"$submodules_state"; then
   echo "repairing pico-sdk $PICO_SDK_VERSION's submodules (btstack, cyw43-driver, lwip, mbedtls, tinyusb)"
   git -C "$PICO_SDK_PATH" submodule update --init --force --depth 1
 fi
-cmake -S . -B build/firmware -G Ninja >/dev/null
+cmake -S pico -B build/firmware -G Ninja >/dev/null
 cmake --build build/firmware
 mkdir -p bin
 cp build/firmware/firmware.uf2 bin/firmware.uf2

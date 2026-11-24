@@ -2,6 +2,6 @@
 #MISE description="Run the desktop simulator: the firmware's UI with fake data; arrows turn, space clicks, l landscape, m drive mode, r waiting-for-the-car status (needs SDL2: brew install sdl2)"
 set -euo pipefail
 
-cmake -S sim -B build/sim -G Ninja -DCMAKE_C_COMPILER=cc >/dev/null
+cmake -S pico/sim -B build/sim -G Ninja -DCMAKE_C_COMPILER=cc >/dev/null
 cmake --build build/sim
 build/sim/simulator

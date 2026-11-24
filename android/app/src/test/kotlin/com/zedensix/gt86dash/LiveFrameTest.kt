@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-// The frames test/test_live.c pins on the dash's side: the same bytes.
+// The frames pico/test/test_live.c pins on the dash's side: the same bytes.
 class LiveFrameTest {
     private fun bytes(vararg b: Int) = ByteArray(b.size) { b[it].toByte() }
 

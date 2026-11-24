@@ -18,7 +18,7 @@ import android.os.ParcelUuid
 import android.os.SystemClock
 import java.util.UUID
 
-// The live readings off the dash: a frame (src/app/data/live.h) decoded
+// The live readings off the dash: a frame (pico/src/app/data/live.h) decoded
 // into Readings. The layout must follow live_encode's.
 object LiveFrame {
     const val VERSION = 1
@@ -72,8 +72,15 @@ object LiveLink {
     @Volatile var status = Status.SEARCHING
         private set
 
-    // The address of the dash connecting or connected, null while none.
+    // The address of the dash connecting or connected, null while none,
+    // its name and its signal strength (dBm: readRssi asks for it again).
     @Volatile var device: String? = null
+        private set
+
+    @Volatile var deviceName: String? = null
+        private set
+
+    @Volatile var rssi: Int? = null
         private set
 
     @Volatile private var latest: Readings? = null
@@ -121,12 +128,18 @@ object LiveLink {
 
     private const val RETRY_MS = 5000L
 
-    // Connects to that dash from now on (null: the first found), dropping
-    // the one connected.
     @Synchronized
-    fun use(address: String?) {
+    fun readRssi() {
+        gatt?.readRemoteRssi()
+    }
+
+    // Connects to that dash from now on (null: the first found), dropping
+    // the one connected; its name kept to show it while it's off.
+    @Synchronized
+    fun use(address: String?, name: String?) {
         val c = context ?: return
         Settings(c).dash = address
+        Settings(c).dashName = name
         close()
         status = Status.SEARCHING
         if (users > 0) connect()
@@ -161,6 +174,8 @@ object LiveLink {
         gatt?.close()
         gatt = null
         device = null
+        deviceName = null
+        rssi = null
         latest = null
     }
 
@@ -172,6 +187,8 @@ object LiveLink {
                 scanning = false
                 status = Status.CONNECTING
                 device = result.device.address
+                deviceName = result.scanRecord?.deviceName
+                rssi = result.rssi
                 // Its replacement (BluetoothGattConnectionSettings) is
                 // Android 17's only.
                 @Suppress("DEPRECATION")
@@ -196,6 +213,8 @@ object LiveLink {
                 if (gatt === g) {
                     gatt = null
                     device = null
+                    deviceName = null
+                    rssi = null
                 }
                 latest = null
                 status = Status.SEARCHING
@@ -208,6 +227,10 @@ object LiveLink {
             g.setCharacteristicNotification(live, true)
             val cccd = live.getDescriptor(CCCD) ?: return
             g.writeDescriptor(cccd, byteArrayOf(0x01, 0x00))
+        }
+
+        override fun onReadRemoteRssi(g: BluetoothGatt, value: Int, state: Int) {
+            if (state == BluetoothGatt.GATT_SUCCESS && gatt === g) rssi = value
         }
 
         override fun onCharacteristicChanged(g: BluetoothGatt, c: BluetoothGattCharacteristic, value: ByteArray) {

@@ -5,7 +5,8 @@ import android.content.Context
 // The app's settings, kept on the phone, the same for the car's screen and
 // the phone's: the shift light's RPM as the Pico's (SHIFT_RPM_* in
 // settings.h), 0 for none; made-up readings instead of the dash's (demo);
-// the dash to connect to, by its Bluetooth address (null: the first found).
+// the dash to connect to, by its Bluetooth address (null: the first found),
+// and its name.
 class Settings(context: Context) {
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
@@ -31,6 +32,10 @@ class Settings(context: Context) {
     var dash: String?
         get() = prefs.getString("dash", null)
         set(address) = prefs.edit().putString("dash", address).apply()
+
+    var dashName: String?
+        get() = prefs.getString("dash_name", null)
+        set(name) = prefs.edit().putString("dash_name", name).apply()
 
     fun shiftRpmText(): String = if (shiftRpm == 0) "Off" else "$shiftRpm rpm"
 

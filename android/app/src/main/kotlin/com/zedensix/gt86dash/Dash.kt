@@ -7,7 +7,8 @@ import kotlin.math.min
 
 // The dash on any canvas, the car's or the phone's: the page for the
 // view and the readings, scaled from the design's pixels to the area it's
-// given (on the car, what Android Auto's own buttons leave visible).
+// given (on the car, what Android Auto's own buttons leave visible); an
+// area taller than wide (the phone upright) gets the portrait pages.
 class Dash(context: Context) {
     private val pages = Pages(Draw(context))
     private val settings = Settings(context)
@@ -42,14 +43,24 @@ class Dash(context: Context) {
             LiveLink.Status.CONNECTING, LiveLink.Status.LIVE -> "CONNECTING" to "GT86 DASH"
         }
         c.drawColor(Colors.BACKGROUND)
-        val (w, h) = if (area.height() > area.width()) PORTRAIT_W to PORTRAIT_H else W to H
-        place(c, area, w, h) { pages.status(c, w, h, title, line, now) }
+        size(area)
+        place(c, area) { pages.status(c, pages.w, pages.h, title, line, now) }
         return false
     }
 
-    // Draws in the design's pixels, w x h scaled into area and centered.
-    // The design's margins around it: 16 on the sides, 10 above and below.
-    private fun place(c: Canvas, area: Rect, w: Float = W, h: Float = H, draw: () -> Unit) {
+    private fun portrait(area: Rect) = area.height() > area.width()
+
+    // The design's size for area: portrait or landscape.
+    private fun size(area: Rect) {
+        pages.w = if (portrait(area)) PORTRAIT_W else W
+        pages.h = if (portrait(area)) PORTRAIT_H else H
+    }
+
+    // Draws in the design's pixels, scaled into area and centered. The
+    // design's margins around it: 16 on the sides, 10 above and below.
+    private fun place(c: Canvas, area: Rect, draw: () -> Unit) {
+        val w = pages.w
+        val h = pages.h
         val scale = min(area.width() / (w + 32), area.height() / (h + 20))
         c.save()
         c.translate(area.left + (area.width() - w * scale) / 2, area.top + (area.height() - h * scale) / 2)
@@ -61,6 +72,8 @@ class Dash(context: Context) {
     fun draw(c: Canvas, area: Rect, r: Readings, now: Long) {
         Extremes.update(r)
         pages.shiftRpm = settings.shiftRpm
+        size(area)
+        val portrait = portrait(area)
         val oilCritical = (r.oil ?: 0f) >= OIL_CRITICAL
         val limiter = (r.rpm ?: 0f) >= LIMITER_FLASH_RPM && (now / LIMITER_FLASH_MS) % 2 == 0L
         val alarmLit = (now / 400) % 2 == 0L
@@ -75,16 +88,13 @@ class Dash(context: Context) {
             when {
                 oilCritical -> pages.oilAlarm(c, r, alarmLit)
                 limiter -> pages.limiter(c)
+                view > 0 && portrait -> pages.alonePortrait(c, GAUGES[view - 1], r, now)
                 view > 0 -> pages.alone(c, GAUGES[view - 1], r, now)
+                r.mode != DriveMode.COMFORT && portrait -> pages.trackPortrait(c, r, now)
                 r.mode != DriveMode.COMFORT -> pages.track(c, r, now)
+                portrait -> pages.streetPortrait(c, r, now)
                 else -> pages.street(c, r, now)
             }
         }
-    }
-
-    private companion object {
-        // The waiting screen's design in portrait, the phone's.
-        const val PORTRAIT_W = 420f
-        const val PORTRAIT_H = 700f
     }
 }

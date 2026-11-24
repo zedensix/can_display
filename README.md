@@ -12,7 +12,7 @@ a race-wheel shift light across the top, and every drive logged to your phone.
 ![Raspberry Pi Pico W](https://img.shields.io/badge/Raspberry%20Pi-Pico%20W-c51a4a.svg)
 ![C](https://img.shields.io/badge/firmware-C-555.svg)
 
-<img src="ui/showcase.png" alt="The dash's screens: every gauge, the oil temperature alone as a dial, an alarm, the track layout, the settings, the screensaver" width="100%">
+<img src="screenshots/pico/showcase.png" alt="The dash's screens: every gauge, the oil temperature alone as a dial, an alarm, the track layout, the settings, the screensaver" width="100%">
 
 </div>
 
@@ -44,19 +44,19 @@ a race-wheel shift light across the top, and every drive logged to your phone.
 
 | | | |
 |:-:|:-:|:-:|
-| <img src="ui/grid.png" width="240" alt="Every gauge"> | <img src="ui/oil.png" width="240" alt="A gauge alone"> | <img src="ui/alarms.png" width="240" alt="Alarms"> |
+| <img src="screenshots/pico/grid.png" width="240" alt="Every gauge"> | <img src="screenshots/pico/oil.png" width="240" alt="A gauge alone"> | <img src="screenshots/pico/alarms.png" width="240" alt="Alarms"> |
 | **Every gauge**: the oil first, the rest as a list | **One gauge alone**, its session's min and max | **Alarms**: the row blinks red |
-| <img src="ui/cold.png" width="240" alt="Cold engine"> | <img src="ui/shift.png" width="240" alt="Shift light"> | <img src="ui/oil_critical.png" width="240" alt="Oil overheating"> |
+| <img src="screenshots/pico/cold.png" width="240" alt="Cold engine"> | <img src="screenshots/pico/shift.png" width="240" alt="Shift light"> | <img src="screenshots/pico/oil_critical.png" width="240" alt="Oil overheating"> |
 | **Cold engine**: blue, don't rev it yet | **Shift light**, lit in pairs from both ends | **Oil at 130°C**: the whole screen |
-| <img src="ui/can_silent.png" width="240" alt="Waiting for the car"> | <img src="ui/settings.png" width="240" alt="Settings"> | <img src="ui/showcar.png" width="240" alt="Screensaver"> |
+| <img src="screenshots/pico/can_silent.png" width="240" alt="Waiting for the car"> | <img src="screenshots/pico/settings.png" width="240" alt="Settings"> | <img src="screenshots/pico/showcar.png" width="240" alt="Screensaver"> |
 | **Waiting for the car**: the bus asleep | **Settings**, one screen, on the knob | **Screensaver**, nothing coming in |
-| <img src="ui/track_trc.png" width="240" alt="Drift mode"> | <img src="ui/track_vsc.png" width="240" alt="Race mode"> | <img src="ui/shot_boot_morph.png" width="240" alt="Starting up"> |
+| <img src="screenshots/pico/track_trc.png" width="240" alt="Drift mode"> | <img src="screenshots/pico/track_vsc.png" width="240" alt="Race mode"> | <img src="screenshots/pico/shot_boot_morph.png" width="240" alt="Starting up"> |
 | **Drift mode** (TRC off): the track layout | **Race mode**: everything off, in red | **Starting up**: the ring closes into the logo |
-| <img src="ui/pedal.png" width="240" alt="Pedal"> | <img src="ui/load.png" width="240" alt="Engine load"> | <img src="ui/limiter.png" width="240" alt="Near the limiter"> |
+| <img src="screenshots/pico/pedal.png" width="240" alt="Pedal"> | <img src="screenshots/pico/load.png" width="240" alt="Engine load"> | <img src="screenshots/pico/limiter.png" width="240" alt="Near the limiter"> |
 | **Pedal**, a view on the knob | **Engine load**, another | **Near the limiter**: the whole screen flashes |
-| <img src="ui/grid_landscape.png" width="240" alt="Landscape"> | <img src="ui/oil_landscape.png" width="240" alt="A gauge alone, landscape"> | <img src="ui/send_log_landscape.png" width="240" alt="Send log, landscape"> |
+| <img src="screenshots/pico/grid_landscape.png" width="240" alt="Landscape"> | <img src="screenshots/pico/oil_landscape.png" width="240" alt="A gauge alone, landscape"> | <img src="screenshots/pico/send_log_landscape.png" width="240" alt="Send log, landscape"> |
 | **Landscape**, the panel on its side | **A gauge alone**, its extremes beside it | Every screen turns with it |
-| <img src="ui/door.png" width="240" alt="Door open"> | <img src="ui/doors.png" width="240" alt="Doors open"> | <img src="ui/can_failed.png" width="240" alt="CAN self test failed"> |
+| <img src="screenshots/pico/door.png" width="240" alt="Door open"> | <img src="screenshots/pico/doors.png" width="240" alt="Doors open"> | <img src="screenshots/pico/can_failed.png" width="240" alt="CAN self test failed"> |
 | **A door open**: which, on the car | **Several**: each swung out | **CAN self test**: which wire to check |
 
 Along the bottom of the gauges: the gear engaged (worked out from the RPM and the speed), the
@@ -131,8 +131,8 @@ oil as a big dial, arrows to turn the views and a cog for the settings (the shif
 the min and max reset), the track layout past comfort, each gauge alone with its session's lowest
 and highest, the oil too hot over the whole screen, the shift light across the top. The dash
 sends it its readings over Bluetooth LE many times a second; a Demo setting makes them up. On
-the phone itself, the gauges in landscape, a waiting screen in portrait until the dash answers,
-and a settings page that says how the link is doing and which dash it connects to.
+the phone itself, turned as the phone is, and a settings page that says how the link is doing
+and which dash it connects to.
 
 ```sh
 mise run android:flash # build, install on the phone (USB or Wi-Fi debugging), open it
@@ -194,14 +194,14 @@ this one's were found.
   no interrupt racing the UI.
 - **Failures are visible.** The CAN self test says on the panel which wire to check. A watchdog reboots a frozen board, a panic is written to the flash log before
   rebooting, and a hard fault is reported at the next boot.
-- **Thresholds live in one place**, the ranges at the top of `src/app/ui/ui.c`.
+- **Thresholds live in one place**, the ranges at the top of `pico/src/app/ui/ui.c`.
 
 ## License
 
-MIT ([LICENSE](LICENSE)), except the font data in `src/app/ui/fonts.c`: FreeSans Bold from
+MIT ([LICENSE](LICENSE)), except the font data in `pico/src/app/ui/fonts.c`: FreeSans Bold from
 GNU FreeFont, GPLv3 with the font exception; and the Android app's Barlow Condensed
 (`android/app/src/main/res/font`), SIL Open Font License 1.1 (`android/app/src/main/assets/OFL.txt`), and its icons, Material
-Symbols, Apache 2.0. The 86 logo (`86.png`, `src/app/ui/logo.c`) is
+Symbols, Apache 2.0. The 86 logo (`86.png`, `pico/src/app/ui/logo.c`) is
 Toyota's trademark, not covered by the MIT license. The screensaver's other logos, the car's
 parts' makers', aren't in the repository: `mise run logos` builds them in from your own
 folder.

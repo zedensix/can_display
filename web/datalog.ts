@@ -1,4 +1,4 @@
-// The dash's data log: src/app/store/datalog.h's little-endian records,
+// The dash's data log: pico/src/app/store/datalog.h's little-endian records,
 // parsed into samples, and what the page shows of them. This parser must
 // follow datalog.h's record layout: 64-byte records (kind 2), and the
 // 32-byte ones an older firmware wrote (kind 1), which a log may still

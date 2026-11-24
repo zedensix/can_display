@@ -8,4 +8,4 @@ node_modules/
 .claude/skills
 /data/
 /logos/
-src/app/ui/brands_data.h
+/pico/src/app/ui/brands_data.h

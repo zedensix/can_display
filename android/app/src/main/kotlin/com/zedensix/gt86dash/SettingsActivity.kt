@@ -1,13 +1,9 @@
 package com.zedensix.gt86dash
 
-import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
-import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanFilter
-import android.bluetooth.le.ScanResult
-import android.bluetooth.le.ScanSettings
+import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.content.res.Configuration
@@ -15,10 +11,10 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.ParcelUuid
 import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.LinearLayout
@@ -32,20 +28,15 @@ import android.widget.Toast
 // from those nearby or used before), then the gauges' (the shift light,
 // demo, the min and max). Two columns in landscape. The link stays up
 // while it's open (start/stop), so it shows the dash connected.
-@SuppressLint("MissingPermission") // the scan starts once they're granted
 class SettingsActivity : Activity() {
     private lateinit var settings: Settings
     private lateinit var status: TextView
     private lateinit var detail: TextView
     private lateinit var fix: TextView
-    private lateinit var dashes: LinearLayout
+    private lateinit var picker: DashPicker
     private lateinit var shiftValue: TextView
     private val handler = Handler(Looper.getMainLooper())
 
-    // The dashes the page's scan saw, by address: their names.
-    private val seen = linkedMapOf<String, String>()
-    private var scanning = false
-    private var shown = ""
 
     private val tick = object : Runnable {
         override fun run() {
@@ -54,19 +45,10 @@ class SettingsActivity : Activity() {
         }
     }
 
-    private val scan = object : ScanCallback() {
-        override fun onScanResult(callbackType: Int, result: ScanResult) {
-            seen[result.device.address] = result.scanRecord?.deviceName ?: DASH_NAME
-        }
-
-        override fun onScanFailed(errorCode: Int) {
-            scanning = false
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         settings = Settings(this)
+        picker = DashPicker(this, settings)
         setContentView(page())
     }
 
@@ -74,7 +56,7 @@ class SettingsActivity : Activity() {
     // the link would drop for a moment.
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        shown = ""
+        (picker.view.parent as? ViewGroup)?.removeView(picker.view)
         setContentView(page())
         refresh()
     }
@@ -96,8 +78,7 @@ class SettingsActivity : Activity() {
 
     override fun onPause() {
         handler.removeCallbacks(tick)
-        if (scanning) adapter()?.bluetoothLeScanner?.stopScan(scan)
-        scanning = false
+        picker.stop()
         super.onPause()
     }
 
@@ -144,8 +125,7 @@ class SettingsActivity : Activity() {
         c.addView(detail)
         c.addView(fix, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(this@SettingsActivity, 12) })
         c.addView(label("DASH"))
-        dashes = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        c.addView(dashes)
+        c.addView(picker.view)
         c.addView(help("A dash shows here while it's on and no other phone holds its link"))
         return c
     }
@@ -186,25 +166,17 @@ class SettingsActivity : Activity() {
         return c
     }
 
-    // The link's state and what it needs, the dashes to pick from; the
-    // page's own scan for those nearby once Bluetooth is allowed and on.
+    // The link's state and what it needs, the dashes to pick from (their
+    // scan once Bluetooth is allowed and on).
     private fun refresh() {
         LiveLink.retry()
-        val on = LiveLink.granted(this) && adapter()?.isEnabled == true
-        if (!on) scanning = false // Bluetooth off ended it
-        if (on && !scanning) {
-            val filter = ScanFilter.Builder().setServiceUuid(ParcelUuid(LiveLink.SERVICE)).build()
-            val mode = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
-            adapter()?.bluetoothLeScanner?.startScan(listOf(filter), mode, scan)
-            scanning = true
-        }
         val device = LiveLink.device
         val (title, line) = when (LiveLink.status) {
             LiveLink.Status.NO_PERMISSION -> "Bluetooth not allowed" to "The app needs it to find the dash"
             LiveLink.Status.BLUETOOTH_OFF -> "Bluetooth is off" to "The dash's readings come over it"
-            LiveLink.Status.SEARCHING -> "Looking for the dash" to (settings.dash ?: "the first one found")
-            LiveLink.Status.CONNECTING -> "Connecting" to (device ?: "")
-            LiveLink.Status.LIVE -> "Live" to (device ?: "")
+            LiveLink.Status.SEARCHING -> "Looking for the dash" to (settings.dash?.let { picker.name(it) } ?: "the first one found")
+            LiveLink.Status.CONNECTING -> "Connecting" to (device?.let { picker.name(it) } ?: "")
+            LiveLink.Status.LIVE -> "Live" to (device?.let { picker.name(it) } ?: "")
         }
         status.text = title
         status.setTextColor(
@@ -221,7 +193,7 @@ class SettingsActivity : Activity() {
             else -> ""
         }
         fix.visibility = if (fix.text.isEmpty()) View.GONE else View.VISIBLE
-        showDashes(device)
+        picker.refresh(LiveLink.granted(this) && adapter()?.isEnabled == true)
     }
 
     private fun fixLink() {
@@ -232,52 +204,12 @@ class SettingsActivity : Activity() {
         }
     }
 
-    // Any dash (the first found), then the one picked, the one connected
-    // and those seen nearby; the one in use outlined. Built again only when
-    // something changed, so a tap isn't lost to a row rebuilt under it.
-    private fun showDashes(device: String?) {
-        val picked = settings.dash
-        val addresses = (listOfNotNull(picked, device) + seen.keys).distinct()
-        val rows = listOf(Triple<String?, String, String>(null, "Any dash", "the first one found")) +
-            addresses.map { a ->
-                val state = when {
-                    a == device && LiveLink.status == LiveLink.Status.LIVE -> "connected"
-                    a == device -> "connecting"
-                    a in seen -> "nearby"
-                    else -> "not in range"
-                }
-                Triple(a, seen[a] ?: DASH_NAME, "$a · $state")
-            }
-        val key = "$picked " + rows.joinToString { "${it.first} ${it.third}" }
-        if (key == shown) return
-        shown = key
-        dashes.removeAllViews()
-        rows.forEach { (address, name, line) ->
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                setBackgroundResource(if (address == picked) R.drawable.pill_selected else R.drawable.pill_button)
-                setPadding(dp(context, 20), dp(context, 8), dp(context, 20), dp(context, 8))
-                setOnClickListener { if (address != settings.dash) LiveLink.use(address) }
-            }
-            row.addView(text(name, 20f, R.font.barlow_condensed_semibold, if (address == picked) Colors.ACCENT else Colors.LABEL))
-            row.addView(text(line, 15f, R.font.barlow_condensed_medium, Colors.DIM))
-            dashes.addView(row, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { bottomMargin = dp(this@SettingsActivity, 8) })
-        }
-    }
-
     private fun stepShift(steps: Int) {
         if (steps != 0) settings.stepShiftRpm(steps)
         shiftValue.text = settings.shiftRpmText()
     }
 
-    private fun text(s: String, size: Float, font: Int, color: Int, spacing: Float = 0f) =
-        TextView(this).apply {
-            text = s
-            textSize = size
-            typeface = resources.getFont(font)
-            setTextColor(color)
-            letterSpacing = spacing
-        }
+    private fun text(s: String, size: Float, font: Int, color: Int, spacing: Float = 0f) = pageText(this, s, size, font, color, spacing)
 
     private fun label(s: String) =
         text(s, 15f, R.font.barlow_condensed_semibold, Colors.DIM, 0.15f).apply { setPadding(0, dp(context, 24), 0, dp(context, 8)) }
@@ -285,16 +217,27 @@ class SettingsActivity : Activity() {
     private fun help(s: String) =
         text(s, 15f, R.font.barlow_condensed_medium, Colors.DIM).apply { setPadding(0, dp(context, 4), 0, 0) }
 
-    private fun pill(s: String, onClick: () -> Unit) =
-        text(s, 20f, R.font.barlow_condensed_semibold, Colors.LABEL).apply {
-            setBackgroundResource(R.drawable.pill_button)
-            gravity = Gravity.CENTER
-            setPadding(dp(context, 16), dp(context, 10), dp(context, 16), dp(context, 10))
-            setOnClickListener { onClick() }
-        }
+    private fun pill(s: String, onClick: () -> Unit) = pagePill(this, s, onClick)
 
     private companion object {
         const val TICK_MS = 500L
-        const val DASH_NAME = "GT86 DASH"
     }
 }
+
+// The settings page's text and buttons, shared with DashPicker.
+fun pageText(c: Context, s: String, size: Float, font: Int, color: Int, spacing: Float = 0f) =
+    TextView(c).apply {
+        text = s
+        textSize = size
+        typeface = c.resources.getFont(font)
+        setTextColor(color)
+        letterSpacing = spacing
+    }
+
+fun pagePill(c: Context, s: String, onClick: () -> Unit) =
+    pageText(c, s, 20f, R.font.barlow_condensed_semibold, Colors.LABEL).apply {
+        setBackgroundResource(R.drawable.pill_button)
+        gravity = Gravity.CENTER
+        setPadding(dp(c, 16), dp(c, 10), dp(c, 16), dp(c, 10))
+        setOnClickListener { onClick() }
+    }

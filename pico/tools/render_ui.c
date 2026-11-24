@@ -1,7 +1,7 @@
 // render_ui draws the UI's screens with fixed readings, as the panel
 // would show them, into PPM files: one per screen and sheet.ppm with all
 // of them in a grid, SHEET_COLUMNS wide. `mise run ui` turns them into
-// ui/*.png. The screens themselves are in render_ui_shots.c (the gauges)
+// screenshots/pico/*.png. The screens themselves are in render_ui_shots.c (the gauges)
 // and render_ui_screens.c (the rest).
 
 #include <stdio.h>

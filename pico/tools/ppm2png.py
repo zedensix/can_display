@@ -1,6 +1,6 @@
 """Convert binary PPM (P6) files to PNG, with the standard library only.
 
-Usage: python3 tools/ppm2png.py <out dir> <file.ppm>...
+Usage: python3 pico/tools/ppm2png.py <out dir> <file.ppm>...
 """
 
 import os

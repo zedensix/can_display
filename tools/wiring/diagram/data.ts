@@ -1,5 +1,5 @@
 // One description of the board, its modules and wires (pins as in
-// src/firmware/board.h and docs/wiring.md), and the two styles it's drawn in.
+// pico/src/firmware/board.h and docs/wiring.md), and the two styles it's drawn in.
 
 export type Face = "front" | "back";
 export type Side = "left" | "right";

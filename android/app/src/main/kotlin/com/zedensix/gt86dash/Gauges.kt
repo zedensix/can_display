@@ -1,7 +1,7 @@
 package com.zedensix.gt86dash
 
 // The gauges, their bands and colors: a copy of the firmware's *_RANGE
-// macros and ui_tiles (src/app/ui/ui.c), which must stay in step.
+// macros and ui_tiles (pico/src/app/ui/ui.c), which must stay in step.
 
 object Colors {
     const val BACKGROUND = 0xFF000000.toInt()

@@ -61,7 +61,7 @@
 - [x] Web pages in Svelte (no SvelteKit), bundled by Bun: the log download page, and the wiring page (from `docs/wiring.html`, now `bun run wiring`'s page, its captures unchanged to the pixel)
 - [x] Biome lints and formats the Svelte components
 - [x] Settings page: a little padding on each row
-- [x] C sources in subfolders by category (data, obd, store, ui; ble, hardware), includes as paths from src/app or src/firmware
+- [x] C sources in subfolders by category (data, obd, store, ui; ble, hardware), includes as paths from pico/src/app or pico/src/firmware
 - [x] Log site: the server keeps every session (SQLite through Drizzle, migrations applied at start, each sample once), a viewer (a session's charts with a shared cursor), light/dark/system theme; login left to the https reverse proxy
 - [ ] Log site: deploy it with a volume on /data, behind the proxy's login
 - [x] READY and OFFLINE screens: the knob picks CONNECT or SETTINGS
@@ -79,5 +79,5 @@
 - [x] BLE: after Send log, connecting to the dongle waited for nothing: gap_connect 0x56 (BTstack's single connection still the phone's); now it waits for the phone's disconnection; failures name what the code means
 - [x] Drive mode read from 0x0D3: the MCP2515 as it streams, the dongle every 3s (a raw monitor of that ID); a track layout with a TRC OFF / VSC OFF badge when off
 - [ ] Check in the car: the badge follows the buttons (TRC OFF short and held; VSC SPORT)
-- [x] CI red since the C moved into folders: `data/` in .gitignore (the log server's) also ignored src/app/data/; anchored at the root
+- [x] CI red since the C moved into folders: `data/` in .gitignore (the log server's) also ignored pico/src/app/data/; anchored at the root
 - [x] Every Bluetooth wait or failure screen: Retry beside Settings (auto-retry held in the settings), a compact layout for long errors

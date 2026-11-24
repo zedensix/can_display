@@ -43,9 +43,9 @@
             </intent-filter>
         </service>
 
-        <!-- The same gauges on the phone itself: it turns itself, landscape
-             for the gauges, portrait while it waits, kept through the turn
-             (recreated, it would drop the dash's link). -->
+        <!-- The same gauges on the phone itself, turned as the phone is,
+             kept through the turn (recreated, it would drop the dash's
+             link). -->
         <activity
             android:name=".PreviewActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"

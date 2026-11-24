@@ -5,7 +5,7 @@ import kotlin.math.sin
 
 // Made-up readings until the dash sends real ones: a lap of pulls through
 // the gears, warm, a stretch on the track layout every other minute, as
-// the simulator's tour does (sim/simdata.c). scene() gives fixed ones,
+// the simulator's tour does (pico/sim/simdata.c). scene() gives fixed ones,
 // for screenshots.
 object FakeSource {
     fun at(ms: Long): Readings {

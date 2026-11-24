@@ -1,6 +1,6 @@
 // Downloads the dash's data log over Web Bluetooth.
 //
-// The dash's GATT service is src/firmware/ble/dash.gatt: write 'S' to the
+// The dash's GATT service is pico/src/firmware/ble/dash.gatt: write 'S' to the
 // control characteristic, then the data characteristic notifies a 4-byte
 // little-endian size and the log; 'D' once it's all in tells the dash,
 // which goes back to its gauges.

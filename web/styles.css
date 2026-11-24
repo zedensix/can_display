@@ -4,7 +4,7 @@
 /* Dark is a class on <html> (theme.ts), set from the device or the toggle. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* The dash's own palette (src/app/ui/ui.c): black, red-orange, green for
+/* The dash's own palette (pico/src/app/ui/ui.c): black, red-orange, green for
    good; and its daylight version. */
 :root {
   --ink: #f7f2ed;

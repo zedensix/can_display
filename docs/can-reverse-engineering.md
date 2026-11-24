@@ -2,7 +2,7 @@
 
 ## Why this matters
 
-The IDs and formulas in `src/app/obd/obd.c` come from community
+The IDs and formulas in `pico/src/app/obd/obd.c` come from community
 reverse-engineering (see the source link in that package's doc comment),
 not from Toyota/Subaru factory documentation. Every one the dash shows
 reads right on this car (a 2015 GT86, its tune); on another car or a
@@ -45,7 +45,7 @@ platform, nicer UI) works.
      rear defroster) and watch for a byte that dips and recovers by
      roughly the right amount (idle ~14.2V, load ~13.5-13.8V).
 4. Once you've found a candidate ID/byte/formula, add a decoder in
-   `gt86_decode_broadcast` (`src/app/obd/obd.c`) following the pattern of the
+   `gt86_decode_broadcast` (`pico/src/app/obd/obd.c`) following the pattern of the
    `GT86_ID_TEMPERATURES` case.
 5. Update the status table above and the comment citing your source
    (even if the source is "captured myself on <date>, see <log file>")
@@ -66,13 +66,13 @@ it's easy to test with tools that already exist:
    easier than crafting raw CAN frames by hand for a first check.
 3. If you get a response: note whether it came back on the standard
    `0x7E8` address or something else, and roughly how long it took --
-   `AFR_INTERVAL_MS` in `src/firmware/hardware/mcp2515.c` assumes the ECU can
+   `AFR_INTERVAL_MS` in `pico/src/firmware/hardware/mcp2515.c` assumes the ECU can
    keep up with a request every 250ms; slow it down if not.
 4. If a functional-broadcast request (`0x7DF`, what this project sends
    by default) gets no response, try a *physical* request to `0x7E0`
    instead (the engine ECU's usual address) -- some ECUs are picky
    about which addressing mode they answer. That'd mean changing
-   `OBD_REQUEST_ID` (`src/app/obd/obd.h`) to `0x7E0`.
+   `OBD_REQUEST_ID` (`pico/src/app/obd/obd.h`) to `0x7E0`.
 5. Sanity check the actual number: with the engine warm and idling,
    AFR should hover close to 14.7 (lambda ~1.0). If it's stuck at 0,
    pegged at max, or wildly implausible, something in the request
@@ -118,7 +118,7 @@ blend.
 Three scans on one tank (2026-11-15 and 16, engine running) found a
 single address every time: **0xFFF87C7C**, at 66.66, 65.72 and 66.79 %
 (the third scan also had 66.785 at 0xFFF8D410, a copy), and it matched
-OFT's reading. The dash polls it (`ETHANOL_RAM_READ` in `src/app/obd/obd.h`)
+OFT's reading. The dash polls it (`ETHANOL_RAM_READ` in `pico/src/app/obd/obd.h`)
 in the MCP2515's slower round of requests. Still worth checking on a
 tank of another blend; and it's this tune's RAM layout, a reflash may
 move it: rescan then.

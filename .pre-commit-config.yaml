@@ -1,7 +1,7 @@
 # Code quality on every commit, run by prek (installed by `mise install`;
 # `prek run --all-files` to check everything, as the CI does). Generated sources
 # (fonts, logo) are left as generated.
-exclude: ^src/app/ui/(fonts|logo)\.c$
+exclude: ^pico/src/app/ui/(fonts|logo)\.c$
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -54,5 +54,5 @@ repos:
         name: host tests
         entry: mise run test
         language: system
-        files: ^(src/app|test)/
+        files: ^pico/(src/app|test)/
         pass_filenames: false

@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-#MISE description="Render the UI's screens with fixed readings into ui/*.png (ui/sheet.png: all of them)"
+#MISE description="Render the UI's screens with fixed readings into screenshots/pico/*.png (sheet.png: all of them)"
 set -euo pipefail
 
-# Start clean: a screen dropped from tools/render_ui_shots.c leaves no stale PNG.
-rm -rf build/ui ui/*.png
+# Start clean: a screen dropped from pico/tools/render_ui_shots.c leaves no stale PNG.
+rm -rf build/ui screenshots/pico/*.png
 mkdir -p build/ui
-cc -std=c11 -Wall -Wextra -Werror -DBRANDS_NONE -Isrc/app -o build/ui/render_ui tools/render_ui.c tools/render_ui_shots.c tools/render_ui_screens.c $(find src/app -name "*.c") -lm
+cc -std=c11 -Wall -Wextra -Werror -DBRANDS_NONE -Ipico/src/app -o build/ui/render_ui pico/tools/render_ui.c pico/tools/render_ui_shots.c pico/tools/render_ui_screens.c $(find pico/src/app -name "*.c") -lm
 build/ui/render_ui build/ui
-python3 tools/ppm2png.py ui build/ui/*.ppm
+mkdir -p screenshots/pico
+python3 pico/tools/ppm2png.py screenshots/pico build/ui/*.ppm

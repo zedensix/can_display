@@ -1,6 +1,6 @@
 # Reference wiring
 
-This matches the pin constants in `src/firmware/board.h`.
+This matches the pin constants in `pico/src/firmware/board.h`.
 Change either the wiring or the constants if yours differs: they just
 need to agree. The wiring page draws it in a browser, in color or as a
 blueprint. It draws each module with its header in its real order, from
@@ -67,7 +67,7 @@ gauges: settings page (turn to pick a row, click to change it, Back to
 leave); while the screen says "press to connect" or "press to retry",
 the click goes to the connection instead. Hold 1s: reboot. If turning
 goes the wrong way, swap A and B (CLK and DT). `STEPS_PER_DETENT` in
-`src/firmware/hardware/knob.c` is 2, for a half-step encoder (the one on this
+`pico/src/firmware/hardware/knob.c` is 2, for a half-step encoder (the one on this
 car); if one click moves two rows, it's a full-step one: set it to 4.
 
 Keep GP15 free: the pico-sdk drives it briefly at boot for the RP2040 USB
@@ -168,7 +168,7 @@ The firmware assumes an **8MHz crystal** on the MCP2515 board (the one
 on the blue MCP2515 + TJA1050 board used here: read the marking on the
 can-shaped crystal) and **500kbps**, which matches the GT86's factory
 high-speed CAN bus: the CNF1, CNF2 and CNF3 values that
-`mcp2515_source_init` writes in `src/firmware/hardware/mcp2515.c` (0x00, 0x91,
+`mcp2515_source_init` writes in `pico/src/firmware/hardware/mcp2515.c` (0x00, 0x91,
 0x01: 8 time quanta of 250ns, sampled at 75%), not tried on this car
 yet. A 16MHz crystal takes 0x00, 0xF0 and 0x86.
 
