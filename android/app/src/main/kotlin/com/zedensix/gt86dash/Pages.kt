@@ -33,6 +33,10 @@ class Pages(internal val d: Draw) {
     // The shift light's RPM, 0 for none (Settings).
     var shiftRpm = 0
 
+    // What the strip shows in its middle, in its color: the laps, or a
+    // drive being recorded (Recorder); null for nothing.
+    var lap: Pair<String, Int>? = null
+
     // The design's size this frame: W x H, or PORTRAIT_W x PORTRAIT_H.
     var w = W
     var h = H
@@ -106,6 +110,7 @@ class Pages(internal val d: Draw) {
             else -> "%,d km".format(r.km.toLong()).replace(',', ' ')
         }
         d.text(c, km, w, h - 8, 24f, Weight.SEMIBOLD, Colors.LABEL, Align.RIGHT)
+        lap?.let { (text, color) -> d.text(c, text, w / 2 + (if (gear) 29f else 0f), h - 8, 24f, Weight.BOLD, color, Align.CENTER) }
     }
 
     internal fun gearText(gear: Int?): String = when (gear) {

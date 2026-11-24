@@ -32,5 +32,7 @@ kotlin {
 
 dependencies {
     implementation("androidx.car.app:app:1.7.0")
+    // The drives' map (DrivesPage), OpenFreeMap's tiles: no key, no account.
+    implementation("org.maplibre.gl:android-sdk:13.7.1")
     testImplementation("junit:junit:4.13.2")
 }

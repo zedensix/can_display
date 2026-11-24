@@ -16,6 +16,20 @@
         android:name="android.hardware.bluetooth_le"
         android:required="true" />
 
+    <!-- Lap timing and spirited drives: the phone's GPS, the dash having
+         no antenna. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- The recorder kept up with the screen off: the dash's link, the
+         GPS. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+    <!-- Backups to WebDAV, the map's tiles. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -42,6 +56,11 @@
                 <data android:scheme="geo" />
             </intent-filter>
         </service>
+
+        <service
+            android:name=".RecorderService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice|location" />
 
         <!-- The same gauges on the phone itself, turned as the phone is,
              kept through the turn (recreated, it would drop the dash's

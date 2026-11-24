@@ -2,7 +2,10 @@
 // the Android Auto app subscribes to the live one and gets the readings
 // (live.h) many times a second; during Send log (in the settings) the log
 // page writes 'S' to the control characteristic and gets the log as
-// notifications of the data one, then 'D' once it has it all.
+// notifications of the data one, then 'D' once it has it all. The app
+// pulls what's new every minute, the dash going on as it is: 'R' and the
+// position its last pull ended at (u32, 0xFFFFFFFF the first time), the
+// part as notifications of the data one (ble.c says their header).
 PRIMARY_SERVICE, GAP_SERVICE
 CHARACTERISTIC, GAP_DEVICE_NAME, READ, "GT86 DASH"
 

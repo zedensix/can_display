@@ -131,3 +131,15 @@ void datalog_read(const datalog_t *log, uint32_t offset, uint8_t *out, size_t le
         len -= n;
     }
 }
+
+uint32_t datalog_since(const datalog_t *log, uint32_t from, uint32_t *offset, uint32_t *len) {
+    if (from >= log->dev.size) {
+        *offset = datalog_oldest_record_offset(log);
+    } else {
+        // In ring order the newest byte is the last: what came after from
+        // is the bytes from it up to the end.
+        *offset = log->dev.size - (log->pos + log->dev.size - from) % log->dev.size;
+    }
+    *len = log->dev.size - *offset;
+    return log->pos;
+}

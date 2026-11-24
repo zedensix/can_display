@@ -64,3 +64,11 @@ void datalog_read(const datalog_t *log, uint32_t offset, uint8_t *out, size_t le
 // record: what's before it is erased flash, not worth sending. dev.size
 // for an empty log.
 uint32_t datalog_oldest_record_offset(const datalog_t *log);
+
+// datalog_since is what was written after from, where the log was when
+// a previous call returned (DATALOG_FROM_OLDEST, or anything past the
+// end: every record): its offset and length in datalog_read's terms.
+// Returns where the log is now, the next call's from. Flush first. A ring
+// gone round past from since gives the newest dev.size bytes' worth.
+#define DATALOG_FROM_OLDEST 0xFFFFFFFFu
+uint32_t datalog_since(const datalog_t *log, uint32_t from, uint32_t *offset, uint32_t *len);

@@ -14,10 +14,18 @@ import androidx.car.app.model.Template
 import androidx.car.app.model.Toggle
 
 // The settings on the car's screen, in Android Auto's own templates (a
-// navigation app draws only its map itself): the shift light, and the
-// gauges' min and max set back to the current readings.
+// navigation app draws only its map itself): the shift light, demo, the
+// gauges' min and max set back to the current readings, lap timing and its
+// start line, a spirited drive. The GPS's permission is asked on the phone.
 class SettingsScreen(carContext: CarContext) : Screen(carContext) {
     private val settings = Settings(carContext)
+
+    private fun needGps() {
+        if ((settings.lapTiming || settings.spirited) && !Recorder.locationGranted(carContext)) {
+            carContext.requestPermissions(Recorder.locationPermissions.toList()) { _, _ -> Recorder.update() }
+        }
+        Recorder.update()
+    }
 
     override fun onGetTemplate(): Template {
         val list = ItemList.Builder()
@@ -44,6 +52,37 @@ class SettingsScreen(carContext: CarContext) : Screen(carContext) {
                         Extremes.reset()
                         CarToast.makeText(carContext, "Min and max reset", CarToast.LENGTH_SHORT).show()
                     }
+                    .build(),
+            )
+            .addItem(
+                Row.Builder()
+                    .setTitle("Lap timing")
+                    .addText("Lap times from the phone's GPS")
+                    .setToggle(
+                        Toggle.Builder {
+                            settings.lapTiming = it
+                            needGps()
+                        }.setChecked(settings.lapTiming).build(),
+                    )
+                    .build(),
+            )
+            .addItem(
+                Row.Builder()
+                    .setTitle("Set the start line here")
+                    .addText("Tap it crossing the line")
+                    .setOnClickListener { CarToast.makeText(carContext, Recorder.setStartLine(carContext), CarToast.LENGTH_SHORT).show() }
+                    .build(),
+            )
+            .addItem(
+                Row.Builder()
+                    .setTitle("Spirited drive")
+                    .addText("Records the way on a map, in the phone's Drives")
+                    .setToggle(
+                        Toggle.Builder {
+                            settings.spirited = it
+                            needGps()
+                        }.setChecked(settings.spirited).build(),
+                    )
                     .build(),
             )
             .build()

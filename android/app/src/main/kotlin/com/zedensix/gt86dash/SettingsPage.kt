@@ -25,13 +25,14 @@ import android.widget.Toast
 // The phone's settings, a page in place of the dash (the navigation
 // stays): the connection (the link's state, what it needs, and which
 // dash: the first found, or one picked from those nearby or used before),
-// then the gauges' (the shift light, demo, the min and max). Two columns
-// in landscape. bottom leaves room under it for a floating bar, the page
+// then the gauges' (the shift light, demo, the min and max), then what
+// the phone records (RecordingSettings). Three columns in landscape. bottom leaves room under it for a floating bar, the page
 // scrolling under it. Its owner says when it shows (resume, pause) and
 // hands it Bluetooth's permissions as they're answered.
-class SettingsPage(private val activity: Activity, private val onClose: () -> Unit) {
+class SettingsPage(private val activity: Activity, private val onClose: () -> Unit) : Page {
     private val settings = Settings(activity)
     private val picker = DashPicker(activity, settings)
+    private val recording = RecordingSettings(activity, ::label, ::help)
     private lateinit var status: TextView
     private lateinit var detail: TextView
     private lateinit var fix: TextView
@@ -45,15 +46,17 @@ class SettingsPage(private val activity: Activity, private val onClose: () -> Un
         }
     }
 
-    fun resume() {
+    override fun resume() {
         handler.removeCallbacks(tick)
         handler.post(tick)
     }
 
-    fun pause() {
+    override fun pause() {
         handler.removeCallbacks(tick)
         picker.stop()
     }
+
+    fun folderPicked(uri: Uri?) = recording.folderPicked(uri)
 
     // Bluetooth's permissions answered: refused for good, the system asks
     // no more, its own page for them.
@@ -67,17 +70,14 @@ class SettingsPage(private val activity: Activity, private val onClose: () -> Un
 
     // The page, laid out for the orientation it's in (built again when
     // the phone turns), bottom pixels of room under it.
-    fun build(bottom: Int): View {
+    override fun build(bottom: Int): View {
         (picker.view.parent as? ViewGroup)?.removeView(picker.view)
         val a = activity
         val column = LinearLayout(a).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(a, 24), dp(a, 8), dp(a, 24), dp(a, 24) + bottom)
         }
-        val header = LinearLayout(a).apply { gravity = Gravity.CENTER_VERTICAL }
-        header.addView(iconButton(a, R.drawable.ic_back, 44) { onClose() }, LinearLayout.LayoutParams(dp(a, 44), dp(a, 44)))
-        header.addView(text("SETTINGS", 22f, R.font.barlow_condensed_bold, Colors.ACCENT, 0.15f).apply { setPadding(dp(context, 16), 0, 0, 0) })
-        column.addView(header)
+        column.addView(pageHeader(a, "SETTINGS", onClose))
 
         val landscape = a.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val body = LinearLayout(a).apply { orientation = if (landscape) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL }
@@ -85,6 +85,8 @@ class SettingsPage(private val activity: Activity, private val onClose: () -> Un
         body.addView(connection(), each)
         body.addView(View(a), LinearLayout.LayoutParams(dp(a, 32), 0))
         body.addView(gauges(), LinearLayout.LayoutParams(each))
+        body.addView(View(a), LinearLayout.LayoutParams(dp(a, 32), 0))
+        body.addView(recording.build(), LinearLayout.LayoutParams(each))
         column.addView(body)
 
         val scroll = ScrollView(a).apply {
@@ -124,18 +126,7 @@ class SettingsPage(private val activity: Activity, private val onClose: () -> Un
         stepShift(0)
 
         c.addView(label("DEMO"))
-        val demo = Switch(activity).apply {
-            text = "Made-up readings instead of the dash's"
-            textSize = 20f
-            typeface = activity.resources.getFont(R.font.barlow_condensed_semibold)
-            setTextColor(Colors.LABEL)
-            isChecked = settings.demo
-            val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
-            thumbTintList = ColorStateList(states, intArrayOf(Colors.ACCENT, 0xFFBDBDBD.toInt()))
-            trackTintList = ColorStateList(states, intArrayOf(Colors.FRAME, 0xFF333333.toInt()))
-            setOnCheckedChangeListener { _, on -> settings.demo = on }
-        }
-        c.addView(demo, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+        c.addView(pageSwitch(activity, "Made-up readings instead of the dash's", settings.demo) { settings.demo = it })
 
         c.addView(label("MIN AND MAX"))
         c.addView(
@@ -175,6 +166,7 @@ class SettingsPage(private val activity: Activity, private val onClose: () -> Un
         }
         fix.visibility = if (fix.text.isEmpty()) View.GONE else View.VISIBLE
         picker.refresh(LiveLink.granted(activity) && adapter()?.isEnabled == true)
+        recording.refresh()
     }
 
     private fun fixLink() {
@@ -205,7 +197,15 @@ class SettingsPage(private val activity: Activity, private val onClose: () -> Un
     }
 }
 
-// The settings page's text and buttons, shared with DashPicker.
+// A page's title, a back button before it.
+fun pageHeader(c: Context, title: String, back: () -> Unit) =
+    LinearLayout(c).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        addView(iconButton(c, R.drawable.ic_back, 44, back), LinearLayout.LayoutParams(dp(c, 44), dp(c, 44)))
+        addView(pageText(c, title, 22f, R.font.barlow_condensed_bold, Colors.ACCENT, 0.15f).apply { setPadding(dp(c, 16), 0, 0, 0) })
+    }
+
+// The pages' text and buttons, shared with DashPicker.
 fun pageText(c: Context, s: String, size: Float, font: Int, color: Int, spacing: Float = 0f) =
     TextView(c).apply {
         text = s
@@ -213,6 +213,19 @@ fun pageText(c: Context, s: String, size: Float, font: Int, color: Int, spacing:
         typeface = c.resources.getFont(font)
         setTextColor(color)
         letterSpacing = spacing
+    }
+
+fun pageSwitch(c: Context, s: String, checked: Boolean, changed: (Boolean) -> Unit) =
+    Switch(c).apply {
+        text = s
+        textSize = 20f
+        typeface = c.resources.getFont(R.font.barlow_condensed_semibold)
+        setTextColor(Colors.LABEL)
+        isChecked = checked
+        val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
+        thumbTintList = ColorStateList(states, intArrayOf(Colors.ACCENT, 0xFFBDBDBD.toInt()))
+        trackTintList = ColorStateList(states, intArrayOf(Colors.FRAME, 0xFF333333.toInt()))
+        setOnCheckedChangeListener { _, on -> changed(on) }
     }
 
 fun pagePill(c: Context, s: String, onClick: () -> Unit) =

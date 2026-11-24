@@ -25,6 +25,10 @@
 - [ ] Knock: not in standard OBD; look for the FA20's knock retard and fine knock learning in the ECU's RAM
 - [ ] Check in the car: Send log on the CAN source, the gauges paused, back once the phone acknowledged it; the first one on a fresh board too (BTstack writes its keys to flash then, core1 held)
 - [ ] Check on the board: half-step encoder (one detent = one row), smooth loader
+- [ ] Check in the car: the app's pull every minute (Settings, Data log: the last pull's time), the gauges not paused by it, a new session after the contact off and on; the first pull of a full ring (about 950KB) and how long it takes
+- [ ] Check the backups: a folder on the phone, then Penombre over WebDAV (a GT86 folder made first, an API key), the CSVs and GPX files there
+- [ ] Check lap timing on a track day: the start line set crossing it, the laps against a stopwatch or the track's timing, the strip's lap readable on the head unit
+- [ ] Check a spirited drive: started from the car's settings, the phone locked (the foreground service keeps the GPS), the drive's map in the phone's Drives page
 - [ ] Host the web page on gt.ombrage.space (`Dockerfile` at the root, behind the https proxy)
 - [x] Wiring doc, MCP2515 section: no more references to the Go code, `DATA_SOURCE` and the CNF registers instead
 - [x] Printable faceplate (ST7789 display + KY-040 encoder): scad-js model, STL + PNG renders by `mise run faceplate`

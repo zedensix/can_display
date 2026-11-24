@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
@@ -52,13 +53,19 @@ object LiveFrame {
 // phone's: found by its service (and its address, once one is chosen in
 // the settings), connected, subscribed to its live readings; found again
 // whenever it drops (the contact off and on). Up while anything draws or
-// the settings are open (start/stop count them).
+// the settings are open (start/stop count them). It also carries the
+// pulls of the dash's data log (Pull), on the data characteristic.
 @SuppressLint("MissingPermission") // start checks them, status says when they're missing
 object LiveLink {
     enum class Status { NO_PERMISSION, BLUETOOTH_OFF, SEARCHING, CONNECTING, LIVE }
 
     val SERVICE: UUID = UUID.fromString("c0ff8600-4b1e-4c7a-9e2d-5a3f86d0a001")
     private val LIVE = UUID.fromString("c0ff8603-4b1e-4c7a-9e2d-5a3f86d0a001")
+    private val DATA = UUID.fromString("c0ff8602-4b1e-4c7a-9e2d-5a3f86d0a001")
+    private val CONTROL = UUID.fromString("c0ff8601-4b1e-4c7a-9e2d-5a3f86d0a001")
+
+    // The biggest the dash takes: a pull's notifications as big as can be.
+    private const val MTU = 247
     private val CCCD = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
     // A link with no frame for this long counts as gone.
@@ -86,6 +93,11 @@ object LiveLink {
     @Volatile private var latest: Readings? = null
 
     @Volatile private var latestAt = 0L
+
+    private var pull: Pull? = null
+
+    // The data characteristic's notifications on: a pull can be asked.
+    private var dataReady = false
 
     val permissions = arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
 
@@ -145,6 +157,21 @@ object LiveLink {
         if (users > 0) connect()
     }
 
+    // Asks the dash for what it logged since from (Pull); done gets it,
+    // on Bluetooth's thread. False while not live, or while a pull is
+    // under way (one gone quiet past Pull.QUIET_MS is given up).
+    @Synchronized
+    fun pull(from: Long, done: (PullHeader, ByteArray) -> Unit): Boolean {
+        val g = gatt ?: return false
+        if (status != Status.LIVE || !dataReady) return false
+        pull?.let { if (SystemClock.uptimeMillis() - it.heardAt < Pull.QUIET_MS) return false }
+        val control = g.getService(SERVICE)?.getCharacteristic(CONTROL) ?: return false
+        val p = Pull(SystemClock.uptimeMillis(), done)
+        if (g.writeCharacteristic(control, Pull.request(from), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) != BluetoothGatt.GATT_SUCCESS) return false
+        pull = p
+        return true
+    }
+
     private fun adapter() = context?.getSystemService(BluetoothManager::class.java)?.adapter
 
     private fun connect() {
@@ -177,6 +204,8 @@ object LiveLink {
         deviceName = null
         rssi = null
         latest = null
+        pull = null
+        dataReady = false
     }
 
     private val scan = object : ScanCallback() {
@@ -217,16 +246,26 @@ object LiveLink {
                     rssi = null
                 }
                 latest = null
+                pull = null
+                dataReady = false
                 status = Status.SEARCHING
                 if (users > 0) connect()
             }
         }
 
+        // One request at a time: the MTU, then the live readings, then the
+        // data log's notifications.
         override fun onServicesDiscovered(g: BluetoothGatt, state: Int) {
-            val live = g.getService(SERVICE)?.getCharacteristic(LIVE) ?: return
-            g.setCharacteristicNotification(live, true)
-            val cccd = live.getDescriptor(CCCD) ?: return
-            g.writeDescriptor(cccd, byteArrayOf(0x01, 0x00))
+            g.requestMtu(MTU)
+        }
+
+        override fun onMtuChanged(g: BluetoothGatt, mtu: Int, state: Int) {
+            subscribe(g, LIVE)
+        }
+
+        override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, state: Int) {
+            if (d.characteristic.uuid == LIVE) subscribe(g, DATA)
+            if (d.characteristic.uuid == DATA) dataReady = state == BluetoothGatt.GATT_SUCCESS
         }
 
         override fun onReadRemoteRssi(g: BluetoothGatt, value: Int, state: Int) {
@@ -234,10 +273,23 @@ object LiveLink {
         }
 
         override fun onCharacteristicChanged(g: BluetoothGatt, c: BluetoothGattCharacteristic, value: ByteArray) {
+            if (c.uuid == DATA) {
+                synchronized(LiveLink) {
+                    if (pull?.take(value, SystemClock.uptimeMillis()) == true) pull = null
+                }
+                return
+            }
             if (c.uuid != LIVE) return
             latest = LiveFrame.decode(value) ?: return
             latestAt = SystemClock.uptimeMillis()
             status = Status.LIVE
         }
+    }
+
+    private fun subscribe(g: BluetoothGatt, uuid: UUID) {
+        val c = g.getService(SERVICE)?.getCharacteristic(uuid) ?: return
+        g.setCharacteristicNotification(c, true)
+        val cccd = c.getDescriptor(CCCD) ?: return
+        g.writeDescriptor(cccd, byteArrayOf(0x01, 0x00))
     }
 }

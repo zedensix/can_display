@@ -9,7 +9,11 @@
 #include "pico/cyw43_arch.h"
 
 // The data log on its way to a phone: the part from first on, total
-// bytes after a 4-byte header holding total.
+// bytes after a header: for Send log ('S') total alone, 4 bytes; for a
+// pull ('R', what's new since a position the phone kept) 18 bytes: total,
+// where the part starts in flash, where the log is now (the next pull's
+// position), the dash's milliseconds since boot and its session, the
+// first four u32 and the last a u16, little-endian.
 #define DATA_HANDLE ATT_CHARACTERISTIC_c0ff8602_4b1e_4c7a_9e2d_5a3f86d0a001_01_VALUE_HANDLE
 #define DATA_CCCD_HANDLE ATT_CHARACTERISTIC_c0ff8602_4b1e_4c7a_9e2d_5a3f86d0a001_01_CLIENT_CONFIGURATION_HANDLE
 #define CONTROL_HANDLE ATT_CHARACTERISTIC_c0ff8601_4b1e_4c7a_9e2d_5a3f86d0a001_01_VALUE_HANDLE
@@ -22,6 +26,10 @@
 
 static state_t *state;
 static datalog_t *log_to_send;
+// The log being read out, Send log's or a pull's.
+static const datalog_t *reading;
+static uint8_t header[18];
+static uint16_t header_size;
 static bool stack_up;
 static btstack_packet_callback_registration_t hci_registration;
 static hci_con_handle_t phone = HCI_CON_HANDLE_INVALID;
@@ -52,21 +60,27 @@ static void send_next_log_chunk(void) {
     if (!streaming || phone == HCI_CON_HANDLE_INVALID) {
         return;
     }
+    // A notification refused (no buffer free: the live readings share
+    // them) goes again at the next chance, not skipped.
     if (!header_sent) {
-        uint8_t header[4];
-        little_endian_store_32(header, 0, total);
-        att_server_notify(phone, DATA_HANDLE, header, sizeof header);
+        if (att_server_notify(phone, DATA_HANDLE, header, header_size) != ERROR_CODE_SUCCESS) {
+            att_server_request_can_send_now_event(phone);
+            return;
+        }
         header_sent = true;
     } else {
         uint8_t chunk[244];
         uint32_t n = att_server_get_mtu(phone) - 3;
         n = n > sizeof chunk ? sizeof chunk : n;
         n = n > total - sent ? total - sent : n;
-        datalog_read(log_to_send, first + sent, chunk, n);
-        att_server_notify(phone, DATA_HANDLE, chunk, (uint16_t)n);
+        datalog_read(reading, first + sent, chunk, n);
+        if (att_server_notify(phone, DATA_HANDLE, chunk, (uint16_t)n) != ERROR_CODE_SUCCESS) {
+            att_server_request_can_send_now_event(phone);
+            return;
+        }
         uint32_t before = sent;
         sent += n;
-        if (sent / 8192 != before / 8192) {
+        if (log_to_send && sent / 8192 != before / 8192) {
             char status[96];
             snprintf(status, sizeof status, "SEND LOG\n%lu of %lu KB", (unsigned long)(sent / 1024),
                      (unsigned long)(total / 1024));
@@ -78,11 +92,37 @@ static void send_next_log_chunk(void) {
         return;
     }
     streaming = false;
+    if (!log_to_send) {
+        return;
+    }
     log_line("ble: data log sent, %lu bytes", (unsigned long)total);
     char status[96];
     snprintf(status, sizeof status, "SEND LOG\nsent %lu KB\nwaiting for the phone\npress: back",
              (unsigned long)(total / 1024));
     state_set_status(state, status);
+}
+
+// pull sends what the data log holds since from, while it goes on
+// logging: the app's periodic pull, the gauges never paused. Not during
+// Send log, which has the log, nor during another pull.
+static void pull(hci_con_handle_t con, uint32_t from) {
+    datalog_t *log = store_get_datalog();
+    if (!log || log_to_send || streaming) {
+        return;
+    }
+    datalog_flush(log);
+    uint32_t next = datalog_since(log, from, &first, &total);
+    reading = log;
+    little_endian_store_32(header, 0, total);
+    little_endian_store_32(header, 4, (log->pos + first) % log->dev.size);
+    little_endian_store_32(header, 8, next);
+    little_endian_store_32(header, 12, now);
+    little_endian_store_16(header, 16, log->session);
+    header_size = 18;
+    sent = 0;
+    header_sent = false;
+    streaming = true;
+    att_server_request_can_send_now_event(con);
 }
 
 static int handle_att_write(hci_con_handle_t con, uint16_t handle, uint16_t mode, uint16_t offset, uint8_t *buffer,
@@ -94,7 +134,14 @@ static int handle_att_write(hci_con_handle_t con, uint16_t handle, uint16_t mode
         log_line("ble: live readings %s", live ? "on" : "off");
         return 0;
     }
-    if (handle != CONTROL_HANDLE || size < 1 || !log_to_send) {
+    if (handle != CONTROL_HANDLE || size < 1) {
+        return 0;
+    }
+    if (buffer[0] == 'R' && size >= 5) {
+        pull(con, little_endian_read_32(buffer, 1));
+        return 0;
+    }
+    if (!log_to_send) {
         return 0;
     }
     if (buffer[0] == 'D') {
@@ -102,8 +149,11 @@ static int handle_att_write(hci_con_handle_t con, uint16_t handle, uint16_t mode
         state_set_status(state, "SEND LOG\ndownloaded\nback to the gauges");
         received_at = now ? now : 1;
     } else if (buffer[0] == 'S') {
+        reading = log_to_send;
         first = datalog_oldest_record_offset(log_to_send);
         total = log_to_send->dev.size - first;
+        little_endian_store_32(header, 0, total);
+        header_size = 4;
         sent = 0;
         header_sent = false;
         streaming = true;
@@ -211,8 +261,9 @@ void ble_poll_radio(uint32_t now_ms) {
         stop_sending();
     }
     // A frame dropped for want of a buffer is no loss: the next one comes
-    // LIVE_MS later.
-    if (live && !streaming && phone != HCI_CON_HANDLE_INVALID && now - live_at >= LIVE_MS) {
+    // LIVE_MS later. They go on through a pull or Send log, sent only
+    // when a buffer is free.
+    if (live && phone != HCI_CON_HANDLE_INVALID && now - live_at >= LIVE_MS && att_server_can_send_packet_now(phone)) {
         live_at = now;
         uint8_t frame[LIVE_SIZE];
         live_encode(state, now, frame);

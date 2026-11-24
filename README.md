@@ -131,8 +131,16 @@ oil as a big dial, arrows to turn the views and a cog for the settings (the shif
 the min and max reset), the track layout past comfort, each gauge alone with its session's lowest
 and highest, the oil too hot over the whole screen, the shift light across the top. The dash
 sends it its readings over Bluetooth LE many times a second; a Demo setting makes them up. On
-the phone itself, turned as the phone is, and a settings page that says how the link is doing
-and which dash it connects to.
+the phone itself, turned as the phone is: swipe across the gauges to turn the views, and a bar
+to Home, Laps, Map and Settings (how the link is doing, which dash it connects to).
+
+The app also records. Every minute it pulls what the dash logged since the last pull, without
+pausing the gauges, and keeps each session on the phone. It backs them up as CSV, with the drives
+as GPX, into a folder on the phone or a WebDAV folder (Penombre). The phone's GPS gives lap
+times: on the Laps page, tap "Set the start line here" crossing the line; the lap running shows
+there big, and along the bottom of the gauges with the best and the last. A spirited drive,
+started on the Map page, records the way you drive; the Map page shows each drive on a map,
+colored by speed, with its laps.
 
 ```sh
 mise run android:flash # build, install on the phone (USB or Wi-Fi debugging), open it

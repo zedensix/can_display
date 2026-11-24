@@ -41,12 +41,14 @@ class SurfaceRenderer(private val carContext: CarContext, lifecycle: Lifecycle) 
     override fun onCreate(owner: LifecycleOwner) {
         carContext.getCarService(AppManager::class.java).setSurfaceCallback(this)
         LiveLink.start(carContext)
+        Recorder.hold(carContext)
     }
 
     override fun onDestroy(owner: LifecycleOwner) {
         handler.removeCallbacks(frame)
         surface = null
         LiveLink.stop()
+        Recorder.release()
     }
 
     override fun onSurfaceAvailable(container: SurfaceContainer) {

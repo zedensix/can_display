@@ -85,6 +85,8 @@ class Dash(context: Context) {
         pages.shiftRpm = settings.shiftRpm
         size(area)
         val portrait = portrait(area)
+        pages.lap = Recorder.lapText(System.currentTimeMillis(), short = portrait)
+            ?: if (Recorder.recording) "● REC" to Colors.DANGER else null
         val oilCritical = (r.oil ?: 0f) >= OIL_CRITICAL
         val limiter = (r.rpm ?: 0f) >= LIMITER_FLASH_RPM && (now / LIMITER_FLASH_MS) % 2 == 0L
         val alarmLit = (now / 400) % 2 == 0L

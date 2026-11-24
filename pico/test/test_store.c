@@ -150,4 +150,33 @@ void test_datalog(void) {
     datalog_open(&log, dev);
     CHECK(log.pos == 3 * (uint32_t)R && log.session == 7, "reopened after both kinds: pos %u session %u",
           (unsigned)log.pos, log.session);
+
+    // What's new since a pull: everything first, then only what followed.
+    uint32_t offset, len;
+    uint32_t at = datalog_since(&log, DATALOG_FROM_OLDEST, &offset, &len);
+    CHECK(at == log.pos && offset == datalog_oldest_record_offset(&log) && offset + len == sizeof f.data,
+          "from the oldest: at %u, offset %u, len %u", (unsigned)at, (unsigned)offset, (unsigned)len);
+    datalog_since(&log, at, &offset, &len);
+    CHECK(len == 0, "nothing new, yet %u bytes", (unsigned)len);
+    datalog_sample(&log, &s, 0);
+    datalog_sample(&log, &s, DATALOG_SAMPLE_MS);
+    datalog_flush(&log);
+    uint32_t next = datalog_since(&log, at, &offset, &len);
+    uint8_t got[DATALOG_RECORD];
+    datalog_read(&log, offset, got, sizeof got);
+    CHECK(len == 2 * (uint32_t)R && next == at + 2 * R && got[0] == 7 && got[4] == 0,
+          "2 records since: len %u, next %u, session %u", (unsigned)len, (unsigned)next, got[0]);
+    // Round the ring's end: the pull from near it carries on from its start.
+    while (log.pos != 0) {
+        datalog_sample(&log, &s, 0);
+    }
+    at = datalog_since(&log, DATALOG_FROM_OLDEST, &offset, &len);
+    for (int i = 0; i < 4; i++) {
+        datalog_sample(&log, &s, 1000 + (uint32_t)i);
+    }
+    datalog_flush(&log);
+    datalog_since(&log, at, &offset, &len);
+    datalog_read(&log, offset, got, sizeof got);
+    CHECK(at == 0 && len == 4 * (uint32_t)R && got[4] == (1000 & 0xFF), "across the end: from %u, len %u", (unsigned)at,
+          (unsigned)len);
 }
