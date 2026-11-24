@@ -93,11 +93,11 @@ void test_off_throttle(void) {
 void test_wrap(void) {
     const char *text = "BLE connect failed: no known ELM327 serial service on this device";
     char lines[8][64];
-    int n = ui_wrap_text(&font_bold9, text, 216, lines, 8);
+    int n = ui_wrap_text(&font_text, 0, text, 216, lines, 8);
     CHECK(n >= 2, "wrap gave %d line(s), want the long error split", n);
     char joined[256] = "";
     for (int i = 0; i < n; i++) {
-        CHECK(gfx_text_width(&font_bold9, lines[i]) <= 216, "line %d is too wide", i);
+        CHECK(gfx_text_width(&font_text, lines[i], 0) <= 216, "line %d is too wide", i);
         strcat(joined, i ? " " : "");
         strcat(joined, lines[i]);
     }
@@ -150,7 +150,7 @@ void test_limiter_flash(void) {
     state_t s = {0};
     screen_t screen = {0};
     settings_t cfg = SETTINGS_DEFAULT;
-    color_t red = theme_dark.danger;
+    color_t red = theme_dark.alarm;
     // 200ms falls in the flash's lit half, 300ms in the dark one.
     state_set_reading(&s, SIG_RPM, 7450, 200);
     ui_render(&c, &s, &screen, &cfg, 200);
@@ -186,10 +186,10 @@ void test_orientations(void) {
         state_t open = s;
         state_set_doors(&open, DOOR_DRIVER | DOOR_PASSENGER | DOOR_BOOT, 1000);
         ui_render(&c, &open, &(screen_t){0}, &cfg, 1000);
-        CHECK(pixels[(h - 22) * w + w / 2] != theme_dark.frame, "%dx%d: the strip under the door screen", w, h);
+        CHECK(pixels[(h - 26) * w + w / 2] != theme_dark.frame, "%dx%d: the strip under the door screen", w, h);
         // The strip's separator, a line across the bottom of the gauges.
         ui_render(&c, &s, &(screen_t){0}, &cfg, 1000);
-        CHECK(pixels[(h - 22) * w + w / 2] == theme_dark.frame, "%dx%d: no info strip at the bottom", w, h);
+        CHECK(pixels[(h - 26) * w + w / 2] == theme_dark.frame, "%dx%d: no info strip at the bottom", w, h);
     }
 }
 

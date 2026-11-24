@@ -8,7 +8,6 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.net.Uri
-import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
@@ -23,20 +22,21 @@ import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 
-// The phone's settings, a page of their own: the connection (the link's
-// state, what it needs, and which dash: the first found, or one picked
-// from those nearby or used before), then the gauges' (the shift light,
-// demo, the min and max). Two columns in landscape. The link stays up
-// while it's open (start/stop), so it shows the dash connected.
-class SettingsActivity : Activity() {
-    private lateinit var settings: Settings
+// The phone's settings, a page in place of the dash (the navigation
+// stays): the connection (the link's state, what it needs, and which
+// dash: the first found, or one picked from those nearby or used before),
+// then the gauges' (the shift light, demo, the min and max). Two columns
+// in landscape. bottom leaves room under it for a floating bar, the page
+// scrolling under it. Its owner says when it shows (resume, pause) and
+// hands it Bluetooth's permissions as they're answered.
+class SettingsPage(private val activity: Activity, private val onClose: () -> Unit) {
+    private val settings = Settings(activity)
+    private val picker = DashPicker(activity, settings)
     private lateinit var status: TextView
     private lateinit var detail: TextView
     private lateinit var fix: TextView
-    private lateinit var picker: DashPicker
     private lateinit var shiftValue: TextView
     private val handler = Handler(Looper.getMainLooper())
-
 
     private val tick = object : Runnable {
         override fun run() {
@@ -45,85 +45,66 @@ class SettingsActivity : Activity() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        settings = Settings(this)
-        picker = DashPicker(this, settings)
-        setContentView(page())
-    }
-
-    // Turned, the page lays itself out again (configChanges): recreated,
-    // the link would drop for a moment.
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-        (picker.view.parent as? ViewGroup)?.removeView(picker.view)
-        setContentView(page())
-        refresh()
-    }
-
-    override fun onStart() {
-        super.onStart()
-        LiveLink.start(this)
-    }
-
-    override fun onStop() {
-        LiveLink.stop()
-        super.onStop()
-    }
-
-    override fun onResume() {
-        super.onResume()
+    fun resume() {
+        handler.removeCallbacks(tick)
         handler.post(tick)
     }
 
-    override fun onPause() {
+    fun pause() {
         handler.removeCallbacks(tick)
         picker.stop()
-        super.onPause()
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, results: IntArray) {
-        // Refused for good, the system asks no more: its own page for them.
-        if (!LiveLink.granted(this) && !shouldShowRequestPermissionRationale(LiveLink.permissions[0])) {
-            startActivity(Intent(ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
+    // Bluetooth's permissions answered: refused for good, the system asks
+    // no more, its own page for them.
+    fun permissionsAnswered() {
+        if (!LiveLink.granted(activity) && !activity.shouldShowRequestPermissionRationale(LiveLink.permissions[0])) {
+            activity.startActivity(Intent(ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", activity.packageName, null)))
         }
     }
 
-    private fun adapter() = getSystemService(BluetoothManager::class.java)?.adapter
+    private fun adapter() = activity.getSystemService(BluetoothManager::class.java)?.adapter
 
-    private fun page(): View {
-        val column = LinearLayout(this).apply {
+    // The page, laid out for the orientation it's in (built again when
+    // the phone turns), bottom pixels of room under it.
+    fun build(bottom: Int): View {
+        (picker.view.parent as? ViewGroup)?.removeView(picker.view)
+        val a = activity
+        val column = LinearLayout(a).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(this@SettingsActivity, 24), dp(this@SettingsActivity, 8), dp(this@SettingsActivity, 24), dp(this@SettingsActivity, 24))
+            setPadding(dp(a, 24), dp(a, 8), dp(a, 24), dp(a, 24) + bottom)
         }
-        val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        header.addView(iconButton(this, R.drawable.ic_back, 44) { finish() }, LinearLayout.LayoutParams(dp(this, 44), dp(this, 44)))
+        val header = LinearLayout(a).apply { gravity = Gravity.CENTER_VERTICAL }
+        header.addView(iconButton(a, R.drawable.ic_back, 44) { onClose() }, LinearLayout.LayoutParams(dp(a, 44), dp(a, 44)))
         header.addView(text("SETTINGS", 22f, R.font.barlow_condensed_bold, Colors.ACCENT, 0.15f).apply { setPadding(dp(context, 16), 0, 0, 0) })
         column.addView(header)
 
-        val landscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        val body = LinearLayout(this).apply { orientation = if (landscape) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL }
+        val landscape = a.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val body = LinearLayout(a).apply { orientation = if (landscape) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL }
         val each = if (landscape) LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f) else LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
         body.addView(connection(), each)
-        body.addView(View(this), LinearLayout.LayoutParams(dp(this, 32), 0))
+        body.addView(View(a), LinearLayout.LayoutParams(dp(a, 32), 0))
         body.addView(gauges(), LinearLayout.LayoutParams(each))
         column.addView(body)
 
-        val scroll = ScrollView(this).apply { setBackgroundColor(Colors.BACKGROUND) }
+        val scroll = ScrollView(a).apply {
+            setBackgroundColor(Colors.BACKGROUND)
+            clipToPadding = false
+        }
         scroll.addView(column)
-        safeArea(scroll)
+        refresh()
         return scroll
     }
 
     private fun connection(): View {
-        val c = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val c = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
         c.addView(label("CONNECTION"))
         status = text("", 24f, R.font.barlow_condensed_bold, Colors.LABEL)
         detail = text("", 16f, R.font.barlow_condensed_medium, Colors.DIM)
         fix = pill("") { fixLink() }
         c.addView(status)
         c.addView(detail)
-        c.addView(fix, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(this@SettingsActivity, 12) })
+        c.addView(fix, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply { topMargin = dp(activity, 12) })
         c.addView(label("DASH"))
         c.addView(picker.view)
         c.addView(help("A dash shows here while it's on and no other phone holds its link"))
@@ -131,22 +112,22 @@ class SettingsActivity : Activity() {
     }
 
     private fun gauges(): View {
-        val c = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val c = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
         c.addView(label("SHIFT LIGHT"))
-        val shift = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        val shift = LinearLayout(activity).apply { gravity = Gravity.CENTER_VERTICAL }
         shiftValue = text("", 30f, R.font.barlow_condensed_bold, Colors.LABEL).apply { gravity = Gravity.CENTER }
-        shift.addView(iconButton(this, R.drawable.ic_remove, 44) { stepShift(-1) }, LinearLayout.LayoutParams(dp(this, 44), dp(this, 44)))
+        shift.addView(iconButton(activity, R.drawable.ic_remove, 44) { stepShift(-1) }, LinearLayout.LayoutParams(dp(activity, 44), dp(activity, 44)))
         shift.addView(shiftValue, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        shift.addView(iconButton(this, R.drawable.ic_add, 44) { stepShift(1) }, LinearLayout.LayoutParams(dp(this, 44), dp(this, 44)))
+        shift.addView(iconButton(activity, R.drawable.ic_add, 44) { stepShift(1) }, LinearLayout.LayoutParams(dp(activity, 44), dp(activity, 44)))
         c.addView(shift)
         c.addView(help("The LEDs light over the last 1500 rpm before it, all blue from it"))
         stepShift(0)
 
         c.addView(label("DEMO"))
-        val demo = Switch(this).apply {
+        val demo = Switch(activity).apply {
             text = "Made-up readings instead of the dash's"
             textSize = 20f
-            typeface = resources.getFont(R.font.barlow_condensed_semibold)
+            typeface = activity.resources.getFont(R.font.barlow_condensed_semibold)
             setTextColor(Colors.LABEL)
             isChecked = settings.demo
             val states = arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf())
@@ -160,7 +141,7 @@ class SettingsActivity : Activity() {
         c.addView(
             pill("Reset every gauge's") {
                 Extremes.reset()
-                Toast.makeText(this, "Min and max reset", Toast.LENGTH_SHORT).show()
+                Toast.makeText(activity, "Min and max reset", Toast.LENGTH_SHORT).show()
             },
         )
         return c
@@ -193,14 +174,14 @@ class SettingsActivity : Activity() {
             else -> ""
         }
         fix.visibility = if (fix.text.isEmpty()) View.GONE else View.VISIBLE
-        picker.refresh(LiveLink.granted(this) && adapter()?.isEnabled == true)
+        picker.refresh(LiveLink.granted(activity) && adapter()?.isEnabled == true)
     }
 
     private fun fixLink() {
-        if (!LiveLink.granted(this)) {
-            requestPermissions(LiveLink.permissions, 0)
+        if (!LiveLink.granted(activity)) {
+            activity.requestPermissions(LiveLink.permissions, 0)
         } else {
-            startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+            activity.startActivity(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
         }
     }
 
@@ -209,7 +190,7 @@ class SettingsActivity : Activity() {
         shiftValue.text = settings.shiftRpmText()
     }
 
-    private fun text(s: String, size: Float, font: Int, color: Int, spacing: Float = 0f) = pageText(this, s, size, font, color, spacing)
+    private fun text(s: String, size: Float, font: Int, color: Int, spacing: Float = 0f) = pageText(activity, s, size, font, color, spacing)
 
     private fun label(s: String) =
         text(s, 15f, R.font.barlow_condensed_semibold, Colors.DIM, 0.15f).apply { setPadding(0, dp(context, 24), 0, dp(context, 8)) }
@@ -217,7 +198,7 @@ class SettingsActivity : Activity() {
     private fun help(s: String) =
         text(s, 15f, R.font.barlow_condensed_medium, Colors.DIM).apply { setPadding(0, dp(context, 4), 0, 0) }
 
-    private fun pill(s: String, onClick: () -> Unit) = pagePill(this, s, onClick)
+    private fun pill(s: String, onClick: () -> Unit) = pagePill(activity, s, onClick)
 
     private companion object {
         const val TICK_MS = 500L

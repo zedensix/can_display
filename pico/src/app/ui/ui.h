@@ -8,15 +8,16 @@
 #include "screen.h"
 #include "store/settings.h"
 
-// theme_t is the palette: dark for readability in a sunlit car, warning
-// colors reserved for values actually out of range.
-// theme_t: good, warning, danger and cold color a reading by its band; a
-// reading in danger also blinks its tile to alarm with alarm_text on it.
-// accent is everything around the readings (logo, titles, settings).
-// frame outlines tiles, stale is what isn't lit (old readings, unlit
-// segments).
+// theme_t is the palette, the Android app's: dark for readability in a
+// sunlit car, warning colors reserved for values actually out of range.
+// good, warning, danger and cold color a reading by its band; a reading in
+// danger also blinks its row to alarm with alarm_text on it. accent is
+// everything around the readings (a dial's label, titles, the gear);
+// label is white text, dim the grey of what's secondary (a stale "--", the
+// scale's ends, the session's highest); frame outlines and separates,
+// stale is what isn't lit (the spinner's ring).
 typedef struct {
-    color_t background, frame, accent, label, good, warning, danger, alarm, alarm_text, cold, stale;
+    color_t background, frame, accent, label, dim, good, warning, danger, alarm, alarm_text, cold, stale;
 } theme_t;
 
 extern const theme_t theme_dark;
@@ -33,12 +34,13 @@ typedef struct {
     float cold;
 } range_t;
 
-// tile_t is one gauge: a label, the value formatted with format then
-// unit, and a bar colored by range. Once its reading is older than
-// stale_ms it shows "--": longer than the time between two updates of
-// that signal, or it blinks.
+// tile_t is one gauge: a label (short, on a dial among others), the value
+// formatted with format then unit, and segments colored by range. Once
+// its reading is older than stale_ms it shows "--": longer than the time
+// between two updates of that signal, or it blinks.
 typedef struct {
     const char *label;
+    const char *short_label;
     const char *format;
     const char *unit;
     signal_t signal;
@@ -81,7 +83,8 @@ bool ui_render_boot(canvas_t *c, uint32_t elapsed_ms, uint32_t now_ms);
 bool ui_shows_status_screen(const state_t *state, const screen_t *screen, uint32_t now_ms);
 void ui_spinner_rows(int panel_height, bool boot, int *top, int *rows);
 
-// ui_wrap_text splits s into lines that fit max_width pixels in font, breaking
+// ui_wrap_text splits s into lines that fit max_width pixels in font (its
+// letters spacing apart), breaking
 // between words, into out (at most max lines). A word wider
 // than max_width gets a line of its own. It returns the line count.
-int ui_wrap_text(const font_t *font, const char *s, int max_width, char out[][64], int max);
+int ui_wrap_text(const font_t *font, int spacing, const char *s, int max_width, char out[][64], int max);

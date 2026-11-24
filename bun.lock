@@ -17,6 +17,7 @@
         "@types/web-bluetooth": "0.0.22",
         "drizzle-kit": "0.31.11",
         "openscad-wasm": "0.0.4",
+        "opentype.js": "2.0.0",
         "playwright": "1.64.1",
         "scad-js": "0.6.9",
       },
@@ -162,6 +163,8 @@
     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
 
     "openscad-wasm": ["openscad-wasm@0.0.4", "", {}, "sha512-ChYe3cgL4JBstRVrR6XnhvF/4E9EsFR1kmGks7eTIT2awSMYVkoeYmFLt80h4V4J/DPIJw106MhIiIv6V9XpLA=="],
+
+    "opentype.js": ["opentype.js@2.0.0", "", { "bin": { "ot": "bin/ot" } }, "sha512-kCyjv6xdDY1W/jLWZ/L3QhhTlKUqDZMQ5+Jdlw12b3dXkKNpYBqqlMMj0YDQPShWFTMwgZI1hG14kN3XUDSg/A=="],
 
     "playwright": ["playwright@1.64.1", "", { "dependencies": { "playwright-core": "1.64.1" }, "bin": { "playwright": "cli.js" } }, "sha512-HCrVhHr5QQuwYoswEUGTb7gGp522yflbv/ST8nF4sFWGuLjQCt17Q/EubpGGSNKYn1tsTCPZxqHhHCfVURu7UA=="],
 

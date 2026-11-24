@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#MISE description="Barlow Condensed, the Android app's font, into the Pico's anti-aliased fonts: pico/src/app/ui/fonts.c"
+set -euo pipefail
+
+bun pico/tools/fonts.ts

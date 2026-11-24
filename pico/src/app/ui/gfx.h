@@ -18,18 +18,27 @@ typedef struct {
     int band_top, band_height;
 } canvas_t;
 
-// DEGREE is the degree sign in strings drawn by gfx_text. The fonts
-// don't have it, so gfx_text draws a ring instead.
+// DEGREE is the degree sign in strings drawn by gfx_text: the fonts hold
+// it at 127.
 #define DEGREE "\xb0"
 
 void gfx_fill_rect(canvas_t *c, int x, int y, int w, int h, color_t color);
 
-// gfx_text draws s with its baseline at y, each font pixel as a scale x
-// scale square, and returns the x after the last character.
-int gfx_text(canvas_t *c, const font_t *font, int x, int y, const char *s, color_t color, int scale);
+// gfx_text draws s from x with its baseline at y, anti-aliased over what's
+// there, spacing more pixels between its letters, and returns the x after
+// the last one.
+int gfx_text(canvas_t *c, const font_t *font, int x, int y, const char *s, color_t color, int spacing);
 
-// gfx_text_width is the width gfx_text advances by at scale 1.
-int gfx_text_width(const font_t *font, const char *s);
+// gfx_text_width is the width gfx_text advances by.
+int gfx_text_width(const font_t *font, const char *s, int spacing);
+
+// gfx_fill_polygon fills the convex polygon of n corners (xs, ys, in
+// pixels, fractions included), anti-aliased over what's there: a dial's
+// segments, its glow, a tick.
+void gfx_fill_polygon(canvas_t *c, const float xs[], const float ys[], int n, color_t color);
 
 // gfx_blend mixes from into to: 0 gives from, 1 gives to.
 color_t gfx_blend(color_t from, color_t to, float amount);
+
+// gfx_mix is gfx_blend in integers, amount out of 255: per pixel.
+color_t gfx_mix(color_t from, color_t to, unsigned amount);

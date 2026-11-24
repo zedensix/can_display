@@ -4,7 +4,7 @@
 
 #include "ui_internal.h"
 
-int ui_wrap_text(const font_t *font, const char *s, int max_width, char out[][64], int max) {
+int ui_wrap_text(const font_t *font, int spacing, const char *s, int max_width, char out[][64], int max) {
     int n = 0;
     char line[64] = "";
     while (*s && n < max) {
@@ -19,7 +19,7 @@ int ui_wrap_text(const font_t *font, const char *s, int max_width, char out[][64
         int len = line[0] ? snprintf(candidate, sizeof candidate, "%s %.*s", line, (int)word_len, s)
                           : snprintf(candidate, sizeof candidate, "%.*s", (int)word_len, s);
         // Past the buffer counts as too wide: the word goes on the next line.
-        bool too_wide = len >= (int)sizeof candidate || gfx_text_width(font, candidate) > max_width;
+        bool too_wide = len >= (int)sizeof candidate || gfx_text_width(font, candidate, spacing) > max_width;
         if (line[0] && too_wide) {
             snprintf(out[n++], 64, "%s", line);
             snprintf(line, sizeof line, "%.*s", (int)word_len, s);
@@ -35,7 +35,13 @@ int ui_wrap_text(const font_t *font, const char *s, int max_width, char out[][64
 }
 
 #define STATUS_MARGIN 8
-#define STATUS_LINE_HEIGHT 20
+// The title (the status's first paragraph) as the Android app's waiting
+// screen has it: white, bold, letter-spaced; the rest under it, dim.
+#define TITLE_FONT (&font_value)
+#define TITLE_SPACING 2
+#define TITLE_EXTRA 12
+#define LINE_FONT (&font_text)
+#define STATUS_LINE_HEIGHT 25
 #define RING_Y 100
 // The spinner ring: the logo's own circle at full size, so the boot
 // animation can close it into the logo.
@@ -72,15 +78,6 @@ static void build_spinner_ring(void) {
     }
 }
 
-// blend_rgb565 blends from into to, t out of 255, in integers: per pixel, floats
-// would cost the frame.
-static color_t blend_rgb565(color_t from, color_t to, unsigned t) {
-    unsigned r = ((from >> 11) * (255 - t) + (to >> 11) * t) / 255;
-    unsigned g = (((from >> 5) & 63) * (255 - t) + ((to >> 5) & 63) * t) / 255;
-    unsigned b = ((from & 31) * (255 - t) + (to & 31) * t) / 255;
-    return (color_t)(r << 11 | g << 5 | b);
-}
-
 // draw_spinner draws the ring centered on cx, cy: a lit head going round
 // smoothly, a tail fading behind it; done (0 to 1) lights it all.
 void draw_spinner(canvas_t *c, const theme_t *t, int cx, int cy, uint32_t now_ms, float done) {
@@ -97,13 +94,13 @@ void draw_spinner(canvas_t *c, const theme_t *t, int cx, int cy, uint32_t now_ms
             unsigned behind = (head - angles[q]) & 255;
             unsigned lit = behind < SPIN_TAIL ? 255 - behind * 255 / SPIN_TAIL : 0;
             lit += (255 - lit) * fill / 255;
-            color_t color = blend_rgb565(t->background, blend_rgb565(t->stale, t->accent, lit), p->alpha);
+            color_t color = gfx_mix(t->background, gfx_mix(t->stale, t->accent, lit), p->alpha);
             gfx_fill_rect(c, cx + sx[q] * p->dx, cy + sy[q] * p->dy, 1, 1, color);
         }
     }
 }
 
-#define CHOICE_HEIGHT 26
+#define CHOICE_HEIGHT 30
 
 // draw_choice_buttons draws Retry and Settings along the bottom, the one
 // a click does filled.
@@ -136,10 +133,11 @@ static int wrap_status(const char *status, int width, char lines[][64], bool tit
             *next++ = 0;
         }
         bool first = n == 0;
-        int added = ui_wrap_text(first ? &font_bold12 : label_font, p, width, &lines[n], STATUS_MAX_LINES - n);
+        int added = ui_wrap_text(first ? TITLE_FONT : LINE_FONT, first ? TITLE_SPACING : 0, p, width, &lines[n],
+                                 STATUS_MAX_LINES - n);
         for (int i = n; i < n + added; i++) {
             title[i] = first;
-            *height += STATUS_LINE_HEIGHT + (first ? 6 : 0);
+            *height += STATUS_LINE_HEIGHT + (first ? TITLE_EXTRA : 0);
         }
         n += added;
         p = next;
@@ -162,7 +160,8 @@ void draw_status_screen(canvas_t *c, const theme_t *t, const state_t *state, con
     // A word wider than the text's column can't wrap: it doesn't fit.
     bool too_wide = false;
     for (int i = 0; i < n; i++) {
-        too_wide = too_wide || gfx_text_width(title[i] ? &font_bold12 : label_font, lines[i]) > text_w;
+        too_wide = too_wide ||
+                   gfx_text_width(title[i] ? TITLE_FONT : LINE_FONT, lines[i], title[i] ? TITLE_SPACING : 0) > text_w;
     }
     // A long text (an error over the buttons), or one too wide, gets the
     // whole width instead, under a small logo.
@@ -180,9 +179,9 @@ void draw_status_screen(canvas_t *c, const theme_t *t, const state_t *state, con
         draw_choice_buttons(c, t, screen->choice);
     }
     for (int i = 0; i < n && y <= bottom; i++) {
-        draw_text_centered(c, title[i] ? &font_bold12 : label_font, text_left + text_w / 2, y, lines[i],
-                           title[i] ? t->accent : t->label, 1);
-        y += STATUS_LINE_HEIGHT + (title[i] ? 6 : 0);
+        draw_text_centered(c, title[i] ? TITLE_FONT : LINE_FONT, text_left + text_w / 2, y, lines[i],
+                           title[i] ? t->label : t->dim, title[i] ? TITLE_SPACING : 0);
+        y += STATUS_LINE_HEIGHT + (title[i] ? TITLE_EXTRA : 0);
     }
 }
 
@@ -216,7 +215,7 @@ void draw_bitmap(canvas_t *c, const unsigned char *bitmap, int cx, int cy, int s
             }
             int d = x0 + x + y0 + y - sweep;
             d = d < 0 ? -d : d;
-            color_t lit = d < SHINE_BAND ? blend_rgb565(color, shine, (unsigned)(255 - d * 255 / SHINE_BAND)) : color;
+            color_t lit = d < SHINE_BAND ? gfx_mix(color, shine, (unsigned)(255 - d * 255 / SHINE_BAND)) : color;
             gfx_fill_rect(c, x0 + x, y0 + y, 1, 1, lit);
         }
     }

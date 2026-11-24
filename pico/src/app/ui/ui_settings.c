@@ -1,12 +1,16 @@
+// The settings page, in the Android app's settings' look: the title in
+// the accent, the groups' titles dim and letter-spaced, the rows white,
+// the one under the cursor a pill.
+
 #include <stdio.h>
 
 #include "ui_internal.h"
 
 #define SETTINGS_MARGIN 8
-#define SETTINGS_HEADER 30
-#define SETTINGS_GROUP_HEIGHT 14
-#define SETTINGS_ROW_HEIGHT 22
-#define SETTINGS_BACK_HEIGHT 22
+#define SETTINGS_HEADER 36
+#define SETTINGS_GROUP_HEIGHT 20
+#define SETTINGS_ROW_HEIGHT 28
+#define SETTINGS_BACK_HEIGHT 28
 
 // The settings page's groups, each a run of rows under a title; Back is
 // a button under them. Everything fits: no scrolling.
@@ -52,7 +56,7 @@ static void draw_settings_value(canvas_t *c, const theme_t *t, int row, int righ
             colors[i] =
                 BRIGHTNESS_MIN + i * BRIGHTNESS_STEP <= cfg->brightness ? value : gfx_blend(t->background, value, 0.2f);
         }
-        draw_segment_bar(c, right - 70, cy - 5, 70, 10, COUNT, colors);
+        draw_segment_bar(c, right - 70, cy - 5, 70, 10, COUNT, 2, colors);
         break;
     }
     case ROW_SHIFT_LIGHT: {
@@ -62,7 +66,7 @@ static void draw_settings_value(canvas_t *c, const theme_t *t, int row, int righ
             snprintf(text, sizeof text, editing ? "< OFF >" : "OFF");
         }
         color_t color = editing ? t->warning : cfg->shift_rpm ? t->accent : dim;
-        gfx_text(c, label_font, right - gfx_text_width(label_font, text), cy + 5, text, color, 1);
+        draw_text_right(c, &font_text, right, cy + font_text.cap / 2, text, color, 0);
         break;
     }
     case ROW_FLIP:
@@ -72,7 +76,7 @@ static void draw_settings_value(canvas_t *c, const theme_t *t, int row, int righ
         draw_toggle(c, t, right, cy, cfg->landscape, bg);
         break;
     default: // an action
-        gfx_text(c, label_font, right - gfx_text_width(label_font, ">"), cy + 5, ">", selected ? t->accent : dim, 1);
+        draw_text_right(c, &font_text, right, cy + font_text.cap / 2, ">", selected ? t->accent : dim, 0);
         break;
     }
 }
@@ -85,8 +89,7 @@ void draw_settings_page(canvas_t *c, const theme_t *t, const screen_t *screen, c
     int left = SETTINGS_MARGIN, right = c->width - SETTINGS_MARGIN, width = right - left;
     int back_y = c->height - SETTINGS_BACK_HEIGHT - 20, view_h = back_y - 2 - SETTINGS_HEADER;
     color_t dim = gfx_blend(t->background, t->label, 0.35f);
-    gfx_text(c, &font_bold12, left + 2, 20, "SETTINGS", t->accent, 1);
-    gfx_fill_rect(c, left, 25, width, 2, t->accent);
+    gfx_text(c, &font_value, left + 2, 28, "SETTINGS", t->accent, 3);
 
     // Where the groups reach, and the cursor's row, from the top of the list.
     int content_h = 0, cursor_y = 0;
@@ -108,8 +111,7 @@ void draw_settings_page(canvas_t *c, const theme_t *t, const screen_t *screen, c
     int y = SETTINGS_HEADER - scroll;
     for (size_t g = 0; g < sizeof settings_groups / sizeof settings_groups[0]; g++) {
         if (y >= top && y + SETTINGS_GROUP_HEIGHT <= bottom) {
-            gfx_text(c, label_font, left + 2, y + 11, settings_groups[g].title,
-                     gfx_blend(t->background, t->accent, 0.6f), 1);
+            gfx_text(c, &font_label, left + 2, y + 16, settings_groups[g].title, t->dim, 2);
         }
         y += SETTINGS_GROUP_HEIGHT;
         for (int row = settings_groups[g].first; row <= settings_groups[g].last; row++, y += SETTINGS_ROW_HEIGHT) {
@@ -125,12 +127,12 @@ void draw_settings_page(canvas_t *c, const theme_t *t, const screen_t *screen, c
                 outline_round_rect(c, left, y, width, h, h / 2, gfx_blend(t->background, t->accent, 0.7f),
                                    t->background);
             }
-            gfx_text(c, label_font, left + 12, cy + 5, settings_labels[row], t->label, 1);
+            gfx_text(c, &font_text, left + 12, cy + font_text.cap / 2, settings_labels[row], t->label, 0);
             draw_settings_value(c, t, row, right - 12, cy, cfg, selected, selected && screen->editing, bg);
         }
         y += 2;
     }
 
     draw_button(c, t, left, back_y, width, SETTINGS_BACK_HEIGHT, ICON_BACK, "Back", screen->cursor == ROW_BACK);
-    draw_text_centered(c, label_font, c->width / 2, c->height - 4, "hold: reboot", dim, 1);
+    draw_text_centered(c, &font_small, c->width / 2, c->height - 5, "hold: reboot", dim, 1);
 }

@@ -1,40 +1,54 @@
-// The info strip along the bottom of the gauges: the gear engaged (N
-// for none), the temperature outside, and the distance (the car's
-// odometer, whole km, if its ECU gives it, else the trip since boot, to
-// the tenth).
+// The info strip along the bottom of the gauges, the Android app's: the
+// gear engaged (N for none) in a box outlined in the accent (left out
+// where the page shows it big), the temperature outside, and on the right
+// the distance: the car's odometer, whole km in groups of three, if its
+// ECU gives it, else the trip since boot, to the tenth. No labels: the
+// units say what each is.
 
 #include <stdio.h>
 
 #include "ui_internal.h"
 
-// draw_strip_cell centers value in a cell from x, w wide, on the strip's
-// baseline, all three the same size: a line of info, not gauges. No
-// labels: the units say what each is.
-static void draw_strip_cell(canvas_t *c, int x, int w, int baseline, const char *value, color_t color) {
-    gfx_text(c, &font_bold12, x + (w - gfx_text_width(&font_bold12, value)) / 2, baseline, value, color, 1);
+void gear_text(const state_t *s, uint32_t now_ms, char out[4]) {
+    int gear = state_gear(s, now_ms, FAST_STALE_MS);
+    snprintf(out, 4, gear > 0 && gear < 10 ? "%d" : "N", gear);
 }
 
-void draw_info_strip(canvas_t *c, const theme_t *t, const state_t *s, uint32_t now_ms) {
-    // The gear's cell a quarter of the width, the other two the rest.
-    int y = c->height - INFO_STRIP_HEIGHT, baseline = y + INFO_STRIP_HEIGHT - 3;
-    int gear_w = c->width / 4, cell = (c->width - gear_w) / 2;
-    gfx_fill_rect(c, GRID_GAP, y, c->width - 2 * GRID_GAP, 1, t->frame);
-
-    int gear = state_gear(s, now_ms, FAST_STALE_MS);
-    char text[16];
-    snprintf(text, sizeof text, gear ? "%d" : "N", gear);
-    draw_strip_cell(c, 0, gear_w, baseline, text, gear ? t->accent : t->label);
-
-    const reading_t *outside = &s->readings[SIG_AMBIENT];
-    if (reading_is_stale(outside, now_ms, SLOW_STALE_MS)) {
-        snprintf(text, sizeof text, "--");
+// km in whole kilometres, a space between each group of three digits.
+static void odometer_text(float km, char out[24]) {
+    long whole = (long)km;
+    if (whole < 1000) {
+        snprintf(out, 24, "%ld km", whole);
+    } else if (whole < 1000000) {
+        snprintf(out, 24, "%ld %03ld km", whole / 1000, whole % 1000);
     } else {
+        snprintf(out, 24, "%ld %03ld %03ld km", whole / 1000000, whole / 1000 % 1000, whole % 1000);
+    }
+}
+
+void draw_info_strip(canvas_t *c, const theme_t *t, const state_t *s, bool gear, uint32_t now_ms) {
+    int y = c->height - INFO_STRIP_HEIGHT, baseline = c->height - 6;
+    gfx_fill_rect(c, 0, y, c->width, 1, t->frame);
+    int x = 4;
+    if (gear) {
+        char text[4];
+        gear_text(s, now_ms, text);
+        stroke_round_rect(c, 2, y + 3, 24, INFO_STRIP_HEIGHT - 5, 5, 2, t->accent, t->background);
+        draw_text_centered(c, &font_text, 14, baseline, text, t->accent, 0);
+        x = 36;
+    }
+    char text[24] = "--" DEGREE "C";
+    const reading_t *outside = &s->readings[SIG_AMBIENT];
+    if (!reading_is_stale(outside, now_ms, SLOW_STALE_MS)) {
         snprintf(text, sizeof text, "%.0f" DEGREE "C", (double)outside->value);
     }
-    draw_strip_cell(c, gear_w, cell, baseline, text, t->label);
+    gfx_text(c, &font_text, x, baseline, text, t->label, 0);
 
     const reading_t *odometer = &s->readings[SIG_ODOMETER];
-    bool odo = !reading_is_stale(odometer, now_ms, SLOW_STALE_MS);
-    snprintf(text, sizeof text, odo ? "%.0f km" : "%.1f km", (double)(odo ? odometer->value : s->trip_km));
-    draw_strip_cell(c, gear_w + cell, c->width - gear_w - cell, baseline, text, t->label);
+    if (!reading_is_stale(odometer, now_ms, SLOW_STALE_MS)) {
+        odometer_text(odometer->value, text);
+    } else {
+        snprintf(text, sizeof text, "%.1f km", (double)s->trip_km);
+    }
+    draw_text_right(c, &font_text, c->width - 4, baseline, text, t->label, 0);
 }

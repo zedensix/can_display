@@ -79,10 +79,12 @@ class Pages(internal val d: Draw) {
     // A gauge as a row: its label, its value on the right, a bar under.
     internal fun row(c: Canvas, x: Float, y: Float, w: Float, g: Gauge, r: Readings, now: Long) {
         val v = g.value(r)
-        if (inDanger(g, r, v) && blinkOn(now, DANGER_BLINK_MS)) d.rect(c, x - 8, y - 6, w + 16, 62f, Colors.ALARM, 6f)
-        d.text(c, g.short, x, y + 30, 17f, Weight.SEMIBOLD, Colors.LABEL, spacing = 2.5f)
-        d.text(c, g.unit, x + w - 22, y + 30, 18f, Weight.SEMIBOLD, Colors.DIM)
-        d.text(c, g.text(v), x + w - 25, y + 30, 40f, Weight.BOLD, color(g, r, v), Align.RIGHT)
+        // Lit, a row in danger turns red, its text light on it.
+        val alarm = inDanger(g, r, v) && blinkOn(now, DANGER_BLINK_MS)
+        if (alarm) d.rect(c, x - 8, y - 6, w + 16, 62f, Colors.ALARM, 6f)
+        d.text(c, g.short, x, y + 30, 17f, Weight.SEMIBOLD, if (alarm) Colors.ALARM_TEXT else Colors.LABEL, spacing = 2.5f)
+        d.text(c, g.unit, x + w - 22, y + 30, 18f, Weight.SEMIBOLD, if (alarm) Colors.ALARM_TEXT else Colors.DIM)
+        d.text(c, g.text(v), x + w - 25, y + 30, 40f, Weight.BOLD, if (alarm) Colors.ALARM_TEXT else color(g, r, v), Align.RIGHT)
         d.bar(c, x, y + 40, w, 30, g.range, v)
     }
 

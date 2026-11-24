@@ -13,7 +13,7 @@
 #define CAR_H 210
 // How far a door swings out, degrees.
 #define DOOR_SWING 42
-#define BUTTON_H 26
+#define BUTTON_H 30
 
 // draw_door_ajar draws a door swung out from its hinge at x, y (the
 // front end of the opening), len long, side -1 left, 1 right: a line of

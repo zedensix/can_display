@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "types": ["bun", "web-bluetooth"]
   },
-  "include": ["web", "tools", "faceplate"]
+  "include": ["web", "tools", "faceplate", "pico/tools"]
 }

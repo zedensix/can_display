@@ -56,10 +56,5 @@
             </intent-filter>
         </activity>
 
-        <!-- The phone's settings page, kept through a turn as well. -->
-        <activity
-            android:name=".SettingsActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
-            android:exported="false" />
     </application>
 </manifest>

@@ -198,9 +198,9 @@ this one's were found.
 
 ## License
 
-MIT ([LICENSE](LICENSE)), except the font data in `pico/src/app/ui/fonts.c`: FreeSans Bold from
-GNU FreeFont, GPLv3 with the font exception; and the Android app's Barlow Condensed
-(`android/app/src/main/res/font`), SIL Open Font License 1.1 (`android/app/src/main/assets/OFL.txt`), and its icons, Material
+MIT ([LICENSE](LICENSE)), except Barlow Condensed, the Android app's
+(`android/app/src/main/res/font`) and the dash's font data generated from it (`pico/src/app/ui/fonts.c`),
+SIL Open Font License 1.1 (`android/app/src/main/assets/OFL.txt`); and the app's icons, Material
 Symbols, Apache 2.0. The 86 logo (`86.png`, `pico/src/app/ui/logo.c`) is
 Toyota's trademark, not covered by the MIT license. The screensaver's other logos, the car's
 parts' makers', aren't in the repository: `mise run logos` builds them in from your own

@@ -13,6 +13,7 @@
 - [x] Ethanol without wiring: three "Scan ECU RAM" runs found it at 0xFFF87C7C, matching OFT (the scan went with the dongle)
 - [x] Stability control modes: two Listen CAN runs found 0x0D3 (byte 0 bit 5 TRC off, byte 0 bit 3 VSC sport, byte 3 bit 0 cleared with everything off); Listen CAN removed since (in `48b9d51`)
 - [x] Scan ECU RAM: a Cancel button while it runs
+- [ ] Check on the panel the new look (the Android app's, anti-aliased, Barlow Condensed): the frame rate on every page (the dials' anti-aliased segments cost more than the old squares; the knob should still answer at once), the text readable from the seat in the sun, both orientations
 - [ ] Check in the car: each of the 5 modes shows its badge, matching the cluster's lamps
 - [ ] Check in the car: each reading the MCP2515 asks for against what's expected (pedal 0 to 100%, timing that drops on a pull, rail around 4 to 20 MPa, speed against the car's), the limiter flash from 7300 rpm
 - [ ] Check in the car: the gear shown in each gear (and N with the clutch in), the outside temperature against the car's own, every screen in landscape on the panel itself (MADCTL MV)

@@ -41,7 +41,7 @@ repos:
         name: bun check
         entry: bun check --no-script
         language: system
-        files: ^(web|tools|faceplate)/.*\.(ts|svelte)$|^tsconfig\.json$
+        files: ^(web|tools|faceplate|pico/tools)/.*\.(ts|svelte)$|^tsconfig\.json$
         pass_filenames: false
       # The web page's log store and parser (bun test).
       - id: web-tests

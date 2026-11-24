@@ -26,6 +26,10 @@ class Dash(context: Context) {
         view = (view + GAUGES.size) % (1 + GAUGES.size)
     }
 
+    fun home() {
+        view = 0
+    }
+
     // A frame from what's there: the made-up readings in demo, else the
     // dash's, else what the link waits for. Returns whether it drew the
     // gauges.

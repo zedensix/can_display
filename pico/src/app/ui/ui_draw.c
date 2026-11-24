@@ -3,14 +3,14 @@
 
 #include "ui_internal.h"
 
-const font_t *const label_font = &font_bold9;
-
-void draw_segment_bar(canvas_t *c, int x, int y, int w, int h, int count, const color_t colors[]) {
-    const int gap = 2;
-    int seg = (w + gap) / count;
-    x += (w - (seg * count - gap)) / 2;
+// The segments' edges on fractional pixels, anti-aliased: a whole number
+// each would leave the bar short or uneven.
+void draw_segment_bar(canvas_t *c, int x, int y, int w, int h, int count, int gap, const color_t colors[]) {
+    float seg = (float)(w + gap) / (float)count;
     for (int i = 0; i < count; i++) {
-        gfx_fill_rect(c, x + i * seg, y, seg - gap, h, colors[i]);
+        float x0 = (float)x + (float)i * seg, x1 = x0 + seg - (float)gap;
+        float xs[] = {x0, x1, x1, x0}, ys[] = {(float)y, (float)y, (float)(y + h), (float)(y + h)};
+        gfx_fill_polygon(c, xs, ys, 4, colors[i]);
     }
 }
 
@@ -21,8 +21,12 @@ void draw_outline(canvas_t *c, int x, int y, int w, int h, color_t color) {
     gfx_fill_rect(c, x + w - 1, y, 1, h, color);
 }
 
-void draw_text_centered(canvas_t *c, const font_t *font, int cx, int y, const char *s, color_t color, int scale) {
-    gfx_text(c, font, cx - gfx_text_width(font, s) * scale / 2, y, s, color, scale);
+void draw_text_centered(canvas_t *c, const font_t *font, int cx, int y, const char *s, color_t color, int spacing) {
+    gfx_text(c, font, cx - gfx_text_width(font, s, spacing) / 2, y, s, color, spacing);
+}
+
+void draw_text_right(canvas_t *c, const font_t *font, int right, int y, const char *s, color_t color, int spacing) {
+    gfx_text(c, font, right - gfx_text_width(font, s, spacing), y, s, color, spacing);
 }
 
 #define ALARM_BLINK_MS 250
@@ -31,13 +35,29 @@ bool alarm_blink_lit(uint32_t now_ms) {
     return now_ms / ALARM_BLINK_MS % 2 == 0;
 }
 
-void draw_text_fitting(canvas_t *c, int cx, int y, int max_width, const char *s, color_t color) {
-    static const font_t *const fonts[] = {&font_bold24, &font_bold18, &font_bold12, &font_bold9};
+void draw_text_fitting(canvas_t *c, int cx, int y, int max_width, const char *s, color_t color, int spacing) {
+    static const font_t *const fonts[] = {&font_large, &font_value, &font_text, &font_small};
     int i = 0;
-    while (i < 3 && gfx_text_width(fonts[i], s) > max_width) {
+    while (i < 3 && gfx_text_width(fonts[i], s, spacing) > max_width) {
         i++;
     }
-    draw_text_centered(c, fonts[i], cx, y, s, color, 1);
+    draw_text_centered(c, fonts[i], cx, y, s, color, spacing);
+}
+
+// Pieces of at most ARC_PIECE degrees, each a quad (the arc's chord off
+// by under a tenth of a pixel), overlapping a little: no seam between.
+#define ARC_PIECE 6.0f
+
+void fill_arc(canvas_t *c, float cx, float cy, float r_in, float r_out, float a0, float a1, color_t color) {
+    int pieces = (int)((a1 - a0) / ARC_PIECE) + 1;
+    float step = (a1 - a0) / (float)pieces;
+    for (int i = 0; i < pieces; i++) {
+        float from = (a0 + (float)i * step) * PI / 180,
+              to = (a0 + (float)(i + 1) * step + (i + 1 < pieces ? 0.3f : 0)) * PI / 180;
+        float xs[] = {cx + r_in * cosf(from), cx + r_out * cosf(from), cx + r_out * cosf(to), cx + r_in * cosf(to)};
+        float ys[] = {cy + r_in * sinf(from), cy + r_out * sinf(from), cy + r_out * sinf(to), cy + r_in * sinf(to)};
+        gfx_fill_polygon(c, xs, ys, 4, color);
+    }
 }
 
 // round_corners draws every pixel of a radius r corner, with its
@@ -73,6 +93,11 @@ void fill_round_rect(canvas_t *c, int x, int y, int w, int h, int r, color_t col
     gfx_fill_rect(c, x, y + r, r, h - 2 * r, color);
     gfx_fill_rect(c, x + w - r, y + r, r, h - 2 * r, color);
     round_corners(c, x, y, w, h, r, color, bg, false);
+}
+
+void stroke_round_rect(canvas_t *c, int x, int y, int w, int h, int r, int width, color_t color, color_t bg) {
+    fill_round_rect(c, x, y, w, h, r, color, bg);
+    fill_round_rect(c, x + width, y + width, w - 2 * width, h - 2 * width, r > width ? r - width : 0, bg, color);
 }
 
 void outline_round_rect(canvas_t *c, int x, int y, int w, int h, int r, color_t color, color_t bg) {
@@ -122,7 +147,7 @@ void draw_button(canvas_t *c, const theme_t *t, int x, int y, int w, int h, icon
     color_t ink = chosen ? t->background : t->accent;
     // The icon and the label centered together, 6px apart.
     int icon_w = (int)strlen(icon_rows[icon][0]), ih = icon_height(icon);
-    int total = icon_w + 6 + gfx_text_width(label_font, label), left = x + (w - total) / 2;
+    int total = icon_w + 6 + gfx_text_width(&font_text, label, 0), left = x + (w - total) / 2;
     draw_icon(c, icon, left, y + (h - ih) / 2, ink);
-    gfx_text(c, label_font, left + icon_w + 6, y + h / 2 + 5, label, ink, 1);
+    gfx_text(c, &font_text, left + icon_w + 6, y + (h + font_text.cap) / 2, label, ink, 0);
 }
