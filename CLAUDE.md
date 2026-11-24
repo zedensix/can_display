@@ -31,7 +31,7 @@ mise run android:build # the Android Auto app's debug APK (android/, Gradle from
 mise run android:flash # build and install the app on the phone (the first one adb sees, USB or Wi-Fi debugging, emulators skipped) and open it
 mise run android:run [scene [view]] # build, install on the phone or emulator (adb) and open its preview; a scene (street, track, race, cold, alarm, stale) holds fixed readings, for screenshots (adb exec-out screencap -p)
 mise run android:test  # the app's unit tests (the live frame's decoder against the dash's bytes)
-mise run android:dhu   # the desktop head unit (Android Auto on the laptop) from the phone on USB, its head unit server started in Android Auto's developer settings
+mise run android:dhu [screen] # the desktop head unit (Android Auto on the laptop) from the phone on USB, its head unit server started in Android Auto's developer settings; screen one of its configs (720p unless given, 1080p, default 800x480, wide, 6in) or an .ini (resolution 800x480, 1280x720 or 1920x1080, marginwidth/marginheight for other shapes)
 mise install         # the pinned tools, then the git hooks (`prek install`, mise.toml's postinstall): clang-format, biome, `bun check` (types: never a package.json `check` script, which would shadow it), web and host tests
 prek run --all-files # every hook on every tracked file
 ```

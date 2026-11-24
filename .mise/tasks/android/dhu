@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
-#MISE description="Open the desktop head unit, Android Auto on the laptop, from the phone on USB: Android Auto's developer settings, 'Start head unit server' first"
+#MISE description="Open the desktop head unit, Android Auto on the laptop, from the phone on USB: Android Auto's developer settings, 'Start head unit server' first; a screen to simulate, 720p unless given"
 #MISE depends=["android:sdk"]
+#USAGE arg "[screen]" help="One of the head unit's configs: 720p (the default), 1080p, default (800x480), wide (1280x720 less 220 high), 6in (800x480 less margins); or an .ini of your own"
 set -euo pipefail
+
+configs="$ANDROID_HOME/extras/google/auto/config"
+screen="${usage_screen:-${1:-720p}}"
+case "$screen" in
+  *.ini) config="$screen" ;;
+  default) config="$configs/default.ini" ;;
+  *) config="$configs/default_$screen.ini" ;;
+esac
+[ -f "$config" ] || { echo "no config $config: default, 720p, 1080p, wide, 6in, or a path to an .ini" >&2; exit 1; }
 adb forward tcp:5277 tcp:5277
-"$ANDROID_HOME/extras/google/auto/desktop-head-unit"
+"$ANDROID_HOME/extras/google/auto/desktop-head-unit" -c "$config"
