@@ -7,9 +7,9 @@
 <script lang="ts">
   import type { Config } from "../../faceplate/shared/config";
   import DimensionCard from "./DimensionCard.svelte";
+  import { boardCard, type Printed, printedCard } from "./dimensions/cards_boards";
   import { displayCard } from "./dimensions/cards_display";
   import { encoderCard } from "./dimensions/cards_encoder";
-  import { boardCard, converterCard, type Printed, printedCard } from "./dimensions/cards_tray";
 
   type Dimensions = { config: Config; checked: Record<string, number>; printed: Printed };
 
@@ -39,26 +39,23 @@
     const { config: c, printed } = dimensions;
     return [
       displayCard(c.display),
-      encoderCard(c.encoder, c.screw, printed.plateThickness, printed.encoderBoard),
+      encoderCard(c.encoder, printed.frontThickness, printed.encoderBoard),
       boardCard(
         "pico",
         "Raspberry Pi Pico W",
-        "Seen from the back of the tray, components out, its pins through the tray",
+        "Behind the display, on 4 standoffs on the lid, either way up",
         c.boards.pico,
-        c.tray,
-        printed.pilots.pico,
+        c.boards.pico.holeDiameter - 2 * c.clearance,
         "#1f7a3c",
       ),
       boardCard(
         "mcp2515",
         "MCP2515 + TJA1050",
-        "Seen from the back of the tray",
+        "At one end of the bar, on 4 standoffs on its front",
         c.boards.mcp2515,
-        c.tray,
-        printed.pilots.mcp2515,
+        c.boards.mcp2515.holeDiameter - 2 * c.clearance,
         "#1e40af",
       ),
-      converterCard(c.converter),
       printedCard(c, printed),
     ];
   });

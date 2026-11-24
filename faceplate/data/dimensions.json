@@ -18,9 +18,12 @@
       "solderRowWidth": 20,
       "solderHeight": 1.5
     },
-    "screw": {
-      "pilotDiameter": 1.7,
-      "m3PilotDiameter": 2.5
+    "front": {
+      "skin": 1.2
+    },
+    "window": {
+      "margin": 0.5,
+      "chamfer": 0.8
     },
     "encoder": {
       "bushingDiameter": 7,
@@ -36,41 +39,9 @@
       "holesFromShaft": 7.9,
       "holesTowardPins": 2,
       "standoffDiameter": 5,
-      "pinsDepth": 0,
       "pinsFromShaft": 13,
       "boardLength": 30,
       "boardWidth": 18.5
-    },
-    "plate": {
-      "frontSkin": 1.2,
-      "margin": 8,
-      "cornerRadius": 3
-    },
-    "rim": {
-      "height": 2,
-      "width": 2
-    },
-    "window": {
-      "margin": 0.5,
-      "chamfer": 0.8
-    },
-    "tray": {
-      "thickness": 2.5,
-      "gap": 20,
-      "postDiameter": 6.5,
-      "screwPilot": 2.5,
-      "screwClearance": 3.4,
-      "standoffWall": 1.8
-    },
-    "vent": {
-      "standoff": 20,
-      "slatThickness": 2,
-      "slatDepth": 12,
-      "slatGap": 8,
-      "legThickness": 3,
-      "legWidth": 12,
-      "wheelDiameter": 14,
-      "feetLength": 20
     },
     "boards": {
       "pico": {
@@ -79,11 +50,6 @@
         "holesApartX": 47,
         "holesApartY": 11.2,
         "holeDiameter": 2.2,
-        "center": [
-          0,
-          -12.5
-        ],
-        "standoffHeight": 3,
         "usbSocketWidth": 8,
         "usbSocketDepth": 6
       },
@@ -92,57 +58,10 @@
         "length": 28,
         "holesApartX": 35,
         "holesApartY": 23,
-        "holeDiameter": 3.5,
-        "center": [
-          0,
-          -70
-        ],
-        "standoffHeight": 5
+        "holeDiameter": 3.5
       }
     },
-    "converter": {
-      "fromTop": 39.5,
-      "length": 46,
-      "width": 27.5,
-      "height": 14,
-      "earLength": 14,
-      "earWidthAtBox": 13,
-      "earWidthAtEnd": 10,
-      "earSlotWidth": 5,
-      "earSlotDepth": 7
-    },
-    "pod": {
-      "bodyDiameter": 83,
-      "lipDiameter": 73,
-      "lipLength": 2.2,
-      "depth": 24.5,
-      "earWidth": 3,
-      "earOut": 1.5,
-      "earThickness": 2.5,
-      "wall": 2,
-      "displayY": 2,
-      "shaftY": -24,
-      "canDiameter": 52,
-      "canWall": 1.6,
-      "canBandLength": 8,
-      "canBandWall": 2.5,
-      "capThickness": 2.5,
-      "cableHole": 9,
-      "spigotLength": 4,
-      "spigotWall": 3,
-      "screwHead": 6,
-      "plateThickness": 3,
-      "ribDepth": 1.4,
-      "ribWidth": 1.2,
-      "zipSlotWidth": 3,
-      "zipSlotLength": 5,
-      "notchDepth": 5,
-      "notchLength": 8,
-      "gap": 4,
-      "ventCell": 1.8,
-      "ventWall": 0.8
-    },
-    "head": {
+    "enclosure": {
       "wall": 1.6,
       "cornerRadius": 3,
       "picoComponents": 5.5,
@@ -155,16 +74,11 @@
       "stakeNearUsb": 0.6,
       "lidThickness": 1.2,
       "tabWidth": 10,
-      "tabThickness": 1,
       "tabLength": 8.5,
-      "hookDepth": 1,
       "hookLength": 1.2,
       "usbSlotWidth": 12,
-      "usbSlotHeight": 8,
       "cableHole": 7,
-      "cableSlotLength": 16,
-      "ventCell": 1.8,
-      "ventWall": 0.8
+      "cableSlotLength": 16
     },
     "bar": {
       "frontWall": 1.6,
@@ -181,16 +95,11 @@
       "bumpDepth": 0.6,
       "ventWidth": 3,
       "ventPitch": 8,
-      "shroudSag": 5,
-      "gaugeSags": [
-        1,
-        1.5,
-        2,
-        2.5,
-        3
-      ],
-      "gaugeHeight": 8,
-      "gaugeThickness": 2
+      "baseThickness": 2,
+      "baseLip": 3,
+      "baseLipFront": 3,
+      "baseLipBack": 4,
+      "shroudSag": 5
     },
     "clearance": 0.3
   },
@@ -210,14 +119,6 @@
     "boards.mcp2515.length": 28,
     "boards.mcp2515.holesApartX": 35,
     "boards.mcp2515.holesApartY": 23,
-    "converter.length": 46,
-    "converter.width": 27.5,
-    "converter.height": 14,
-    "converter.earLength": 14,
-    "converter.earWidthAtBox": 13,
-    "converter.earWidthAtEnd": 10,
-    "converter.earSlotWidth": 5,
-    "converter.earSlotDepth": 7,
     "display.pcbThickness": 1.2,
     "display.holesApartX": 30.5,
     "display.holesApartY": 53,
@@ -237,40 +138,25 @@
     "encoder.belowDisplay": 16,
     "boards.pico.usbSocketDepth": 6,
     "clearance": 0.3,
-    "tray.gap": 20,
     "boards.pico.holeDiameter": 2.2,
     "boards.mcp2515.holeDiameter": 3.5,
     "encoder.nutThickness": 0,
     "encoder.bushingLength": 6,
-    "encoder.pinsDepth": 0,
     "encoder.boardWidth": 18.5,
     "encoder.boardLength": 30,
     "encoder.pinsFromShaft": 13,
-    "encoder.panelThickness": 1,
-    "boards.mcp2515.standoffHeight": 5
+    "encoder.panelThickness": 1
   },
   "printed": {
-    "plateThickness": 5.4,
-    "outlineWidth": 54.1,
-    "outlineHeight": 96.85,
+    "frontThickness": 5.4,
     "encoderBoard": [
       -15,
       15
-    ],
-    "depth": 27.9,
-    "head": [
-      61.800000000000004,
-      41.300000000000004,
-      19.099999999999998
     ],
     "bar": [
       163.79999999999998,
       46.300000000000004,
       34.099999999999994
-    ],
-    "pilots": {
-      "pico": 1.7,
-      "mcp2515": 2.5
-    }
+    ]
   }
 }

@@ -91,7 +91,7 @@ an https reverse proxy: Web Bluetooth needs https, and the proxy is what asks wh
 | KY-040 rotary encoder (EC11) | turn, click, hold | wired on its own legs, the Pico's pull-ups |
 | MCP2515 + TJA1050 CAN module | the car's data | on OBD pins 6 and 14, its SO through a resistor divider (5V to 3.3V) |
 | 12V to 5V converter | power | from a switched 12V, into the Pico's USB socket |
-| Printed faceplate and tray | holding it all | modeled in code, see below |
+| Printed bar and its base | holding it all | modeled in code, see below |
 
 The full pin map and power: [docs/wiring.md](docs/wiring.md).
 
@@ -102,15 +102,15 @@ The full pin map and power: [docs/wiring.md](docs/wiring.md).
 ## The enclosure
 
 <p>
-  <img src="faceplate/plate/renders/assembly-front.png" width="32%" alt="The assembly from the front">
-  <img src="faceplate/plate/renders/assembly.png" width="32%" alt="The assembly from the back">
-  <img src="faceplate/plate/renders/assembly-side.png" width="32%" alt="The assembly from the side">
+  <img src="faceplate/bar/renders/bar-on-base.png" width="49%" alt="The bar on its base">
+  <img src="faceplate/bar/renders/bar-inside.png" width="49%" alt="The bar, the lid off">
 </p>
 
-A faceplate holds the display and the encoder; a tray behind it carries the Pico, the CAN
-board and the converter. Both are modeled in TypeScript (scad-js) from the modules' measured
-dimensions, print without supports, and come out as STLs with `mise run faceplate`. The
-wiring page's Dimensions tab is where the measurements go in. More in
+One long, thin box on the steering column's shroud: the display in the middle with the Pico
+behind it, the encoder and the CAN board either side. It clips into a base, the only part
+taped to the car. Modeled in TypeScript (scad-js) from the modules' measured dimensions, it
+prints without supports and comes out as STLs with `mise run faceplate`. The wiring page's
+Dimensions tab is where the measurements go in. More in
 [faceplate/README.md](faceplate/README.md).
 
 ## Getting started

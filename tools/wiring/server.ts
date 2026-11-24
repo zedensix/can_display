@@ -4,7 +4,7 @@
 // by `mise run faceplate`) and saves each dimension as you type it
 // through POST /measurements: it goes to faceplate/data/measured.json at
 // once, then `mise run faceplate` rebuilds the parts. If the model
-// refuses the values (a standoff off the tray, a hole in a pocket...),
+// refuses the values (a board past the walls, a pin in a pocket...),
 // they stay saved and the page shows why; GET /measurements reads them
 // back. GET /renders/<name>.png is a render of the parts.
 
@@ -15,7 +15,7 @@ import page from "./index.html";
 const root = resolve(import.meta.dir, "..", "..");
 const measuredPath = join(root, "faceplate", "data", "measured.json");
 const dimensionsPath = join(root, "faceplate", "data", "dimensions.json");
-const rendersDir = join(root, "faceplate", "plate", "renders");
+const rendersDir = join(root, "faceplate", "bar", "renders");
 const noStore = { "cache-control": "no-store" };
 
 /** Checks the page's values: known dimensions, plain non-negative numbers. */

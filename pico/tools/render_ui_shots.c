@@ -139,6 +139,13 @@ static void shot_coolant(canvas_t *c) {
     render_screen(c, &s, (screen_t){.view = 2});
 }
 
+// Its lowest and highest as wide as they get (13.9V 14.4V): they ran into
+// each other in landscape.
+static void shot_battery(canvas_t *c) {
+    state_t s = state_while_driving();
+    render_screen(c, &s, (screen_t){.view = 5});
+}
+
 const shot_t gauge_shots[] = {
     {"grid", shot_grid, false},
     {"alarms", shot_alarms, false},
@@ -158,6 +165,8 @@ const shot_t gauge_shots[] = {
     {"alarms_landscape", shot_alarms, true},
     {"track_landscape", shot_track_trc, true},
     {"oil_landscape", shot_oil, true},
+    {"battery", shot_battery, false},
+    {"battery_landscape", shot_battery, true},
     {"oil_critical_landscape", shot_oil_critical, true},
     {"limiter_landscape", shot_limiter, true},
 };

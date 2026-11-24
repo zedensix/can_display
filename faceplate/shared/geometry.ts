@@ -20,3 +20,6 @@ export const DUPONT_LENGTH = 14;
 export function box(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): ScadObject {
   return cube([x1 - x0, y1 - y0, z1 - z0], { center: false }).translate([x0, y0, z0]);
 }
+
+/** A keep-out rectangle, x0..x1 by y0..y1. */
+export type Rect = [number, number, number, number];

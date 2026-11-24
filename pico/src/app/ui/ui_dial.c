@@ -140,23 +140,35 @@ static int bands(const range_t *r, const theme_t *t, float from[], color_t color
     return count;
 }
 
-// The session's lowest and highest side by side, column apart, then
-// where each color starts, from x, top down: LEGEND_H high.
+// The session's lowest and highest side by side, at least column apart,
+// then where each color starts, from x, top down: LEGEND_H high. The
+// values in font_value, or font_text when both don't fit before right
+// (14.2V 14.5V, in landscape).
 static void legend(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int top, int column, int right,
                    const reading_t *r) {
     const char *unit = strcmp(tile->unit, DEGREE "C") == 0 ? DEGREE : tile->unit;
-    for (int i = 0; i < 2; i++) {
-        int left = x + i * column;
-        gfx_text(c, &font_small, left, top + font_small.cap, i ? "MAX" : "MIN", t->dim, 1);
-        char value[24] = "--";
-        color_t color = t->dim;
-        if (r->valid) {
-            char number[16];
-            tile_number(tile, i ? r->max : r->min, number);
-            snprintf(value, sizeof value, "%s%s", number, unit);
-            color = i ? band_color(&tile->range, r->max, t) : t->cold;
+    char values[2][24] = {"--", "--"};
+    color_t value_colors[2] = {t->dim, t->dim};
+    for (int i = 0; i < 2 && r->valid; i++) {
+        char number[16];
+        tile_number(tile, i ? r->max : r->min, number);
+        snprintf(values[i], sizeof values[i], "%s%s", number, unit);
+        value_colors[i] = i ? band_color(&tile->range, r->max, t) : t->cold;
+    }
+    const font_t *font = &font_value;
+    int max_x = 0;
+    for (int f = 0; f < 2; f++) {
+        font = f ? &font_text : &font_value;
+        int min_w = gfx_text_width(font, values[0], 0) + 10;
+        max_x = x + (min_w > column ? min_w : column);
+        if (max_x + gfx_text_width(font, values[1], 0) <= right) {
+            break;
         }
-        gfx_text(c, &font_value, left, top + font_small.cap + 5 + font_value.cap, value, color, 0);
+    }
+    for (int i = 0; i < 2; i++) {
+        int left = i ? max_x : x;
+        gfx_text(c, &font_small, left, top + font_small.cap, i ? "MAX" : "MIN", t->dim, 1);
+        gfx_text(c, font, left, top + font_small.cap + 5 + font_value.cap, values[i], value_colors[i], 0);
     }
     int line = top + font_small.cap + 5 + font_value.cap + 7;
     gfx_fill_rect(c, x, line, right - x, 1, t->frame);

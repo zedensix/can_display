@@ -1,5 +1,5 @@
 // The Dimensions tab's display card: the board, its panel and lit area,
-// the solder joints the plate is relieved under.
+// the solder joints the front is relieved under.
 
 import type { Config } from "../../../faceplate/shared/config";
 import { type CardSpec, HOLE, PCB, partDrawing } from "./drawing";

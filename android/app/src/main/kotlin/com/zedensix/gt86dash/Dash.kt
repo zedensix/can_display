@@ -60,12 +60,19 @@ class Dash(context: Context) {
         pages.h = if (portrait(area)) PORTRAIT_H else H
     }
 
+    // How far the design's pixels scale up to fit area, its margins included.
+    fun scale(area: Rect): Float {
+        val w = if (portrait(area)) PORTRAIT_W else W
+        val h = if (portrait(area)) PORTRAIT_H else H
+        return min(area.width() / (w + 32), area.height() / (h + 20))
+    }
+
     // Draws in the design's pixels, scaled into area and centered. The
     // design's margins around it: 16 on the sides, 10 above and below.
     private fun place(c: Canvas, area: Rect, draw: () -> Unit) {
         val w = pages.w
         val h = pages.h
-        val scale = min(area.width() / (w + 32), area.height() / (h + 20))
+        val scale = scale(area)
         c.save()
         c.translate(area.left + (area.width() - w * scale) / 2, area.top + (area.height() - h * scale) / 2)
         c.scale(scale, scale)

@@ -1,13 +1,12 @@
 // The Dimensions tab's encoder card: the body in its recess, the board on
-// its standoffs, the shaft through the plate.
+// its standoffs, the shaft through the front.
 
 import type { Config } from "../../../faceplate/shared/config";
 import { type CardSpec, HOLE, partDrawing } from "./drawing";
 
 export function encoderCard(
   e: Config["encoder"],
-  screw: Config["screw"],
-  plateThickness: number,
+  frontThickness: number,
   [boardLeft, boardRight]: [number, number],
 ): CardSpec {
   const [x0, x1] = [-1, 1].map((s) => (s * e.holeSpacing) / 2 + e.holesTowardPins);
@@ -21,7 +20,7 @@ export function encoderCard(
   const r = e.standoffDiameter / 2;
   const STANDOFF_KEYS = "encoder.holeSpacing encoder.holesFromShaft encoder.holesTowardPins encoder.standoffDiameter";
   const BOARD_KEYS = "encoder.boardLength encoder.boardWidth";
-  const PIN_KEYS = "encoder.pinsFromShaft encoder.pinsDepth";
+  const PIN_KEYS = "encoder.pinsFromShaft";
   const pinYs = [-2, -1, 0, 1, 2].map((i) => i * 2.54);
   const top = Math.max(y1 + r + 8, e.belowDisplay + 4, e.boardWidth / 2 + 4);
   const left = Math.min(x0 - r - 7, boardLeft - 5);
@@ -53,7 +52,7 @@ export function encoderCard(
       });
       for (const [x, y] of standoffs) {
         g.circle(x, y, r, { fill: "#e7e5e4", stroke: "#57534e", "stroke-width": 0.25, key: STANDOFF_KEYS });
-        g.circle(x, y, screw.pilotDiameter / 2, HOLE);
+        g.circle(x, y, e.holeDiameter / 2, HOLE);
       }
       g.across(x0, x1, y1 + r + 2, x1 - x0, { key: "encoder.holeSpacing" });
       g.along(0, y1, x0 - r - 2, y1, { key: "encoder.holesFromShaft" });
@@ -102,19 +101,10 @@ export function encoderCard(
     "Side, through the shaft (front down)",
     [-wide - 4, shaftEnd - 3, wide + 4, boardZ + 9],
     (g) => {
-      g.rect(-wide, 0, wide - recess, plateThickness, { fill: "#e7e5e4", stroke: "#a8a29e", "stroke-width": 0.2 });
-      g.rect(recess, 0, wide - recess, plateThickness, { fill: "#e7e5e4", stroke: "#a8a29e", "stroke-width": 0.2 });
-      // Header on the knob side: a channel out to the plate's edge, down to a skin at the front, if the pins reach the plate.
-      if (e.pinsDepth > 0 && boardZ - e.pinsDepth < plateThickness)
-        g.rect(
-          e.pinsFromShaft - 1.6,
-          boardZ - e.pinsDepth,
-          wide - e.pinsFromShaft + 1.6,
-          plateThickness - boardZ + e.pinsDepth,
-          { fill: "#fffdf8", stroke: "#a8a29e", "stroke-width": 0.2, key: PIN_KEYS },
-        );
-      // The pins, bent outward along the board: under it on the knob side, else on its back.
-      const bend = e.pinsDepth > 0 ? boardZ - 3.8 : boardZ + 1.6 + 3.5;
+      g.rect(-wide, 0, wide - recess, frontThickness, { fill: "#e7e5e4", stroke: "#a8a29e", "stroke-width": 0.2 });
+      g.rect(recess, 0, wide - recess, frontThickness, { fill: "#e7e5e4", stroke: "#a8a29e", "stroke-width": 0.2 });
+      // The pins, bent outward along the board's back.
+      const bend = boardZ + 1.6 + 3.5;
       g.rect(e.pinsFromShaft - 0.32, Math.min(bend, boardZ - 1), 0.64, Math.abs(bend - boardZ) + 2.6, {
         fill: "#d4a017",
         key: PIN_KEYS,
@@ -127,7 +117,7 @@ export function encoderCard(
         key: "encoder.panelThickness",
       });
       for (const x of [x0, x1])
-        g.rect(x - r, plateThickness, 2 * r, boardZ - plateThickness, {
+        g.rect(x - r, frontThickness, 2 * r, boardZ - frontThickness, {
           fill: "#e7e5e4",
           stroke: "#57534e",
           "stroke-width": 0.2,
@@ -167,16 +157,11 @@ export function encoderCard(
         hover: true,
       });
       g.along(0, panel, recess + 2, panel, { key: "encoder.panelThickness", hover: true });
-      if (e.pinsDepth > 0)
-        g.along(boardZ - e.pinsDepth, boardZ, e.pinsFromShaft - 3, e.pinsDepth, {
-          key: "encoder.pinsDepth",
-          hover: true,
-        });
     },
   );
   return {
     title: "KY-040 encoder",
-    sub: `The body in its recess, the board on 4 standoffs (2 under its holes, 2 opposite), ${e.pinsDepth > 0 ? "its pins under it in a channel out to the edge" : "its pins on its back"}${e.nutThickness ? ", a nut on the collar from the front" : ": its screws alone hold it, no nut"}`,
+    sub: `The body in its recess, the board on 4 standoffs (2 with a heat-staked pin through its holes, 2 opposite)${e.nutThickness ? ", a nut on the collar from the front" : ": its pins alone hold it, no nut"}`,
     drawings: [back, side],
     rows: [
       ["Collar around the shaft, diameter (threaded or not)", e.bushingDiameter, "encoder.bushingDiameter"],
@@ -190,16 +175,11 @@ export function encoderCard(
       ["Holes from the shaft's center", e.holesFromShaft, "encoder.holesFromShaft"],
       ["Holes' midpoint from the shaft, toward the pins", e.holesTowardPins, "encoder.holesTowardPins"],
       ["Standoff diameter", e.standoffDiameter, "encoder.standoffDiameter"],
-      ["Plate at the encoder", e.panelThickness, "encoder.panelThickness"],
+      ["Front at the encoder", e.panelThickness, "encoder.panelThickness"],
       ["Shaft below the display board", e.belowDisplay, "encoder.belowDisplay"],
       ["Board length, pins' end to the other", e.boardLength, "encoder.boardLength"],
       ["Board width, along the pin row", e.boardWidth, "encoder.boardWidth"],
       ["Pin row from the shaft's center", e.pinsFromShaft, "encoder.pinsFromShaft"],
-      [
-        "Room under the board for the pins and plugs, knob side (0: header on the back)",
-        e.pinsDepth,
-        "encoder.pinsDepth",
-      ],
     ],
   };
 }

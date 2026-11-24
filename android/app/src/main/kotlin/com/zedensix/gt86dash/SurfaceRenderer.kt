@@ -24,6 +24,9 @@ class SurfaceRenderer(private val carContext: CarContext, lifecycle: Lifecycle) 
     private var visible: Rect? = null
     private val started = SystemClock.uptimeMillis()
 
+    // How many buttons the action strip shows, for area().
+    var actions = 3
+
     private val frame = object : Runnable {
         override fun run() {
             draw()
@@ -62,13 +65,28 @@ class SurfaceRenderer(private val carContext: CarContext, lifecycle: Lifecycle) 
         surface = null
     }
 
+    // Where to draw. Android Auto's visible area leaves out the whole band
+    // under its action strip, though the strip only takes the right end of
+    // it: the landscape pages, as tall as the area lets them, got 2/3 of
+    // the screen's height on a Pioneer. They get the band back when that
+    // makes them bigger, kept left of the strip: its buttons are about
+    // 1.1 bands apart, half a band from the edge (read off that Pioneer).
+    private fun area(): Rect {
+        val v = visible ?: return size
+        val band = v.top - size.top
+        if (band <= 0) return v
+        val strip = (band * (1.1f * actions + 0.5f)).toInt()
+        val tall = Rect(v.left, size.top, v.right - strip, v.bottom)
+        return if (dash.scale(tall) > dash.scale(v)) tall else v
+    }
+
     private fun draw() {
         val s = surface ?: return
         if (!s.isValid) return
         val now = SystemClock.uptimeMillis() - started
         val canvas = s.lockHardwareCanvas()
         try {
-            dash.frame(canvas, visible ?: size, now)
+            dash.frame(canvas, area(), now)
         } finally {
             s.unlockCanvasAndPost(canvas)
         }

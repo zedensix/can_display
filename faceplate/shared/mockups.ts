@@ -1,13 +1,13 @@
 // The modules as they sit once assembled, for the assembly pictures only
-// (never printed): the display and the encoder in the faceplate's frame
-// (plate/mockups.ts has the tray's boards). Outlines, faces and
+// (never printed): the display and the encoder in the front's frame
+// (front.ts). Outlines, faces and
 // connectors come from config.ts; the small parts (chips, the MCP2515's
 // crystal and terminal) are only placed roughly, to show which face is
 // which.
 
 import type { ScadObject } from "scad-js";
 import { cylinder, union } from "scad-js";
-import type { Faceplate } from "../plate/faceplate";
+import type { Front } from "../shared/front";
 import type { Config } from "./config";
 import { box, DUPONT_LENGTH, ENCODER_PINS, HEADER_PINS, HEADER_PLASTIC, PITCH } from "./geometry";
 
@@ -40,28 +40,23 @@ export function plugRow(count: number, x: number, y: number, z0: number, z1: num
 }
 
 /** The display in its pockets: the panel lit, the board, the solder joints at both ends, the header's pins out the back. */
-export function display(c: Config, faceplate: Faceplate): ScadObject {
-  const { display: d, plate } = c;
-  const boardFront = plate.frontSkin + d.glassThickness;
+export function display(c: Config, front: Front): ScadObject {
+  const { display: d, front: f } = c;
+  const boardFront = f.skin + d.glassThickness;
   const boardBack = boardFront + d.pcbThickness;
-  // The header at the board's top end, toward the plate's outer edge, away from the encoder.
+  // The header at the board's top end, away from the encoder.
   const headerY = -2;
   return union(
-    box(
-      -d.glassWidth / 2,
-      d.glassWidth / 2,
-      faceplate.glassTop - d.glassLength,
-      faceplate.glassTop,
-      plate.frontSkin,
-      boardFront,
-    ).color("black"),
+    box(-d.glassWidth / 2, d.glassWidth / 2, front.glassTop - d.glassLength, front.glassTop, f.skin, boardFront).color(
+      "black",
+    ),
     box(
       -d.activeWidth / 2,
       d.activeWidth / 2,
-      faceplate.activeTop - d.activeLength,
-      faceplate.activeTop,
-      plate.frontSkin - 0.05,
-      plate.frontSkin,
+      front.activeTop - d.activeLength,
+      front.activeTop,
+      f.skin - 0.05,
+      f.skin,
     ).color("orangered"),
     box(-d.pcbWidth / 2, d.pcbWidth / 2, -d.pcbLength, 0, boardFront, boardBack).color("royalblue"),
     ...[headerY, -d.pcbLength + 2].map((y) =>
@@ -77,22 +72,20 @@ export function display(c: Config, faceplate: Faceplate): ScadObject {
 
 /**
  * The encoder: collar and shaft out the front, body in its recess, board
- * on its standoffs, its bent pins and plugs on the back of the board, or
- * in their channel under it on the knob side (encoder.pinsDepth above 0).
+ * on its standoffs, its bent pins and plugs on the back of the board.
  */
-export function encoder(c: Config, faceplate: Faceplate): ScadObject {
+export function encoder(c: Config, front: Front): ScadObject {
   const e = c.encoder;
-  const y = faceplate.shaftY;
+  const y = front.shaftY;
   const face = e.panelThickness;
-  const boardFace = faceplate.encoderBoardFace;
+  const boardFace = front.encoderBoardFace;
   const half = e.bodySize / 2;
   const back = boardFace + 1.6;
-  const knobSide = e.pinsDepth > 0;
-  const bend = knobSide ? boardFace - 3.5 : back + 3.5; // where the pins turn outward
-  const [spacerFrom, spacerTo] = knobSide ? [boardFace - 2.5, boardFace] : [back, back + 2.5];
+  const bend = back + 3.5; // where the pins turn outward
+  const [spacerFrom, spacerTo] = [back, back + 2.5];
   // Through the board, its solder joints sticking out the other side.
-  const [pinFrom, pinTo] = knobSide ? [bend - 0.32, back + 1] : [boardFace - 1, bend + 0.32];
-  const pinsEnd = faceplate.encoderBoardRight + 4;
+  const [pinFrom, pinTo] = [boardFace - 1, bend + 0.32];
+  const pinsEnd = front.encoderBoardRight + 4;
   const pinYs = Array.from({ length: ENCODER_PINS }, (_, i) => y + (i - (ENCODER_PINS - 1) / 2) * PITCH);
   return union(
     box(-half, half, y - half, y + half, face, boardFace).color("silver"),
@@ -103,8 +96,8 @@ export function encoder(c: Config, faceplate: Faceplate): ScadObject {
       .translate([0, y, face - e.bushingLength - 15])
       .color("lightgray"),
     box(
-      faceplate.encoderBoardLeft,
-      faceplate.encoderBoardRight,
+      front.encoderBoardLeft,
+      front.encoderBoardRight,
       y - e.boardWidth / 2,
       y + e.boardWidth / 2,
       boardFace,

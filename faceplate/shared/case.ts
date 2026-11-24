@@ -1,27 +1,22 @@
-// What the head and the bar share: the display in landscape with the Pico
-// W right behind it, in a box whose lid clips on. The front holds the
-// display as the faceplate does (its window and pockets, turned to
-// landscape) on 4 pins through the board's holes, melted into heads with
-// the soldering iron. The lid lies on the walls' back edge all round, snap
-// tabs hanging along the top and bottom walls, their hooks clicking into
-// slots through them; a small screwdriver through a slot pushes its hook
-// back in. The Pico stands on the lid, either way up, on 4 standoffs, their
-// pins through its holes melted into heads, each cut flat inside for the
-// USB socket. Vents in the lid.
+// The bar's box (bar/bar.ts builds on it): the display in landscape with
+// the Pico W right behind it. The front holds the display as front.ts
+// makes it (its window and pockets, turned to landscape) on 4 pins through
+// the board's holes, melted into heads with the soldering iron. The lid
+// lies on the walls' back edge all round, its bumps clicking into slots
+// through the top and bottom walls. The Pico stands on the lid, either way
+// up, on 4 standoffs, their pins through its holes melted into heads, each
+// cut flat inside for the USB socket.
 //
-// Their dimensions are the head's (head/config.ts). Seen from the back like
-// the faceplate: x across, y up, the front at z = 0, the display board
-// centered, the Pico's USB socket at its -x end. Both parts print with no
-// supports: the shell front down, the lid outside down (the hooks' 1.3 mm
-// ledges, short enough to print in the air).
+// Their dimensions are enclosure's (bar/config.ts). Seen from the back: x
+// across, y up, the front at z = 0, the display board centered, the
+// Pico's USB socket at its -x end.
 
 import type { ScadObject } from "scad-js";
 import { cylinder, difference, hull, intersection, square, union } from "scad-js";
-import type { Faceplate } from "../plate/faceplate";
 import type { Config } from "./config";
-import { box, HEADER_PLASTIC, PICO_ROWS_APART, PITCH } from "./geometry";
+import type { Front } from "./front";
+import { box, HEADER_PLASTIC, PICO_ROWS_APART, PITCH, type Rect } from "./geometry";
 import { display } from "./mockups";
-import { cellHoles, honeycomb, type Rect } from "./vents";
 
 export class Case {
   /** The room inside the walls: the display board and its clearance. */
@@ -42,12 +37,12 @@ export class Case {
 
   constructor(
     readonly c: Config,
-    readonly faceplate: Faceplate,
+    readonly front: Front,
   ) {
-    const { display: d, head: h, boards, clearance } = c;
+    const { display: d, enclosure: h, boards, clearance } = c;
     this.halfX = d.pcbLength / 2 + clearance;
     this.halfY = d.pcbWidth / 2 + clearance;
-    this.plate = faceplate.thickness;
+    this.plate = front.thickness;
     this.picoFace = this.plate + h.picoComponents;
     this.lidFace = this.picoFace + h.picoPcbThickness + h.picoStandoff;
     this.depth = this.lidFace + h.lidThickness;
@@ -68,16 +63,13 @@ export class Case {
 
     const standoffR = h.standoffDiameter / 2;
     if (boards.pico.holesApartY / 2 + standoffR + clearance > PICO_ROWS_APART / 2 - PITCH / 2) {
-      throw new Error("head: the Pico's standoffs run into its header's plastic: check head.standoffDiameter");
+      throw new Error("bar: the Pico's standoffs run into its header's plastic: check enclosure.standoffDiameter");
     }
     if (boards.pico.holesApartY / 2 - boards.pico.holeDiameter / 2 + clearance < this.usbGap / 2) {
-      throw new Error("head: the Pico's pins by its USB socket leave under boards.pico.usbSocketWidth between them");
+      throw new Error("bar: the Pico's pins by its USB socket leave under boards.pico.usbSocketWidth between them");
     }
     if (this.tabTip < this.plate + 0.5) {
-      throw new Error("head: the lid's tabs reach the display's board: check head.tabLength");
-    }
-    if (this.halfY - clearance - h.tabThickness < boards.pico.length / 2) {
-      throw new Error("head: the lid's tabs reach the Pico: check head.tabThickness");
+      throw new Error("bar: the lid's slots reach the display's board: check enclosure.tabLength");
     }
   }
 
@@ -88,7 +80,7 @@ export class Case {
 
   /** The Pico's standoffs on the lid, each cut flat inside to leave usbGap between them, and their pins. */
   protected get picoMount(): ScadObject {
-    const { head: h, boards, clearance } = this.c;
+    const { enclosure: h, boards, clearance } = this.c;
     const base = this.lidFace - h.picoStandoff;
     const g = this.usbGap / 2;
     return union(
@@ -112,18 +104,18 @@ export class Case {
 
   /** The keep-out rects of the Pico's standoffs, for the lid's vents. */
   protected get picoKeepOut(): Rect[] {
-    const r = this.c.head.standoffDiameter / 2;
+    const r = this.c.enclosure.standoffDiameter / 2;
     return this.picoHoles.map(([x, y]): Rect => [x - r, x + r, y - r, y + r]);
   }
 
-  /** The faceplate's display cutouts or mockup, turned to landscape, the board centered. */
+  /** The front's display cutouts or mockup, turned to landscape, the board centered. */
   protected displayed(o: ScadObject): ScadObject {
     return o.rotate([0, 0, -90]).translate([this.c.display.pcbLength / 2, 0, 0]);
   }
 
   /** A rounded rectangle, x0..x1 by -halfY..halfY (its bottom lowered by `below`), extruded from z0 to z1. */
   protected rounded(x0: number, x1: number, halfY: number, z0: number, z1: number, below = 0): ScadObject {
-    const r = this.c.head.cornerRadius;
+    const r = this.c.enclosure.cornerRadius;
     return square([x1 - x0 - 2 * r, 2 * halfY + below - 2 * r])
       .radius_offset(r)
       .linear_extrude(z1 - z0)
@@ -132,11 +124,11 @@ export class Case {
 
   /** The outline's half sizes, the walls included. */
   protected get outerX(): number {
-    return this.halfX + this.c.head.wall;
+    return this.halfX + this.c.enclosure.wall;
   }
 
   protected get outerY(): number {
-    return this.halfY + this.c.head.wall;
+    return this.halfY + this.c.enclosure.wall;
   }
 
   /** y0..y1 on the top wall's side (sy = 1), mirrored onto the bottom's (sy = -1). */
@@ -149,23 +141,9 @@ export class Case {
     return union(...holes.map(([x, y]) => cylinder(z1 - z0, d / 2, { center: false }).translate([x, y, z0])));
   }
 
-  /** The notch for the Pico's USB plug through the -x end wall, up to the lid: either way up. */
-  protected get usbNotch(): ScadObject {
-    const h = this.c.head;
-    const socketZ = this.picoFace - 1.3;
-    return box(
-      -this.outerX - 1,
-      -this.halfX + 0.01,
-      -h.usbSlotWidth / 2,
-      h.usbSlotWidth / 2,
-      socketZ - h.usbSlotHeight / 2,
-      this.lidFace + 1,
-    );
-  }
-
   /** The pins through the display board's holes, from its front. */
   protected get displayStakes(): ScadObject {
-    const { head: h, display: d, clearance } = this.c;
+    const { enclosure: h, display: d, clearance } = this.c;
     const boardFront = this.plate - d.pcbThickness;
     return this.stakes(
       this.displayHoles,
@@ -177,7 +155,7 @@ export class Case {
 
   /** The slots the lid's hooks click into, through the top and bottom walls (and out past them by `out`), a pair at each x. */
   protected hookSlots(xs: number[], out = 1): ScadObject {
-    const { head: h, clearance } = this.c;
+    const { enclosure: h, clearance } = this.c;
     return union(
       ...xs.flatMap((x) =>
         [-1, 1].map((sy) =>
@@ -193,26 +171,9 @@ export class Case {
     );
   }
 
-  /** The snap tabs, a pair at each x hanging from the lid along the top and bottom walls, a hook ramping out at each tip. */
-  protected tabs(xs: number[]): ScadObject {
-    const { head: h, clearance } = this.c;
-    const w = h.tabWidth / 2;
-    const outer = this.halfY - clearance;
-    return union(
-      ...xs.flatMap((x) =>
-        [-1, 1].map((sy) =>
-          union(
-            box(x - w, x + w, ...this.side(sy, outer - h.tabThickness, outer), this.tabTip, this.lidFace + 0.01),
-            this.hook(x, sy, h.tabWidth, h.hookDepth),
-          ),
-        ),
-      ),
-    );
-  }
-
   /** A hook at x on the top (sy = 1) or bottom wall's side, ramping out from tabTip to `depth` into its slot. */
   protected hook(x: number, sy: number, width: number, depth: number): ScadObject {
-    const { head: h, clearance } = this.c;
+    const { enclosure: h, clearance } = this.c;
     const w = width / 2;
     const outer = this.halfY - clearance;
     return hull(
@@ -227,20 +188,9 @@ export class Case {
     );
   }
 
-  /** The keep-out rects of the tabs at each x, for the lid's vents. */
-  protected tabsKeepOut(xs: number[]): Rect[] {
-    const { head: h, clearance } = this.c;
-    const ly = this.halfY - clearance;
-    return xs.flatMap((x) =>
-      [-1, 1].map(
-        (sy): Rect => [x - h.tabWidth / 2, x + h.tabWidth / 2, ...this.side(sy, ly - h.tabThickness - 1, ly + 1)],
-      ),
-    );
-  }
-
-  /** A slot through the lid, round at both ends, its ends' centers a and b, d across (head.cableHole by default). */
-  protected cableSlot(a: [number, number], b: [number, number], d = this.c.head.cableHole): ScadObject {
-    const h = this.c.head;
+  /** A slot through the lid, round at both ends, its ends' centers a and b, d across (enclosure.cableHole by default). */
+  protected cableSlot(a: [number, number], b: [number, number], d = this.c.enclosure.cableHole): ScadObject {
+    const h = this.c.enclosure;
     return hull(
       ...[a, b].map(([x, y]) =>
         cylinder(h.lidThickness + 2, d / 2, { center: false }).translate([x, y, this.lidFace - 1]),
@@ -248,30 +198,16 @@ export class Case {
     );
   }
 
-  /** The lid's honeycomb, from x0 to x1 inside the walls, clear of keepOut. */
-  protected vents(x0: number, x1: number, keepOut: Rect[]): ScadObject {
-    const { head: h, clearance } = this.c;
-    const ly = this.halfY - clearance;
-    const r = h.ventCell;
-    const cells = honeycomb(r, h.ventWall, 0, Math.hypot(Math.max(-x0, x1), ly), keepOut).filter(
-      ([x, y]) => x - r - 1 >= x0 && x + r + 1 <= x1 && Math.abs(y) + r + 1 <= ly,
-    );
-    return cellHoles(cells, r, this.lidFace - 1, this.depth + 1);
-  }
-
   /** The display, its header cut past its plastic, and the Pico on its standoffs (picoShift further back): for the pictures, never printed. */
   protected stackMockup(picoShift = 0): ScadObject {
     const { c } = this;
-    const { boards, head: h } = c;
+    const { boards, enclosure: h } = c;
     const [x0, x1] = this.picoX;
     const y = boards.pico.length / 2;
     const face = this.picoFace + picoShift;
     const back = face + h.picoPcbThickness;
     return union(
-      intersection(
-        this.displayed(display(c, this.faceplate)),
-        box(-50, 50, -50, 50, -1, this.plate + HEADER_PLASTIC + 1),
-      ),
+      intersection(this.displayed(display(c, this.front)), box(-50, 50, -50, 50, -1, this.plate + HEADER_PLASTIC + 1)),
       box(x0, x1, -y, y, face, back).color("green"),
       ...[-1, 1].map((sy) =>
         box(

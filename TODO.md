@@ -35,17 +35,15 @@
 - [x] Entering dimensions in the Dimensions tab: saved as typed to `faceplate/data/measured.json` (and the browser until the server has it), reruns `mise run faceplate`, a refused value stays saved; hovering a row highlights the dimension on the drawings (top and side views), drawings pinned while scrolling
 - [x] Dimensions: enter the board's hole (it picks M2 or M3), plus the pilot hole; encoder without thread or nut (held by its 2 screws)
 - [x] Wiring plan: headers in their real order, each board can be turned over (back view by default, Pico from below), BLE / wired button, converter into the Pico's micro-USB
-- [ ] WIP Faceplate: first PLA test fixed (display 37.5 x 58 + room for the solder joints, encoder turned on 4 posts, Pico posts cut for the USB, converter off the tray); still to measure the display's glass (thickness, length, position) and the encoder body's height, then reprint
-- [ ] WIP Faceplate v2: recesses for the solder joints at both ends of the display, the encoder's header resoldered on the board's back (a channel under the board only if it stays on the knob side), the converter with its ears cut off on the tray's back between the Pico and the MCP2515 (stops, zip tie), the Pico turned over with its pins and plugs through the tray: the assembly goes from 77 x 127 to 54 x 97 mm, an assembly render with every component modeled
 - [x] Display holes 2.2 mm from the edges, never less than 1 mm of wall beside the glass pocket (the first test print cracked)
-- [ ] Encoder: measure with calipers how far the holes sit toward the header (encoder.holesTowardPins, 2 mm read off a photo), then reprint the faceplate
+- [ ] Encoder: measure with calipers how far the holes sit toward the header (encoder.holesTowardPins, 2 mm read off a photo) and the holes themselves (encoder.holeDiameter, 3 mm guessed), then reprint the bar
 - [x] Tray: a 6 mm rib on the back of each bridge at the end of the Pico's slots (it broke there off the bed and fitting the converter), clear of the micro-USB plug
 - [x] A 2 x 2 mm rim along the edge: on the faceplate's back, on the tray's back (notched around the screw heads and for the Pico's micro-USB plug); none on the fronts, printed flat without supports
 - [x] Wiring diagram: wires of different colors never on top of each other (module pins offset by half a pitch), labels readable over the wires
 - [x] Source selector in the settings (Data source: BLE / CAN), applied by a reboot when leaving the page; the MCP2515 can stay wired in BLE, the rows needing the dongle are dimmed with CAN
 - [ ] Converter: cut its ears off flush with the box
 - [x] Encoder: header pads torn off, 4 wires soldered on its legs (C to GND, the button leg next to R1 to GP4; no bridge: the board already ties C to the button's other leg, a bridge shorts it), hot glue over them; A on GP3 and B on GP2 for the right direction; remove R2 and R3 (the floating + ties A and B through 20K: every other detent lost)
-- [ ] Faceplate: mounting in the car (where it goes, how it holds)
+- [ ] Mounting in the car: print the bar's base, check the bar clicks in and the lips hold it, then tape it to the shroud
 - [x] AFR off the throttle: throttle (PID 0x11) read with the rest, the AFR (lean in the deceleration fuel cut) drawn white with no alarm while the throttle is closed (session minimum + 5%) and 1s after it opens
 - [ ] Check in the car: AFR white without blinking when lifting off, red if lean with the pedal down
 - [x] Multi-PID on in the car: `010C24050F113` answers in 3 frames, `polling every PID at once` (throttle 14 to 17% idling)

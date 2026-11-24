@@ -4,13 +4,13 @@
 // the converter's micro-USB plug in the Pico's socket (the converter stays
 // out, on the cable by the fuse box), under an opening in the lid its
 // cable goes out through, and where a finger pulls it out to plug the
-// computer in; the display in landscape with the Pico right behind it (the
-// head's, shared/case.ts); the MCP2515 on 4 heat-staked standoffs, its
+// computer in; the display in landscape with the Pico right behind it
+// (shared/case.ts); the MCP2515 on 4 heat-staked standoffs, its
 // header toward the display, its terminal toward the end, CAN-H and CAN-L
 // out the back through a slot in the lid over it.
 //
 // The front is as thick as the display and the encoder need (the
-// faceplate's) under them, and thin under the MCP2515. The bottom is
+// front's, shared/front.ts) under them, and thin under the MCP2515. The bottom is
 // hollowed into an arc to sit on the steering column's shroud, the slots
 // of the lid's bumps through it. The lid is a tray, the Pico on its back,
 // a skirt down inside the walls, its bumps clicking into the slots.
@@ -19,13 +19,13 @@
 
 import type { ScadObject } from "scad-js";
 import { difference, intersection, polygon, square, union } from "scad-js";
-import type { Faceplate } from "../plate/faceplate";
 import { Case } from "../shared/case";
 import type { Config } from "../shared/config";
-import { box } from "../shared/geometry";
+import type { Front } from "../shared/front";
+import { box, type Rect } from "../shared/geometry";
 import { encoder } from "../shared/mockups";
-import type { Rect } from "../shared/vents";
-import { arc, arcGauge } from "./arcs";
+
+import { arc } from "./arcs";
 
 export class Bar extends Case {
   /** The room's ends, -right to right: the display in the middle. */
@@ -41,14 +41,14 @@ export class Bar extends Case {
   readonly cableX: number;
   /** How far the bottom's arc stands under the bottom wall at the ends. */
   readonly sag: number;
-  /** The lid's back, bar.lidExtra deeper than the head's. */
+  /** The lid's back, bar.lidExtra deeper than the case's. */
   readonly back: number;
   /** Where the encoder ends along x, toward the display: the lid's skirt starts there. */
   readonly encoderEdge: number;
 
-  constructor(c: Config, faceplate: Faceplate) {
-    super(c, faceplate);
-    const { bar: b, boards, encoder: e, head: h } = c;
+  constructor(c: Config, front: Front) {
+    super(c, front);
+    const { bar: b, boards, encoder: e, enclosure: h } = c;
     // The encoder across the bar: its board's width, its standoffs, along x.
     const encoderHalf = Math.max(e.boardWidth / 2, e.holesFromShaft + e.standoffDiameter / 2);
     const side = Math.max(b.gap + boards.mcp2515.width + b.endRoom, b.plugRoomMin + 2 * encoderHalf + b.encoderEnd);
@@ -82,19 +82,19 @@ export class Bar extends Case {
     }
   }
 
-  /** The faceplate's encoder cutouts or mockup, turned to sit past the display's -x end, its shaft at shaftX. */
+  /** The front's encoder cutouts or mockup, turned to sit past the display's -x end, its shaft at shaftX. */
   private encoderPlaced(o: ScadObject): ScadObject {
-    return o.rotate([0, 0, 90]).translate([this.shaftX + this.faceplate.shaftY, 0, 0]);
+    return o.rotate([0, 0, 90]).translate([this.shaftX + this.front.shaftY, 0, 0]);
   }
 
   /**
    * Pins through the encoder board's 2 holes, on the 2 standoffs above its
-   * shaft (in the faceplate's frame): the other 2 hold the board level.
+   * shaft (in the front's frame): the other 2 hold the board level.
    * The board goes on with its holes on the pins' side.
    */
   private get encoderStakes(): ScadObject {
-    const { encoder: e, head: h, clearance } = this.c;
-    const f = this.faceplate;
+    const { encoder: e, enclosure: h, clearance } = this.c;
+    const f = this.front;
     const holes = f.encoderBoardStandoffs.filter(([, y]) => y > f.shaftY);
     const z0 = f.encoderBoardFace - 0.01;
     return this.encoderPlaced(
@@ -112,8 +112,8 @@ export class Bar extends Case {
    * through the arc every mm (a circle that large would be a few long
    * flats), and everything under it.
    */
-  private get underArc(): ScadObject {
-    const x = this.right + this.c.head.wall;
+  get underArc(): ScadObject {
+    const x = this.right + this.c.enclosure.wall;
     const low = -this.outerY - this.sag - 10;
     return polygon([
       [-x - 1, -this.outerY - this.sag],
@@ -128,9 +128,9 @@ export class Bar extends Case {
     return this.underArc.linear_extrude(z1 - z0 + 2).translate([0, 0, z0 - 1]);
   }
 
-  /** The opening in the lid over the plug, head.usbSlotWidth across. */
+  /** The opening in the lid over the plug, enclosure.usbSlotWidth across. */
   private get plugOpening(): [[number, number], [number, number]] {
-    const w = this.c.head.usbSlotWidth;
+    const w = this.c.enclosure.usbSlotWidth;
     return [
       [-this.halfX - this.plugRoom + w / 2 + 1, 0],
       [-this.halfX - w / 2, 0],
@@ -139,7 +139,7 @@ export class Bar extends Case {
 
   /** The MCP2515's 4 standoffs on the front, and their pins through its holes. */
   private get mcpMount(): ScadObject {
-    const { bar: b, boards, head: h, clearance } = this.c;
+    const { bar: b, boards, enclosure: h, clearance } = this.c;
     const m = boards.mcp2515;
     const holes = [-1, 1].flatMap((sx) =>
       [-1, 1].map((sy): [number, number] => [this.mcpCenter + (sx * m.holesApartX) / 2, (sy * m.holesApartY) / 2]),
@@ -153,8 +153,8 @@ export class Bar extends Case {
 
   /** The shell, as built: front at z = 0, its walls up to the lid. */
   get shell(): ScadObject {
-    const f = this.faceplate;
-    const { bar: b, head: h } = this.c;
+    const f = this.front;
+    const { bar: b, enclosure: h } = this.c;
     return union(
       difference(
         this.rounded(-this.right - h.wall, this.right + h.wall, this.outerY, 0, this.lidFace, this.sag),
@@ -178,7 +178,7 @@ export class Bar extends Case {
    * bottom walls from past the encoder, a bump into each slot.
    */
   get lid(): ScadObject {
-    const { bar: bc, head: h, clearance } = this.c;
+    const { bar: bc, enclosure: h, clearance } = this.c;
     const e = bc.lidExtra;
     const half = (h.cableSlotLength - h.cableHole) / 2;
     const ly = this.halfY - clearance;
@@ -206,10 +206,10 @@ export class Bar extends Case {
     );
   }
 
-  /** The outline, its bottom's arc included: the shell's, flat. */
-  private get outline(): ScadObject {
-    const r = this.c.head.cornerRadius;
-    const x = this.right + this.c.head.wall;
+  /** The outline, its bottom's arc included: the shell's, flat (and the base's, base.ts). */
+  get outline(): ScadObject {
+    const r = this.c.enclosure.cornerRadius;
+    const x = this.right + this.c.enclosure.wall;
     return difference(
       square([2 * x - 2 * r, 2 * this.outerY + this.sag - 2 * r])
         .radius_offset(r)
@@ -219,13 +219,13 @@ export class Bar extends Case {
   }
 
   /**
-   * The lid's inside, from the walls' back edge to its back: head.wall in
+   * The lid's inside, from the walls' back edge to its back: enclosure.wall in
    * from the outline (along the arc too), but at the walls' edge only down
    * to the skirt, widening to the walls in 45 degree steps above it: it
    * prints back down, the skirt last.
    */
   private get cavity(): ScadObject {
-    const { bar: bc, head: h, clearance } = this.c;
+    const { bar: bc, enclosure: h, clearance } = this.c;
     const inner = this.halfY - clearance - bc.skirtThickness;
     const top = this.lidFace + bc.lidExtra;
     const step = 0.5;
@@ -258,7 +258,6 @@ export class Bar extends Case {
     return {
       "bar-shell": this.shell,
       "bar-lid": this.lid.rotate([180, 0, 0]).translate([0, 0, this.back]),
-      "bar-arcs": arcGauge(this.c, this.right + this.c.head.wall),
     };
   }
 
@@ -281,13 +280,13 @@ export class Bar extends Case {
   /** Every module in place, the lid off: for the pictures, never printed. */
   get inside(): ScadObject {
     const { c } = this;
-    const socket = this.picoX[0] - c.head.picoUsbOverhang;
+    const socket = this.picoX[0] - c.enclosure.picoUsbOverhang;
     const face = this.picoFace + c.bar.lidExtra;
     return union(
       this.shell.color("gold"),
       this.stackMockup(this.c.bar.lidExtra),
       // The encoder's bent pins cut at the walls: their wires are soldered on.
-      intersection(this.encoderPlaced(encoder(c, this.faceplate)), box(-500, 500, -this.halfY, this.halfY, -50, 50)),
+      intersection(this.encoderPlaced(encoder(c, this.front)), box(-500, 500, -this.halfY, this.halfY, -50, 50)),
       // The converter's plug in the Pico's socket.
       box(socket - 18, socket, -5.5, 5.5, face - 4.8, face + 2.2).color("black"),
       this.mcpMockup,

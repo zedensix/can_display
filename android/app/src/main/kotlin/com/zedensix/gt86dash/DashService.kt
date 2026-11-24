@@ -34,8 +34,9 @@ class DashSession : Session() {
     override fun onCreateScreen(intent: Intent): Screen = GaugeScreen(carContext)
 }
 
-// The gauges drawn on the surface, buttons over them: the previous and the
-// next view, as the Pico's encoder turns them, and the settings.
+// The gauges drawn on the surface, buttons over them: home (off the main
+// view), the previous and the next view, as the Pico's encoder turns them,
+// and the settings.
 class GaugeScreen(carContext: CarContext) : Screen(carContext) {
     private val renderer = SurfaceRenderer(carContext, lifecycle)
 
@@ -48,12 +49,19 @@ class GaugeScreen(carContext: CarContext) : Screen(carContext) {
     }
 
     override fun onGetTemplate(): Template {
+        val dash = renderer.dash
+        // Each view change rebuilds the strip: Home comes and goes with it.
+        fun turn(change: () -> Unit): () -> Unit = {
+            change()
+            invalidate()
+        }
         val strip = ActionStrip.Builder()
-            .addAction(iconAction(carContext, R.drawable.ic_previous) { renderer.dash.previousView() })
-            .addAction(iconAction(carContext, R.drawable.ic_next) { renderer.dash.nextView() })
+        if (dash.view != 0) strip.addAction(iconAction(carContext, R.drawable.ic_home, turn { dash.home() }))
+        strip.addAction(iconAction(carContext, R.drawable.ic_previous, turn { dash.previousView() }))
+            .addAction(iconAction(carContext, R.drawable.ic_next, turn { dash.nextView() }))
             .addAction(iconAction(carContext, R.drawable.ic_settings) { screenManager.push(SettingsScreen(carContext)) })
-            .build()
-        return NavigationTemplate.Builder().setActionStrip(strip).build()
+        renderer.actions = if (dash.view != 0) 4 else 3
+        return NavigationTemplate.Builder().setActionStrip(strip.build()).build()
     }
 }
 
