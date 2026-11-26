@@ -42,9 +42,6 @@ void test_screen(void) {
     CHECK(cfg.flip, "a click on flip didn't turn it on");
     screen_apply_turn(&s, 1, 6, &cfg);
     screen_apply_click(&s, &cfg);
-    CHECK(cfg.landscape, "a click on landscape didn't turn it on");
-    screen_apply_turn(&s, 1, 6, &cfg);
-    screen_apply_click(&s, &cfg);
     CHECK(s.action == ACTION_SEND_LOG && s.page == PAGE_GAUGES, "a click on Send log gave action %d", s.action);
     s.action = ACTION_NONE;
     screen_apply_click(&s, &cfg);
@@ -146,7 +143,7 @@ void test_choice_and_idle(void) {
 // Near the rev limiter the whole page flashes red; under it, it doesn't.
 void test_limiter_flash(void) {
     static color_t pixels[240 * 320];
-    canvas_t c = {pixels, 240, 320, 0, 320};
+    canvas_t c = {pixels, 320, 240, 0, 240};
     state_t s = {0};
     screen_t screen = {0};
     settings_t cfg = SETTINGS_DEFAULT;
@@ -162,35 +159,32 @@ void test_limiter_flash(void) {
     CHECK(pixels[320 * 240 - 1] != red, "7000 rpm: the screen flashed");
 }
 
-// Every page draws in both orientations without touching a pixel outside
-// the canvas (the sanitizers watch the buffer's ends), and the gauges keep
-// the info strip at the bottom.
-void test_orientations(void) {
-    static color_t pixels[240 * 320];
+// Every page draws without touching a pixel outside the canvas (the
+// sanitizers watch the buffer's ends), and the gauges keep the info strip
+// at the bottom.
+void test_pages(void) {
+    static color_t pixels[320 * 240];
     state_t s = {0};
     for (int i = 0; i < SIG_COUNT; i++) {
         state_set_reading(&s, (signal_t)i, 50, 1000);
     }
     settings_t cfg = SETTINGS_DEFAULT;
-    for (int landscape = 0; landscape < 2; landscape++) {
-        int w = landscape ? 320 : 240, h = landscape ? 240 : 320;
-        canvas_t c = {pixels, w, h, 0, h};
-        for (int view = 0; view <= ui_view_count; view++) {
-            ui_render(&c, &s, &(screen_t){.view = view}, &cfg, 1000);
-        }
-        ui_render(&c, &s, &(screen_t){.page = PAGE_SETTINGS, .cursor = ROW_SEND_LOG}, &cfg, 1000);
-        state_t waiting = {.wait = WAIT_RETRY,
-                           .status = "CAN SELF TEST\nsomething long enough to wrap over a few lines"};
-        ui_render(&c, &waiting, &(screen_t){0}, &cfg, 1000);
-        // A door open takes the page, in either orientation.
-        state_t open = s;
-        state_set_doors(&open, DOOR_DRIVER | DOOR_PASSENGER | DOOR_BOOT, 1000);
-        ui_render(&c, &open, &(screen_t){0}, &cfg, 1000);
-        CHECK(pixels[(h - 26) * w + w / 2] != theme_dark.frame, "%dx%d: the strip under the door screen", w, h);
-        // The strip's separator, a line across the bottom of the gauges.
-        ui_render(&c, &s, &(screen_t){0}, &cfg, 1000);
-        CHECK(pixels[(h - 26) * w + w / 2] == theme_dark.frame, "%dx%d: no info strip at the bottom", w, h);
+    int w = 320, h = 240;
+    canvas_t c = {pixels, w, h, 0, h};
+    for (int view = 0; view <= ui_view_count; view++) {
+        ui_render(&c, &s, &(screen_t){.view = view}, &cfg, 1000);
     }
+    ui_render(&c, &s, &(screen_t){.page = PAGE_SETTINGS, .cursor = ROW_SEND_LOG}, &cfg, 1000);
+    state_t waiting = {.wait = WAIT_RETRY, .status = "CAN SELF TEST\nsomething long enough to wrap over a few lines"};
+    ui_render(&c, &waiting, &(screen_t){0}, &cfg, 1000);
+    // A door open takes the page.
+    state_t open = s;
+    state_set_doors(&open, DOOR_DRIVER | DOOR_PASSENGER | DOOR_BOOT, 1000);
+    ui_render(&c, &open, &(screen_t){0}, &cfg, 1000);
+    CHECK(pixels[(h - 26) * w + w / 2] != theme_dark.frame, "%dx%d: the strip under the door screen", w, h);
+    // The strip's separator, a line across the bottom of the gauges.
+    ui_render(&c, &s, &(screen_t){0}, &cfg, 1000);
+    CHECK(pixels[(h - 26) * w + w / 2] == theme_dark.frame, "%dx%d: no info strip at the bottom", w, h);
 }
 
 // Doors read count until DOORS_STALE_MS; never read, none.

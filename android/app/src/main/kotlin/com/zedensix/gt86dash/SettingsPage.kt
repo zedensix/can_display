@@ -24,8 +24,8 @@ import android.widget.Toast
 
 // The phone's settings, a page in place of the dash (the navigation
 // stays): the connection (the link's state, what it needs, and which
-// dash: the first found, or one picked from those nearby or used before),
-// then the gauges' (the shift light, demo, the min and max), then what
+// dash: the first found, or one picked from those nearby or used before,
+// its firmware updated from the phone's), then the gauges' (the shift light, demo, the min and max), then what
 // the phone records (RecordingSettings). Three columns in landscape. bottom leaves room under it for a floating bar, the page
 // scrolling under it. Its owner says when it shows (resume, pause) and
 // hands it Bluetooth's permissions as they're answered.
@@ -33,6 +33,7 @@ class SettingsPage(private val activity: Activity, private val onClose: () -> Un
     private val settings = Settings(activity)
     private val picker = DashPicker(activity, settings)
     private val recording = RecordingSettings(activity, ::label, ::help)
+    private val firmware = FirmwareSettings(activity, ::label)
     private lateinit var status: TextView
     private lateinit var detail: TextView
     private lateinit var fix: TextView
@@ -54,6 +55,7 @@ class SettingsPage(private val activity: Activity, private val onClose: () -> Un
     override fun pause() {
         handler.removeCallbacks(tick)
         picker.stop()
+        firmware.pause()
     }
 
     fun folderPicked(uri: Uri?) = recording.folderPicked(uri)
@@ -110,6 +112,7 @@ class SettingsPage(private val activity: Activity, private val onClose: () -> Un
         c.addView(label("DASH"))
         c.addView(picker.view)
         c.addView(help("A dash shows here while it's on and no other phone holds its link"))
+        c.addView(firmware.build())
         return c
     }
 
@@ -167,6 +170,7 @@ class SettingsPage(private val activity: Activity, private val onClose: () -> Un
         fix.visibility = if (fix.text.isEmpty()) View.GONE else View.VISIBLE
         picker.refresh(LiveLink.granted(activity) && adapter()?.isEnabled == true)
         recording.refresh()
+        firmware.refresh()
     }
 
     private fun fixLink() {

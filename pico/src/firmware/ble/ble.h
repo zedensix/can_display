@@ -19,16 +19,19 @@
 // flash_safe_execute, whose helper (store.c) holds core1, reading the CAN
 // bus from flash, in RAM meanwhile. Send log pauses the CAN source, the
 // gauges and the data log with it: no record written over the ring while
-// it's read out.
+// it's read out. A firmware update from the phone (ble_update.c) pauses
+// them the same way.
 
 // ble_start brings the radio and BTstack up and the dash on the air, the
 // live readings from state.
 void ble_start(state_t *state);
 // ble_send_log starts Send log: its status on the screen until it's over.
 void ble_send_log(datalog_t *log);
-// ble_sending is true from ble_send_log until it's over: the phone got it
-// all, or a click.
+// ble_sending is true from ble_send_log until it's over (the phone got it
+// all, or a click), and while a firmware update asks or runs
+// (ble_update.c): the CAN source and the data log paused meanwhile.
 bool ble_sending(void);
 void ble_poll_radio(uint32_t now_ms);
-// ble_handle_click ends Send log, if it's on, and reports whether it was.
+// ble_handle_click allows or cancels an update, or ends Send log, if one
+// is on, and reports whether it was.
 bool ble_handle_click(void);

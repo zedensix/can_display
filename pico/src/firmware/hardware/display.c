@@ -62,7 +62,7 @@ void display_init(void) {
     send_display_command(CMD_SLPOUT, NULL, 0);
     send_display_command(CMD_COLMOD, (const uint8_t[]){0x55}, 1); // RGB565
     sleep_ms(10);
-    display_set_orientation(false, false);
+    display_set_orientation(false);
     send_display_command(CMD_FRCTRL2, (const uint8_t[]){0x0F}, 1); // 60Hz
     send_display_command(CMD_PORCTRL, (const uint8_t[]){8, 8, 0x00, 0x22, 0x22}, 5);
     send_display_command(CMD_INVON, NULL, 0); // these IPS panels show inverted colors without it
@@ -83,10 +83,8 @@ void display_init(void) {
 
 // MV swaps the panel's rows and columns (a quarter turn), MX and MY
 // mirror them: a half turn mirrors both.
-void display_set_orientation(bool flip, bool landscape) {
-    uint8_t madctl = landscape ? (flip ? MADCTL_MV | MADCTL_MY : MADCTL_MV | MADCTL_MX)
-                     : flip    ? MADCTL_MX | MADCTL_MY
-                               : 0;
+void display_set_orientation(bool flip) {
+    uint8_t madctl = flip ? MADCTL_MV | MADCTL_MY : MADCTL_MV | MADCTL_MX;
     send_display_command(CMD_MADCTL, &madctl, 1);
 }
 

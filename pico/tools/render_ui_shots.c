@@ -54,25 +54,13 @@ static state_t state_with_alarms(void) {
     return s;
 }
 
-// On track, the stability control off: the track grid and its badge.
-static void shot_track(canvas_t *c, drive_mode_t mode) {
+// On track, the traction control off: the track grid.
+static void shot_track(canvas_t *c) {
     state_t s = state_while_driving();
     s.readings[SIG_OIL].value = 116;
     s.readings[SIG_AFR].value = 12.4f;
-    state_set_drive_mode(&s, mode, now);
+    state_set_drive_mode(&s, DRIVE_DRIFT, now);
     render_screen(c, &s, (screen_t){0});
-}
-
-static void shot_track_trc(canvas_t *c) {
-    shot_track(c, DRIVE_DRIFT);
-}
-
-static void shot_track_vsc(canvas_t *c) {
-    shot_track(c, DRIVE_RACE);
-}
-
-static void shot_track_sport(canvas_t *c) {
-    shot_track(c, DRIVE_TRACK);
 }
 
 static void shot_alarms(canvas_t *c) {
@@ -140,34 +128,25 @@ static void shot_coolant(canvas_t *c) {
 }
 
 // Its lowest and highest as wide as they get (13.9V 14.4V): they ran into
-// each other in landscape.
+// each other once.
 static void shot_battery(canvas_t *c) {
     state_t s = state_while_driving();
     render_screen(c, &s, (screen_t){.view = 5});
 }
 
 const shot_t gauge_shots[] = {
-    {"grid", shot_grid, false},
-    {"alarms", shot_alarms, false},
-    {"track_trc", shot_track_trc, false},
-    {"track_vsc", shot_track_vsc, false},
-    {"track_sport", shot_track_sport, false},
-    {"shot_alarms_unlit", shot_alarms_unlit, false},
-    {"oil_critical", shot_oil_critical, false},
-    {"cold", shot_cold, false},
-    {"shift", shot_shift, false},
-    {"oil", shot_oil, false},
-    {"coolant", shot_coolant, false},
-    {"pedal", shot_pedal, false},
-    {"load", shot_load, false},
-    {"limiter", shot_limiter, false},
-    {"grid_landscape", shot_grid, true},
-    {"alarms_landscape", shot_alarms, true},
-    {"track_landscape", shot_track_trc, true},
-    {"oil_landscape", shot_oil, true},
-    {"battery", shot_battery, false},
-    {"battery_landscape", shot_battery, true},
-    {"oil_critical_landscape", shot_oil_critical, true},
-    {"limiter_landscape", shot_limiter, true},
+    {"grid", shot_grid},
+    {"alarms", shot_alarms},
+    {"track", shot_track},
+    {"shot_alarms_unlit", shot_alarms_unlit},
+    {"oil_critical", shot_oil_critical},
+    {"cold", shot_cold},
+    {"shift", shot_shift},
+    {"oil", shot_oil},
+    {"coolant", shot_coolant},
+    {"pedal", shot_pedal},
+    {"load", shot_load},
+    {"battery", shot_battery},
+    {"limiter", shot_limiter},
 };
 const int gauge_shot_count = sizeof gauge_shots / sizeof gauge_shots[0];

@@ -7,17 +7,11 @@
 // them; ui_status.c the status screen and the boot animation;
 // ui_settings.c the settings page; ui_draw.c the drawing helpers they all
 // use. The look is the Android app's (android/.../Pages.kt), laid out for
-// the panel, both ways.
+// the panel in landscape, 320 by 240.
 
 #include "ui.h"
 
 #define PI 3.14159265f
-
-// A canvas wider than tall: the panel turned (settings_t.landscape).
-// Each screen lays itself out for one or the other.
-static inline bool is_landscape(const canvas_t *c) {
-    return c->width > c->height;
-}
 
 // The info strip along the bottom of the gauges page, its line at the top.
 #define INFO_STRIP_HEIGHT 26
@@ -87,8 +81,8 @@ void draw_dial(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int y, 
 // draw_scale_ends writes the scale's ends under a dial's opening.
 void draw_scale_ends(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int y, int size);
 // draw_alone_page is one gauge alone between top and bottom: a big dial,
-// then the session's lowest and highest and what its colors mean (beside
-// it in landscape, under it in portrait).
+// then the session's lowest and highest and what its colors mean beside
+// it.
 void draw_alone_page(canvas_t *c, const theme_t *t, const tile_t *tile, int top, int bottom, const state_t *s,
                      uint32_t now_ms);
 
@@ -96,20 +90,18 @@ void draw_alone_page(canvas_t *c, const theme_t *t, const tile_t *tile, int top,
 // draw_main_layout is the gauges page's every-gauge view between top
 // and bottom: the oil's dial, the others as rows.
 void draw_main_layout(canvas_t *c, const theme_t *t, const state_t *s, int top, int bottom, uint32_t now_ms);
-// draw_track_grid is the gauges in a sport mode, on track: the mode's
-// badge, the oil's and the AFR's dials, the gear big, the coolant and
-// the intake as rows.
-void draw_track_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, int bottom, drive_mode_t mode,
-                     uint32_t now_ms);
+// draw_track_grid is the gauges in a sport mode, on track: the oil's and
+// the AFR's dials across the width, the coolant and the intake as rows.
+void draw_track_grid(canvas_t *c, const theme_t *t, const state_t *s, int top, int bottom, uint32_t now_ms);
 
 // ui_doors.c
 // draw_door_screen is the whole screen with doors (DOOR_* bits) open.
 void draw_door_screen(canvas_t *c, const theme_t *t, uint8_t doors);
 
 // ui_strip.c
-// draw_info_strip draws the gear (when gear), the outside temperature and
-// the distance along the canvas's bottom, INFO_STRIP_HEIGHT high.
-void draw_info_strip(canvas_t *c, const theme_t *t, const state_t *s, bool gear, uint32_t now_ms);
+// draw_info_strip draws the gear, the outside temperature and the
+// distance along the canvas's bottom, INFO_STRIP_HEIGHT high.
+void draw_info_strip(canvas_t *c, const theme_t *t, const state_t *s, uint32_t now_ms);
 // gear_text is the gear engaged, N for none.
 void gear_text(const state_t *s, uint32_t now_ms, char out[4]);
 

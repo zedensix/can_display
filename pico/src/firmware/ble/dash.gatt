@@ -5,7 +5,9 @@
 // notifications of the data one, then 'D' once it has it all. The app
 // pulls what's new every minute, the dash going on as it is: 'R' and the
 // position its last pull ended at (u32, 0xFFFFFFFF the first time), the
-// part as notifications of the data one (ble.c says their header).
+// part as notifications of the data one (ble.c says their header). The
+// update one (ble_update.c): read, the running firmware's CRC-32 and
+// size; notified, the replies of a firmware update from the phone.
 PRIMARY_SERVICE, GAP_SERVICE
 CHARACTERISTIC, GAP_DEVICE_NAME, READ, "GT86 DASH"
 
@@ -13,3 +15,4 @@ PRIMARY_SERVICE, c0ff8600-4b1e-4c7a-9e2d-5a3f86d0a001
 CHARACTERISTIC, c0ff8601-4b1e-4c7a-9e2d-5a3f86d0a001, WRITE | WRITE_WITHOUT_RESPONSE | DYNAMIC,
 CHARACTERISTIC, c0ff8602-4b1e-4c7a-9e2d-5a3f86d0a001, NOTIFY,
 CHARACTERISTIC, c0ff8603-4b1e-4c7a-9e2d-5a3f86d0a001, NOTIFY,
+CHARACTERISTIC, c0ff8604-4b1e-4c7a-9e2d-5a3f86d0a001, READ | NOTIFY | DYNAMIC,

@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 
+#include "ble_internal.h"
 #include "btstack.h"
 #include "dash.h"
 #include "data/live.h"
@@ -107,7 +108,7 @@ static void send_next_log_chunk(void) {
 // Send log, which has the log, nor during another pull.
 static void pull(hci_con_handle_t con, uint32_t from) {
     datalog_t *log = store_get_datalog();
-    if (!log || log_to_send || streaming) {
+    if (!log || log_to_send || streaming || ble_updating()) {
         return;
     }
     datalog_flush(log);
@@ -125,6 +126,12 @@ static void pull(hci_con_handle_t con, uint32_t from) {
     att_server_request_can_send_now_event(con);
 }
 
+static uint16_t handle_att_read(hci_con_handle_t con, uint16_t handle, uint16_t offset, uint8_t *buffer,
+                                uint16_t buffer_size) {
+    (void)con;
+    return ble_update_read(handle, offset, buffer, buffer_size);
+}
+
 static int handle_att_write(hci_con_handle_t con, uint16_t handle, uint16_t mode, uint16_t offset, uint8_t *buffer,
                             uint16_t size) {
     (void)mode;
@@ -135,6 +142,9 @@ static int handle_att_write(hci_con_handle_t con, uint16_t handle, uint16_t mode
         return 0;
     }
     if (handle != CONTROL_HANDLE || size < 1) {
+        return 0;
+    }
+    if (ble_update_command(con, buffer, size, now, log_to_send || streaming)) {
         return 0;
     }
     if (buffer[0] == 'R' && size >= 5) {
@@ -167,6 +177,7 @@ static void handle_att_event(uint8_t packet_type, uint16_t channel, uint8_t *pac
     (void)channel;
     (void)size;
     if (packet_type == HCI_EVENT_PACKET && hci_event_packet_get_type(packet) == ATT_EVENT_CAN_SEND_NOW) {
+        ble_update_can_send();
         send_next_log_chunk();
     }
 }
@@ -199,6 +210,7 @@ static void handle_hci_event(uint8_t packet_type, uint16_t channel, uint8_t *pac
         phone = HCI_CON_HANDLE_INVALID;
         streaming = false;
         live = false;
+        ble_update_disconnected();
         advertise();
         break;
     default:
@@ -208,6 +220,7 @@ static void handle_hci_event(uint8_t packet_type, uint16_t channel, uint8_t *pac
 
 void ble_start(state_t *s) {
     state = s;
+    ble_update_start(s, ATT_CHARACTERISTIC_c0ff8604_4b1e_4c7a_9e2d_5a3f86d0a001_01_VALUE_HANDLE);
     if (cyw43_arch_init()) {
         log_line("ble: cyw43 init failed");
         return;
@@ -216,7 +229,7 @@ void ble_start(state_t *s) {
     l2cap_init();
     sm_init();
     sm_set_io_capabilities(IO_CAPABILITY_NO_INPUT_NO_OUTPUT);
-    att_server_init(profile_data, NULL, handle_att_write);
+    att_server_init(profile_data, handle_att_read, handle_att_write);
     att_server_register_packet_handler(handle_att_event);
     hci_registration.callback = handle_hci_event;
     hci_add_event_handler(&hci_registration);
@@ -225,7 +238,7 @@ void ble_start(state_t *s) {
 }
 
 void ble_send_log(datalog_t *log) {
-    if (!log || log_to_send) {
+    if (!log || log_to_send || ble_updating()) {
         return;
     }
     log_line("ble: send log");
@@ -248,7 +261,7 @@ static void stop_sending(void) {
 }
 
 bool ble_sending(void) {
-    return log_to_send != NULL;
+    return log_to_send != NULL || ble_updating();
 }
 
 void ble_poll_radio(uint32_t now_ms) {
@@ -257,6 +270,7 @@ void ble_poll_radio(uint32_t now_ms) {
         return;
     }
     cyw43_arch_poll();
+    ble_update_poll(now);
     if (log_to_send && received_at && now - received_at > RESUME_MS) {
         stop_sending();
     }
@@ -272,6 +286,9 @@ void ble_poll_radio(uint32_t now_ms) {
 }
 
 bool ble_handle_click(void) {
+    if (ble_update_click(now)) {
+        return true;
+    }
     if (!log_to_send) {
         return false;
     }

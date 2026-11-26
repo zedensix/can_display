@@ -5,6 +5,8 @@
 #include <string.h>
 
 #include "hardware/flash.h"
+#include "hardware/structs/psm.h"
+#include "hardware/watchdog.h"
 #include "pico/flash.h"
 #include "pico/multicore.h"
 #include "pico/stdlib.h"
@@ -16,7 +18,7 @@
 #define SETTINGS_OFFSET (LOG_OFFSET - FLASH_SECTOR_SIZE)
 // The data log takes everything from the first megabyte up: the
 // firmware is about half of that.
-#define DATALOG_OFFSET (1024 * 1024)
+#define DATALOG_OFFSET STORE_FIRMWARE_ROOM
 #define DATALOG_SIZE (SETTINGS_OFFSET - DATALOG_OFFSET)
 
 extern char __flash_binary_end;
@@ -83,8 +85,11 @@ static void flash_op(void (*op)(void *), void *param) {
     flash_safe_execute(op, param, UINT32_MAX);
 }
 
+// An erase feeds the watchdog: erasing a staged update's sectors takes
+// longer than it allows.
 static void erase_sector(uint32_t offset) {
     flash_op(erase_sector_now, (void *)(uintptr_t)offset);
+    watchdog_update();
 }
 
 static void program_page(uint32_t offset, const uint8_t *page) {
@@ -132,8 +137,17 @@ void store_init(void) {
         log_line("store: the firmware reaches the data log, data logging off");
         return;
     }
-    datalog_open(&data_log, (flash_dev_t){(void *)DATALOG_OFFSET, DATALOG_SIZE, read_datalog_region,
-                                          program_datalog_region, erase_datalog_region});
+    flash_dev_t datalog_dev = {(void *)DATALOG_OFFSET, DATALOG_SIZE, read_datalog_region, program_datalog_region,
+                               erase_datalog_region};
+    // An update's image left in the ring: installed (this firmware is
+    // it), or cut short. Either way it goes before the log reads it.
+    update_t staged;
+    if (update_find(&staged, datalog_dev)) {
+        bool installed = update_crc32(0, (const uint8_t *)XIP_BASE, staged.size) == staged.crc;
+        log_line(installed ? "boot: firmware updated from the phone" : "boot: an update cut short, its image erased");
+        update_erase(&staged, true);
+    }
+    datalog_open(&data_log, datalog_dev);
     datalog_ready = true;
     log_line("datalog: session %u", data_log.session);
 }
@@ -185,4 +199,56 @@ void store_save_settings(settings_t cfg) {
     erase_sector(SETTINGS_OFFSET);
     program_page(SETTINGS_OFFSET, page);
     log_line("settings: saved");
+}
+
+uint32_t store_firmware_crc(uint32_t *size) {
+    static uint32_t crc;
+    static bool known;
+    *size = (uint32_t)((uintptr_t)&__flash_binary_end - XIP_BASE);
+    if (!known) {
+        crc = update_crc32(0, (const uint8_t *)XIP_BASE, *size);
+        known = true;
+    }
+    return crc;
+}
+
+// The copy runs from RAM, one page at a time through it: the flash can't
+// be read while it's written. It calls nothing in flash: the SDK's erase
+// and program are in RAM, the loop copies words itself (a copy loop
+// compiled into a memcpy call would be in flash).
+static uint32_t install_page[FLASH_PAGE_SIZE / 4];
+
+static void __attribute__((noreturn)) __no_inline_not_in_flash_func(copy_image)(uint32_t from, uint32_t ring_start,
+                                                                                uint32_t ring_end, uint32_t sectors) {
+    for (uint32_t i = 0; i < sectors; i++) {
+        flash_range_erase(i * FLASH_SECTOR_SIZE, FLASH_SECTOR_SIZE);
+        for (uint32_t page = 0; page < FLASH_SECTOR_SIZE; page += FLASH_PAGE_SIZE) {
+            const volatile uint32_t *source = (const volatile uint32_t *)(XIP_BASE + from + page);
+            for (uint32_t word = 0; word < FLASH_PAGE_SIZE / 4; word++) {
+                install_page[word] = source[word];
+            }
+            flash_range_program(i * FLASH_SECTOR_SIZE + page, (const uint8_t *)install_page, FLASH_PAGE_SIZE);
+        }
+        from += FLASH_SECTOR_SIZE;
+        if (from >= ring_end) {
+            from = ring_start;
+        }
+    }
+    watchdog_hw->ctrl = WATCHDOG_CTRL_TRIGGER_BITS;
+    for (;;) {
+    }
+}
+
+void store_install(const update_t *u) {
+    log_line("update: installing %lu bytes", (unsigned long)u->size);
+    uint32_t sectors = (u->size + FLASH_SECTOR_SIZE - 1) / FLASH_SECTOR_SIZE;
+    // core1 runs from flash: stopped. Nothing else runs from here on, the
+    // watchdog off (the copy takes about as long as it allows); its reset
+    // at the end reaches everything but the oscillators, as the SDK's.
+    multicore_reset_core1();
+    hw_clear_bits(&watchdog_hw->ctrl, WATCHDOG_CTRL_ENABLE_BITS);
+    hw_set_bits(&psm_hw->wdsel, PSM_WDSEL_BITS & ~(PSM_WDSEL_ROSC_BITS | PSM_WDSEL_XOSC_BITS));
+    watchdog_hw->scratch[4] = 0;
+    save_and_disable_interrupts();
+    copy_image(DATALOG_OFFSET + update_image_offset(u, 0), DATALOG_OFFSET, DATALOG_OFFSET + DATALOG_SIZE, sectors);
 }

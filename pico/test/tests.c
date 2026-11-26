@@ -23,9 +23,10 @@ int main(void) {
     test_mcp_check();
     test_limiter_flash();
     test_gear_and_trip();
-    test_orientations();
+    test_pages();
     test_doors();
     test_live();
+    test_update();
     if (failures) {
         printf("%d check(s) failed\n", failures);
         return 1;

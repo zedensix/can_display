@@ -21,8 +21,7 @@ static shot_t shots[MAX_SHOTS];
 static int shot_count;
 
 #define SHEET_ROWS ((MAX_SHOTS + SHEET_COLUMNS - 1) / SHEET_COLUMNS)
-// The sheet's cells are H square, for both orientations.
-#define SHEET_W (SHEET_COLUMNS * (H + GAP) - GAP)
+#define SHEET_W (SHEET_COLUMNS * (W + GAP) - GAP)
 #define SHEET_H (SHEET_ROWS * (H + GAP) - GAP)
 static unsigned char sheet[SHEET_H][SHEET_W][3];
 
@@ -47,7 +46,7 @@ static int save_ppm(const char *dir, const char *name, const unsigned char *data
 
 // The README's showcase: these screens side by side, twice their size
 // (each pixel a 2x2 block: crisp, not smoothed), on the log page's dark.
-static const char *const showcase_names[] = {"grid", "oil", "alarms", "track_sport", "settings", "showcar"};
+static const char *const showcase_names[] = {"grid", "oil", "alarms", "track", "settings", "showcar"};
 #define SHOWCASE_COUNT (int)(sizeof showcase_names / sizeof showcase_names[0])
 #define SHOWCASE_SCALE 2
 #define SHOWCASE_GAP 32
@@ -98,11 +97,10 @@ int main(int argc, char **argv) {
     }
     memset(sheet, 0x40, sizeof sheet);
     for (int k = 0; k < shot_count; k++) {
-        int w = shots[k].landscape ? H : W, h = shots[k].landscape ? W : H;
+        int w = W, h = H;
         canvas_t c = {pixels, w, h, 0, h};
         shots[k].draw(&c);
-        // Centered in its square cell.
-        int top = k / SHEET_COLUMNS * (H + GAP) + (H - h) / 2, left = k % SHEET_COLUMNS * (H + GAP) + (H - w) / 2;
+        int top = k / SHEET_COLUMNS * (H + GAP), left = k % SHEET_COLUMNS * (W + GAP);
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 rgb565_to_rgb888(pixels[y * w + x], shot[k][y * w + x]);

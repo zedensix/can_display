@@ -14,15 +14,14 @@ enum {
     // source (the BLE dongle without it): the MCP2515 is the only source.
     FLAG_FLIP = 1 << 1,
     // 1 << 2 was an analog ethanol sensor, dropped: the ECU's RAM has it.
-    // Clear in settings saved before it existed: portrait.
-    FLAG_LANDSCAPE = 1 << 6,
+    // 1 << 6 was landscape: the panel is always in landscape now.
 };
 
 void settings_encode(settings_t s, uint8_t out[SETTINGS_SIZE]) {
     memcpy(out, magic, sizeof magic);
     out[4] = VERSION;
     out[5] = (uint8_t)s.brightness;
-    out[6] = (uint8_t)((s.flip ? FLAG_FLIP : 0) | (s.landscape ? FLAG_LANDSCAPE : 0));
+    out[6] = (uint8_t)(s.flip ? FLAG_FLIP : 0);
     out[7] = (uint8_t)(s.shift_rpm / SHIFT_RPM_STEP);
 }
 
@@ -35,11 +34,10 @@ settings_t settings_decode(const uint8_t in[SETTINGS_SIZE]) {
     return (settings_t){
         .brightness = in[5],
         .flip = (in[6] & FLAG_FLIP) != 0,
-        .landscape = (in[6] & FLAG_LANDSCAPE) != 0,
         .shift_rpm = shift >= SHIFT_RPM_MIN && shift <= SHIFT_RPM_MAX ? shift : 0,
     };
 }
 
 bool settings_equal(settings_t a, settings_t b) {
-    return a.brightness == b.brightness && a.flip == b.flip && a.landscape == b.landscape && a.shift_rpm == b.shift_rpm;
+    return a.brightness == b.brightness && a.flip == b.flip && a.shift_rpm == b.shift_rpm;
 }

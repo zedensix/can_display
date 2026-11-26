@@ -1,6 +1,6 @@
 // The info strip along the bottom of the gauges, the Android app's: the
-// gear engaged (N for none) in a box outlined in the accent (left out
-// where the page shows it big), the temperature outside, and on the right
+// gear engaged (N for none) in a box outlined in the accent, the
+// temperature outside, and on the right
 // the distance: the car's odometer, whole km in groups of three, if its
 // ECU gives it, else the trip since boot, to the tenth. No labels: the
 // units say what each is.
@@ -26,18 +26,15 @@ static void odometer_text(float km, char out[24]) {
     }
 }
 
-void draw_info_strip(canvas_t *c, const theme_t *t, const state_t *s, bool gear, uint32_t now_ms) {
+void draw_info_strip(canvas_t *c, const theme_t *t, const state_t *s, uint32_t now_ms) {
     int y = c->height - INFO_STRIP_HEIGHT, baseline = c->height - 6;
     gfx_fill_rect(c, 0, y, c->width, 1, t->frame);
-    int x = 4;
-    if (gear) {
-        char text[4];
-        gear_text(s, now_ms, text);
-        stroke_round_rect(c, 2, y + 3, 24, INFO_STRIP_HEIGHT - 5, 5, 2, t->accent, t->background);
-        draw_text_centered(c, &font_text, 14, baseline, text, t->accent, 0);
-        x = 36;
-    }
-    char text[24] = "--" DEGREE "C";
+    char text[24];
+    gear_text(s, now_ms, text);
+    stroke_round_rect(c, 2, y + 3, 24, INFO_STRIP_HEIGHT - 5, 5, 2, t->accent, t->background);
+    draw_text_centered(c, &font_text, 14, baseline, text, t->accent, 0);
+    int x = 36;
+    snprintf(text, sizeof text, "--" DEGREE "C");
     const reading_t *outside = &s->readings[SIG_AMBIENT];
     if (!reading_is_stale(outside, now_ms, SLOW_STALE_MS)) {
         snprintf(text, sizeof text, "%.0f" DEGREE "C", (double)outside->value);

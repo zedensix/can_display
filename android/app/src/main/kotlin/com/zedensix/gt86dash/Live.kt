@@ -19,42 +19,13 @@ import android.os.ParcelUuid
 import android.os.SystemClock
 import java.util.UUID
 
-// The live readings off the dash: a frame (pico/src/app/data/live.h) decoded
-// into Readings. The layout must follow live_encode's.
-object LiveFrame {
-    const val VERSION = 1
-    const val SIZE = 17
-
-    fun decode(b: ByteArray): Readings? {
-        if (b.size < SIZE || b[0].toInt() != VERSION) return null
-        fun u8(i: Int) = b[i].toInt() and 0xFF
-        fun u16(i: Int) = u8(i) or (u8(i + 1) shl 8)
-        fun i16(i: Int) = u16(i).toShort().toInt()
-        val flags = u8(16)
-        return Readings(
-            oil = i16(1).takeIf { it != Short.MIN_VALUE.toInt() }?.let { it / 10f },
-            coolant = i16(3).takeIf { it != Short.MIN_VALUE.toInt() }?.let { it / 10f },
-            intake = b[5].toInt().takeIf { it != Byte.MIN_VALUE.toInt() }?.toFloat(),
-            afr = u8(6).takeIf { it != 0 }?.let { it / 10f },
-            battery = u8(7).takeIf { it != 0 }?.let { it / 10f },
-            ethanol = u8(8).takeIf { it != 0xFF }?.toFloat(),
-            rpm = u16(9).takeIf { it != 0xFFFF }?.toFloat(),
-            gear = u8(11),
-            outside = b[12].toInt().takeIf { it != Byte.MIN_VALUE.toInt() }?.toFloat(),
-            km = (u8(13) or (u8(14) shl 8) or (u8(15) shl 16)) / 10f,
-            trip = flags and 0x10 != 0,
-            mode = DriveMode.entries.getOrElse(flags and 0x07) { DriveMode.COMFORT },
-            offThrottle = flags and 0x08 != 0,
-        )
-    }
-}
-
 // The link to the dash, "GT86 DASH", one for the car's screen and the
 // phone's: found by its service (and its address, once one is chosen in
 // the settings), connected, subscribed to its live readings; found again
 // whenever it drops (the contact off and on). Up while anything draws or
 // the settings are open (start/stop count them). It also carries the
-// pulls of the dash's data log (Pull), on the data characteristic.
+// pulls of the dash's data log (Pull), on the data characteristic, and
+// its firmware's updates (FirmwareUpdate), on the update characteristic.
 @SuppressLint("MissingPermission") // start checks them, status says when they're missing
 object LiveLink {
     enum class Status { NO_PERMISSION, BLUETOOTH_OFF, SEARCHING, CONNECTING, LIVE }
@@ -63,6 +34,7 @@ object LiveLink {
     private val LIVE = UUID.fromString("c0ff8603-4b1e-4c7a-9e2d-5a3f86d0a001")
     private val DATA = UUID.fromString("c0ff8602-4b1e-4c7a-9e2d-5a3f86d0a001")
     private val CONTROL = UUID.fromString("c0ff8601-4b1e-4c7a-9e2d-5a3f86d0a001")
+    private val UPDATE = UUID.fromString("c0ff8604-4b1e-4c7a-9e2d-5a3f86d0a001")
 
     // The biggest the dash takes: a pull's notifications as big as can be.
     private const val MTU = 247
@@ -90,13 +62,25 @@ object LiveLink {
     @Volatile var rssi: Int? = null
         private set
 
+    @Volatile var mtu = 23
+        private set
+
+    // The dash has the update characteristic (older firmware doesn't), and
+    // what it runs, once read.
+    @Volatile var updatable = false
+        private set
+
+    @Volatile var dashFirmware: DashFirmware? = null
+        private set
+
     @Volatile private var latest: Readings? = null
 
     @Volatile private var latestAt = 0L
 
     private var pull: Pull? = null
 
-    // The data characteristic's notifications on: a pull can be asked.
+    // The data and update characteristics' notifications on, the dash's
+    // firmware read: a pull can be asked.
     private var dataReady = false
 
     val permissions = arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
@@ -142,7 +126,7 @@ object LiveLink {
 
     @Synchronized
     fun readRssi() {
-        gatt?.readRemoteRssi()
+        if (!FirmwareUpdate.transferring) gatt?.readRemoteRssi()
     }
 
     // Connects to that dash from now on (null: the first found), dropping
@@ -158,18 +142,27 @@ object LiveLink {
     }
 
     // Asks the dash for what it logged since from (Pull); done gets it,
-    // on Bluetooth's thread. False while not live, or while a pull is
-    // under way (one gone quiet past Pull.QUIET_MS is given up).
+    // on Bluetooth's thread. False while not live, while a pull is under
+    // way (one gone quiet past Pull.QUIET_MS is given up) or an update.
     @Synchronized
     fun pull(from: Long, done: (PullHeader, ByteArray) -> Unit): Boolean {
-        val g = gatt ?: return false
-        if (status != Status.LIVE || !dataReady) return false
-        pull?.let { if (SystemClock.uptimeMillis() - it.heardAt < Pull.QUIET_MS) return false }
-        val control = g.getService(SERVICE)?.getCharacteristic(CONTROL) ?: return false
+        if (status != Status.LIVE || !dataReady || pulling() || FirmwareUpdate.transferring) return false
         val p = Pull(SystemClock.uptimeMillis(), done)
-        if (g.writeCharacteristic(control, Pull.request(from), BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT) != BluetoothGatt.GATT_SUCCESS) return false
+        if (!writeControl(Pull.request(from), true)) return false
         pull = p
         return true
+    }
+
+    @Synchronized
+    fun pulling(): Boolean = pull?.let { SystemClock.uptimeMillis() - it.heardAt < Pull.QUIET_MS } == true
+
+    // A command to the dash's control characteristic; false if Android
+    // didn't take it (one request at a time).
+    @Synchronized
+    fun writeControl(command: ByteArray, withResponse: Boolean): Boolean {
+        val control = gatt?.getService(SERVICE)?.getCharacteristic(CONTROL) ?: return false
+        val type = if (withResponse) BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT else BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+        return gatt?.writeCharacteristic(control, command, type) == BluetoothGatt.GATT_SUCCESS
     }
 
     private fun adapter() = context?.getSystemService(BluetoothManager::class.java)?.adapter
@@ -203,9 +196,18 @@ object LiveLink {
         device = null
         deviceName = null
         rssi = null
+        forget()
+    }
+
+    // What a link knew of the dash, gone with it.
+    private fun forget() {
         latest = null
         pull = null
         dataReady = false
+        mtu = 23
+        updatable = false
+        dashFirmware = null
+        FirmwareUpdate.linkLost()
     }
 
     private val scan = object : ScanCallback() {
@@ -245,27 +247,47 @@ object LiveLink {
                     deviceName = null
                     rssi = null
                 }
-                latest = null
-                pull = null
-                dataReady = false
+                forget()
                 status = Status.SEARCHING
                 if (users > 0) connect()
             }
         }
 
-        // One request at a time: the MTU, then the live readings, then the
-        // data log's notifications.
+        // One request at a time: the MTU, then the live readings, the data
+        // log's notifications, the update's, the dash's firmware read; only
+        // then a pull, which would take Android's one request.
         override fun onServicesDiscovered(g: BluetoothGatt, state: Int) {
+            updatable = g.getService(SERVICE)?.getCharacteristic(UPDATE) != null
             g.requestMtu(MTU)
         }
 
         override fun onMtuChanged(g: BluetoothGatt, mtu: Int, state: Int) {
+            if (state == BluetoothGatt.GATT_SUCCESS) LiveLink.mtu = mtu
             subscribe(g, LIVE)
         }
 
         override fun onDescriptorWrite(g: BluetoothGatt, d: BluetoothGattDescriptor, state: Int) {
-            if (d.characteristic.uuid == LIVE) subscribe(g, DATA)
-            if (d.characteristic.uuid == DATA) dataReady = state == BluetoothGatt.GATT_SUCCESS
+            val ok = state == BluetoothGatt.GATT_SUCCESS
+            when (d.characteristic.uuid) {
+                LIVE -> subscribe(g, DATA)
+                DATA -> if (ok && !subscribe(g, UPDATE)) dataReady = true
+                UPDATE -> {
+                    val c = g.getService(SERVICE)?.getCharacteristic(UPDATE)
+                    if (c == null || !g.readCharacteristic(c)) dataReady = true
+                }
+            }
+        }
+
+        override fun onCharacteristicRead(g: BluetoothGatt, c: BluetoothGattCharacteristic, value: ByteArray, state: Int) {
+            if (c.uuid != UPDATE) return
+            dataReady = true
+            val firmware = DashFirmware.decode(value)?.takeIf { state == BluetoothGatt.GATT_SUCCESS } ?: return
+            dashFirmware = firmware
+            FirmwareUpdate.dashRead(firmware)
+        }
+
+        override fun onCharacteristicWrite(g: BluetoothGatt, c: BluetoothGattCharacteristic, state: Int) {
+            if (c.uuid == CONTROL) FirmwareUpdate.written(state == BluetoothGatt.GATT_SUCCESS)
         }
 
         override fun onReadRemoteRssi(g: BluetoothGatt, value: Int, state: Int) {
@@ -279,6 +301,10 @@ object LiveLink {
                 }
                 return
             }
+            if (c.uuid == UPDATE) {
+                FirmwareUpdate.notified(value)
+                return
+            }
             if (c.uuid != LIVE) return
             latest = LiveFrame.decode(value) ?: return
             latestAt = SystemClock.uptimeMillis()
@@ -286,10 +312,11 @@ object LiveLink {
         }
     }
 
-    private fun subscribe(g: BluetoothGatt, uuid: UUID) {
-        val c = g.getService(SERVICE)?.getCharacteristic(uuid) ?: return
+    // Whether the descriptor's write is on its way.
+    private fun subscribe(g: BluetoothGatt, uuid: UUID): Boolean {
+        val c = g.getService(SERVICE)?.getCharacteristic(uuid) ?: return false
         g.setCharacteristicNotification(c, true)
-        val cccd = c.getDescriptor(CCCD) ?: return
-        g.writeDescriptor(cccd, byteArrayOf(0x01, 0x00))
+        val cccd = c.getDescriptor(CCCD) ?: return false
+        return g.writeDescriptor(cccd, byteArrayOf(0x01, 0x00)) == BluetoothGatt.GATT_SUCCESS
     }
 }

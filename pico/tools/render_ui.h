@@ -5,16 +5,14 @@
 
 #include "ui/ui.h"
 
-// The panel's size, as in src/firmware/board.h.
-#define W 240
-#define H 320
+// The canvas: the panel (src/firmware/board.h) on its side, as in the car.
+#define W 320
+#define H 240
 
-// A screen drawn: its name, how, and whether on the panel turned a
-// quarter turn (H wide, W high).
+// A screen drawn: its name, and how.
 typedef struct {
     const char *name;
     void (*draw)(canvas_t *c);
-    bool landscape;
 } shot_t;
 
 // The screens drawn, the gauges then the rest, in the sheet's order.

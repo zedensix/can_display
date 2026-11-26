@@ -1,7 +1,7 @@
 // The door screen: with a door or the boot open, the whole screen shows
 // which, on the car seen from above, front up, left-hand drive (the
 // driver's door on the left): the open one swung out in red, no words.
-// A Dismiss button, under the car (portrait) or beside it (landscape): a
+// A Dismiss button beside the car: a
 // click puts the screen away (screen_apply_input).
 
 #include <math.h>
@@ -141,13 +141,8 @@ static void draw_car(canvas_t *c, const theme_t *t, int x, int y, uint8_t doors)
 
 void draw_door_screen(canvas_t *c, const theme_t *t, uint8_t doors) {
     gfx_fill_rect(c, 0, 0, c->width, c->height, t->background);
-    if (is_landscape(c)) {
-        // The car a little left of center, room on its left for the
-        // driver's door swung out; the button on its right.
-        draw_car(c, t, 70, (c->height - CAR_H) / 2, doors);
-        draw_button(c, t, 196, (c->height - BUTTON_H) / 2, c->width - 196 - 12, BUTTON_H, ICON_BACK, "Dismiss", true);
-        return;
-    }
-    draw_car(c, t, (c->width - CAR_W) / 2, (c->height - BUTTON_H - 8 - CAR_H) / 2, doors);
-    draw_button(c, t, 40, c->height - BUTTON_H - 8, c->width - 80, BUTTON_H, ICON_BACK, "Dismiss", true);
+    // The car a little left of center, room on its left for the driver's
+    // door swung out; the button on its right.
+    draw_car(c, t, 70, (c->height - CAR_H) / 2, doors);
+    draw_button(c, t, 196, (c->height - BUTTON_H) / 2, c->width - 196 - 12, BUTTON_H, ICON_BACK, "Dismiss", true);
 }

@@ -119,12 +119,7 @@ static void draw_oil_overheat_screen(canvas_t *c, const theme_t *t, float oil, u
     int left = cx - (wv + wd) / 2;
     gfx_text(c, &font_huge, left, y + 163, value, ink, 0);
     gfx_text(c, &font_large, left + wv, y + 163 - font_huge.cap + font_large.cap, DEGREE, ink, 0);
-    if (is_landscape(c)) {
-        draw_text_centered(c, &font_value, cx, y + 204, "TOO HOT, LIFT OFF", ink, 2);
-        return;
-    }
-    draw_text_centered(c, &font_value, cx, y + 210, "TOO HOT,", ink, 2);
-    draw_text_centered(c, &font_value, cx, y + 240, "LIFT OFF", ink, 2);
+    draw_text_centered(c, &font_value, cx, y + 204, "TOO HOT, LIFT OFF", ink, 2);
 }
 
 static bool oil_is_overheating(const state_t *state, uint32_t now_ms) {
@@ -185,11 +180,11 @@ void ui_render(canvas_t *c, const state_t *state, const screen_t *screen, const 
         // A gauge alone, the whole page under the shift light.
         draw_alone_page(c, t, &ui_tiles[screen->view - 1], top, c->height, state, now_ms);
     } else if (state_drive_mode(state, now_ms) != DRIVE_COMFORT) {
-        draw_track_grid(c, t, state, top, bottom, state_drive_mode(state, now_ms), now_ms);
-        draw_info_strip(c, t, state, false, now_ms);
+        draw_track_grid(c, t, state, top, bottom, now_ms);
+        draw_info_strip(c, t, state, now_ms);
     } else {
         draw_main_layout(c, t, state, top, bottom, now_ms);
-        draw_info_strip(c, t, state, true, now_ms);
+        draw_info_strip(c, t, state, now_ms);
     }
     draw_limiter_flash(c, t, &state->readings[SIG_RPM], now_ms);
 }

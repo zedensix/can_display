@@ -78,12 +78,12 @@ void test_flashlog(void) {
 }
 
 void test_settings(void) {
-    settings_t cfg = {.brightness = 40, .flip = true, .landscape = true, .shift_rpm = 7100};
+    settings_t cfg = {.brightness = 40, .flip = true, .shift_rpm = 7100};
     uint8_t buf[SETTINGS_SIZE];
     settings_encode(cfg, buf);
     CHECK(settings_equal(settings_decode(buf), cfg), "settings didn't round-trip");
-    buf[4] = 5; // saved with a BLE dongle, auto-connect and the CAN source's flag
-    buf[6] |= 1 << 0 | 1 << 4 | 1 << 5;
+    buf[4] = 5;                                  // saved with a BLE dongle, auto-connect and the CAN source's flag
+    buf[6] |= 1 << 0 | 1 << 4 | 1 << 5 | 1 << 6; // and landscape, the only way now
     CHECK(settings_equal(settings_decode(buf), cfg), "version 5 settings misread");
     buf[4] = 1; // saved by a firmware without the shift light
     settings_t old = settings_decode(buf);

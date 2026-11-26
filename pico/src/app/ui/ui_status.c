@@ -112,8 +112,7 @@ static void draw_choice_buttons(canvas_t *c, const theme_t *t, choice_t choice) 
 
 // draw_status_screen is the source's report while it isn't delivering: the
 // logo in a spinner (so a slow step doesn't look frozen), the first
-// paragraph as a title, the rest centered and wrapped under it (in
-// landscape, beside it). While it waits on the driver, Retry and Settings
+// paragraph as a title, the rest centered and wrapped beside it. While it waits on the driver, Retry and Settings
 // along the bottom.
 #define STATUS_MAX_LINES 14
 // The compact layout's logo, above the text, when the text needs the room.
@@ -146,17 +145,16 @@ static int wrap_status(const char *status, int width, char lines[][64], bool tit
 }
 
 void draw_status_screen(canvas_t *c, const theme_t *t, const state_t *state, const screen_t *screen, uint32_t now_ms) {
-    bool choosing = state->wait != WAIT_NONE, side = is_landscape(c);
+    bool choosing = state->wait != WAIT_NONE;
     int bottom = choosing ? c->height - CHOICE_HEIGHT - 12 : c->height;
-    // Portrait: the ring centered, the text under it. Landscape: the ring
-    // on the left, the text in a column on its right, around RING_Y.
-    int ring_x = side ? STATUS_MARGIN + RING_OUT + 8 : c->width / 2;
-    int text_left = side ? ring_x + RING_OUT + 16 : STATUS_MARGIN, text_w = c->width - STATUS_MARGIN - text_left;
+    // The ring on the left, the text in a column on its right, around RING_Y.
+    int ring_x = STATUS_MARGIN + RING_OUT + 8;
+    int text_left = ring_x + RING_OUT + 16, text_w = c->width - STATUS_MARGIN - text_left;
 
     char lines[STATUS_MAX_LINES][64];
     bool title[STATUS_MAX_LINES];
     int height, n = wrap_status(state->status, text_w, lines, title, &height);
-    int y = side ? RING_Y - height / 2 + STATUS_LINE_HEIGHT - 4 : RING_Y + RING_OUT + 34;
+    int y = RING_Y - height / 2 + STATUS_LINE_HEIGHT - 4;
     // A word wider than the text's column can't wrap: it doesn't fit.
     bool too_wide = false;
     for (int i = 0; i < n; i++) {

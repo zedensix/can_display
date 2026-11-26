@@ -39,9 +39,6 @@ void screen_apply_click(screen_t *s, settings_t *cfg) {
     case ROW_FLIP:
         cfg->flip = !cfg->flip;
         break;
-    case ROW_LANDSCAPE:
-        cfg->landscape = !cfg->landscape;
-        break;
     case ROW_SEND_LOG:
         s->action = ACTION_SEND_LOG;
         s->page = PAGE_GAUGES;

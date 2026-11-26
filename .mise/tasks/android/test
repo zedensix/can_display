@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#MISE description="Run the Android app's unit tests (the live frame's decoder against the dash's bytes)"
+#MISE description="Run the Android app's unit tests (the live frame's decoder against the dash's bytes, the firmware update's commands and flow control)"
 #MISE depends=["android:sdk"]
 set -euo pipefail
 gradle -p android --console=plain testDebugUnitTest

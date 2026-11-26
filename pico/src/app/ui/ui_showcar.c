@@ -13,7 +13,7 @@
 #define SHINE_FROM 900
 #define SHINE_MS 900
 // The logo's center and the dots' top, from the bottom: the logo 140px
-// down on a 320px panel, at the same share of a landscape one.
+// down on a 320px canvas, at the same share of this 240px one.
 #define DOTS_FROM_BOTTOM 30
 
 // draw_dots draws a dot per logo, the one shown a lit pill.

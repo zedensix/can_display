@@ -18,13 +18,15 @@ static const struct {
     const char *title;
     int first, last;
 } settings_groups[] = {
-    {"DISPLAY", ROW_BRIGHTNESS, ROW_LANDSCAPE},
+    {"DISPLAY", ROW_BRIGHTNESS, ROW_FLIP},
     {"TOOLS", ROW_SEND_LOG, ROW_SEND_LOG},
 };
 
 static const char *const settings_labels[SETTINGS_ROWS] = {
-    [ROW_BRIGHTNESS] = "Brightness", [ROW_SHIFT_LIGHT] = "Shift light", [ROW_FLIP] = "Flip screen",
-    [ROW_LANDSCAPE] = "Landscape",   [ROW_SEND_LOG] = "Send log",
+    [ROW_BRIGHTNESS] = "Brightness",
+    [ROW_SHIFT_LIGHT] = "Shift light",
+    [ROW_FLIP] = "Flip screen",
+    [ROW_SEND_LOG] = "Send log",
 };
 
 // draw_toggle draws a switch ending at right, centered on cy, on bg: a
@@ -72,9 +74,6 @@ static void draw_settings_value(canvas_t *c, const theme_t *t, int row, int righ
     case ROW_FLIP:
         draw_toggle(c, t, right, cy, cfg->flip, bg);
         break;
-    case ROW_LANDSCAPE:
-        draw_toggle(c, t, right, cy, cfg->landscape, bg);
-        break;
     default: // an action
         draw_text_right(c, &font_text, right, cy + font_text.cap / 2, ">", selected ? t->accent : dim, 0);
         break;
@@ -82,7 +81,7 @@ static void draw_settings_value(canvas_t *c, const theme_t *t, int row, int righ
 }
 
 // draw_settings_page draws the groups top down, Back under them. When they
-// don't fit above Back (landscape: 240px high), they scroll to keep the
+// don't fit above Back (240px high), they scroll to keep the
 // row under the cursor in the middle; whatever wouldn't show whole is
 // left out.
 void draw_settings_page(canvas_t *c, const theme_t *t, const screen_t *screen, const settings_t *cfg) {

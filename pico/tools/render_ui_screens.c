@@ -73,22 +73,16 @@ static void shot_boot_logo(canvas_t *c) {
 }
 
 const shot_t screen_shots[] = {
-    {"can_failed", shot_can_failed, false},
-    {"can_silent", shot_can_silent, false},
-    {"send_log", shot_send_log, false},
-    {"door", shot_door, false},
-    {"doors", shot_doors, false},
-    {"showcar", shot_showcar, false},
-    {"showcar_later", shot_showcar_later, false},
-    {"settings", shot_settings, false},
-    {"shot_boot_spin", shot_boot_spin, false},
-    {"shot_boot_morph", shot_boot_morph, false},
-    {"shot_boot_logo", shot_boot_logo, false},
-    {"can_failed_landscape", shot_can_failed, true},
-    {"send_log_landscape", shot_send_log, true},
-    {"door_landscape", shot_door, true},
-    {"settings_landscape", shot_settings, true},
-    {"showcar_landscape", shot_showcar, true},
-    {"boot_landscape", shot_boot_morph, true},
+    {"can_failed", shot_can_failed},
+    {"can_silent", shot_can_silent},
+    {"send_log", shot_send_log},
+    {"door", shot_door},
+    {"doors", shot_doors},
+    {"showcar", shot_showcar},
+    {"showcar_later", shot_showcar_later},
+    {"settings", shot_settings},
+    {"shot_boot_spin", shot_boot_spin},
+    {"shot_boot_morph", shot_boot_morph},
+    {"shot_boot_logo", shot_boot_logo},
 };
 const int screen_shot_count = sizeof screen_shots / sizeof screen_shots[0];

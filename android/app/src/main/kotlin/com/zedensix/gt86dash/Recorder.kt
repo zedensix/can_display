@@ -102,11 +102,21 @@ object Recorder {
 
     private fun pullIfDue() {
         val c = context ?: return
-        val dash = LiveLink.device ?: return
-        val now = SystemClock.uptimeMillis()
-        if (!Settings(c).collect || now - pulledAt < PULL_MS) return
-        if (!LiveLink.pull(Logs.from(c, dash)) { h, bytes -> worker.execute { kept(c, dash, h, bytes) } }) return
-        pulledAt = now
+        if (Settings(c).collect && SystemClock.uptimeMillis() - pulledAt >= PULL_MS) pullNow {}
+    }
+
+    // Pulls the dash's log now (before its firmware is updated, whatever
+    // the setting): received runs once it's in, on Bluetooth's thread.
+    // False if it can't be asked now (LiveLink.pull).
+    fun pullNow(received: () -> Unit): Boolean {
+        val c = context ?: return false
+        val dash = LiveLink.device ?: return false
+        val asked = LiveLink.pull(Logs.from(c, dash)) { h, bytes ->
+            worker.execute { kept(c, dash, h, bytes) }
+            received()
+        }
+        if (asked) pulledAt = SystemClock.uptimeMillis()
+        return asked
     }
 
     // A pull in: kept, and the last session backed up once the dash is in

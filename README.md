@@ -50,12 +50,10 @@ a race-wheel shift light across the top, and every drive logged to your phone.
 | **Cold engine**: blue, don't rev it yet | **Shift light**, lit in pairs from both ends | **Oil at 130°C**: the whole screen |
 | <img src="screenshots/pico/can_silent.png" width="240" alt="Waiting for the car"> | <img src="screenshots/pico/settings.png" width="240" alt="Settings"> | <img src="screenshots/pico/showcar.png" width="240" alt="Screensaver"> |
 | **Waiting for the car**: the bus asleep | **Settings**, one screen, on the knob | **Screensaver**, nothing coming in |
-| <img src="screenshots/pico/track_trc.png" width="240" alt="Drift mode"> | <img src="screenshots/pico/track_vsc.png" width="240" alt="Race mode"> | <img src="screenshots/pico/shot_boot_morph.png" width="240" alt="Starting up"> |
-| **Drift mode** (TRC off): the track layout | **Race mode**: everything off, in red | **Starting up**: the ring closes into the logo |
+| <img src="screenshots/pico/track.png" width="240" alt="Track layout"> | <img src="screenshots/pico/send_log.png" width="240" alt="Send log"> | <img src="screenshots/pico/shot_boot_morph.png" width="240" alt="Starting up"> |
+| **Track layout** (stability control off): oil and AFR big | **Send log** to the phone | **Starting up**: the ring closes into the logo |
 | <img src="screenshots/pico/pedal.png" width="240" alt="Pedal"> | <img src="screenshots/pico/load.png" width="240" alt="Engine load"> | <img src="screenshots/pico/limiter.png" width="240" alt="Near the limiter"> |
 | **Pedal**, a view on the knob | **Engine load**, another | **Near the limiter**: the whole screen flashes |
-| <img src="screenshots/pico/grid_landscape.png" width="240" alt="Landscape"> | <img src="screenshots/pico/oil_landscape.png" width="240" alt="A gauge alone, landscape"> | <img src="screenshots/pico/send_log_landscape.png" width="240" alt="Send log, landscape"> |
-| **Landscape**, the panel on its side | **A gauge alone**, its extremes beside it | Every screen turns with it |
 | <img src="screenshots/pico/door.png" width="240" alt="Door open"> | <img src="screenshots/pico/doors.png" width="240" alt="Doors open"> | <img src="screenshots/pico/can_failed.png" width="240" alt="CAN self test failed"> |
 | **A door open**: which, on the car | **Several**: each swung out | **CAN self test**: which wire to check |
 
@@ -87,7 +85,7 @@ an https reverse proxy: Web Bluetooth needs https, and the proxy is what asks wh
 | Part | For | Notes |
 | --- | --- | --- |
 | Raspberry Pi Pico W (or WH) | the brain, and Bluetooth for Send log | RP2040, 2MB flash |
-| ST7789 V2.2 2.0" 240x320 SPI display | the screen | in portrait |
+| ST7789 V2.2 2.0" 240x320 SPI display | the screen | on its side, 320x240 |
 | KY-040 rotary encoder (EC11) | turn, click, hold | wired on its own legs, the Pico's pull-ups |
 | MCP2515 + TJA1050 CAN module | the car's data | on OBD pins 6 and 14, its SO through a resistor divider (5V to 3.3V) |
 | 12V to 5V converter | power | from a switched 12V, into the Pico's USB socket |
@@ -118,7 +116,7 @@ Dimensions tab is where the measurements go in. More in
 1. Install [mise](https://mise.jdx.dev), then `mise install`: the ARM toolchain, CMake, Bun
    and the rest, pinned, and the git hooks.
 2. `mise run sim` opens the dash in a window, with made-up data: the arrows turn the knob,
-   space clicks, l turns it to landscape (the simulator needs SDL2: `brew install sdl2`).
+   space clicks (the simulator needs SDL2: `brew install sdl2`).
 3. `mise run firmware` builds `bin/firmware.uf2`; `mise run flash` builds and flashes a Pico
    on USB, rebooting it into BOOTSEL by itself.
 4. In the car: wire the MCP2515 to the OBD port, power the dash from a switched 12V.

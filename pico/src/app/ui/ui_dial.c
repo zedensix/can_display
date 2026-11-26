@@ -143,7 +143,7 @@ static int bands(const range_t *r, const theme_t *t, float from[], color_t color
 // The session's lowest and highest side by side, at least column apart,
 // then where each color starts, from x, top down: LEGEND_H high. The
 // values in font_value, or font_text when both don't fit before right
-// (14.2V 14.5V, in landscape).
+// (14.2V 14.5V).
 static void legend(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int top, int column, int right,
                    const reading_t *r) {
     const char *unit = strcmp(tile->unit, DEGREE "C") == 0 ? DEGREE : tile->unit;
@@ -199,18 +199,8 @@ static void legend(canvas_t *c, const theme_t *t, const tile_t *tile, int x, int
 void draw_alone_page(canvas_t *c, const theme_t *t, const tile_t *tile, int top, int bottom, const state_t *s,
                      uint32_t now_ms) {
     const reading_t *r = &s->readings[tile->signal];
-    int avail = bottom - top;
-    if (is_landscape(c)) {
-        int size = avail - 4 < 196 ? avail - 4 : 196;
-        int y = top + (avail - size) / 2;
-        draw_dial(c, t, tile, 0, y, size, &alone_style, s, "", true, now_ms);
-        draw_scale_ends(c, t, tile, 0, y, size);
-        legend(c, t, tile, size + 10, top + (avail - LEGEND_H) / 2, 58, c->width - 4, r);
-        return;
-    }
-    int size = avail - LEGEND_H - 8 < c->width - 20 ? avail - LEGEND_H - 8 : c->width - 20;
-    int x = (c->width - size) / 2;
-    draw_dial(c, t, tile, x, top + 2, size, &alone_style, s, "", true, now_ms);
-    draw_scale_ends(c, t, tile, x, top + 2, size);
-    legend(c, t, tile, 20, top + size + 6, 110, c->width - 20, r);
+    int avail = bottom - top, size = avail - 4 < 196 ? avail - 4 : 196, y = top + (avail - size) / 2;
+    draw_dial(c, t, tile, 0, y, size, &alone_style, s, "", true, now_ms);
+    draw_scale_ends(c, t, tile, 0, y, size);
+    legend(c, t, tile, size + 10, top + (avail - LEGEND_H) / 2, 58, c->width - 4, r);
 }
