@@ -14,16 +14,18 @@ void gear_text(const state_t *s, uint32_t now_ms, char out[4]) {
     snprintf(out, 4, gear > 0 && gear < 10 ? "%d" : "N", gear);
 }
 
-// km in whole kilometres, a space between each group of three digits.
-static void odometer_text(float km, char out[24]) {
+// km in whole kilometres, a space between each group of three digits;
+// returns snprintf's length (gcc's -Wformat-truncation can't see the
+// groups are three digits, and warns only when it goes unused).
+static int odometer_text(float km, char out[24]) {
     long whole = (long)km;
     if (whole < 1000) {
-        snprintf(out, 24, "%ld km", whole);
-    } else if (whole < 1000000) {
-        snprintf(out, 24, "%ld %03ld km", whole / 1000, whole % 1000);
-    } else {
-        snprintf(out, 24, "%ld %03ld %03ld km", whole / 1000000, whole / 1000 % 1000, whole % 1000);
+        return snprintf(out, 24, "%ld km", whole);
     }
+    if (whole < 1000000) {
+        return snprintf(out, 24, "%ld %03ld km", whole / 1000, whole % 1000);
+    }
+    return snprintf(out, 24, "%ld %03ld %03ld km", whole / 1000000, whole / 1000 % 1000, whole % 1000);
 }
 
 void draw_info_strip(canvas_t *c, const theme_t *t, const state_t *s, uint32_t now_ms) {
