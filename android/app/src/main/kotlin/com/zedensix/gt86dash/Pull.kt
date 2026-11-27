@@ -28,6 +28,10 @@ class Pull(var heardAt: Long, private val done: (PullHeader, ByteArray) -> Unit)
     private var header: PullHeader? = null
     private val bytes = ByteArrayOutputStream()
 
+    // Bytes in and how many come, once the header said.
+    val got: Int get() = bytes.size()
+    val total: Int? get() = header?.total
+
     // Takes a notification at now; returns whether the pull is over. A
     // header saying more than the dash's log holds isn't one: given up.
     fun take(value: ByteArray, now: Long): Boolean {
@@ -54,7 +58,9 @@ class Pull(var heardAt: Long, private val done: (PullHeader, ByteArray) -> Unit)
         // The dash's data log is under a megabyte.
         const val MAX_BYTES = 2 shl 20
 
-        fun request(from: Long): ByteArray =
-            ByteBuffer.allocate(5).order(ByteOrder.LITTLE_ENDIAN).put('R'.code.toByte()).putInt(from.toInt()).array()
+        // forUpdate: the dash shows it, the update's screen up from then on.
+        fun request(from: Long, forUpdate: Boolean): ByteArray =
+            ByteBuffer.allocate(6).order(ByteOrder.LITTLE_ENDIAN).put('R'.code.toByte()).putInt(from.toInt())
+                .put(if (forUpdate) 1 else 0).array()
     }
 }

@@ -1,5 +1,6 @@
-// A new firmware from the phone (the app's own, bundled in it): it asks
-// with 'U' (size, CRC-32), the driver allows it with a click on the knob,
+// A new firmware from the phone (the app's own, bundled in it): it pulls
+// the data log first ('R' with its update flag, ble.c), the update's
+// screen up from then on, then asks with 'U' (size, CRC-32), the driver allows it with a click on the knob,
 // the image comes in 'W' writes staged in the data log's ring (update.h),
 // then the firmware copies it over itself and restarts. Its replies are
 // notifications of the update characteristic:
@@ -24,7 +25,7 @@
 // From 'I' to the copy: the notification out, "installing" on the screen.
 #define INSTALL_DELAY_MS 500
 
-typedef enum { IDLE, ASKING, RECEIVING, INSTALLING } stage_t;
+typedef enum { IDLE, PULLING, ASKING, RECEIVING, INSTALLING } stage_t;
 
 static stage_t stage;
 static uint16_t update_handle;
@@ -81,9 +82,36 @@ static void finish(uint8_t error) {
     state->wait = wait_before;
 }
 
+// keep_screen saves what the screen shows, put back when the update's over.
+static void keep_screen(void) {
+    snprintf(status_before, sizeof status_before, "%s", state->status);
+    wait_before = state->wait;
+    state->wait = WAIT_NONE;
+}
+
+void ble_update_pulling(uint32_t sent, uint32_t total, uint32_t now) {
+    // Its start only: cancelled ('X'), the rest of the pull stays off the screen.
+    if (stage == IDLE && sent == 0) {
+        keep_screen();
+        stage = PULLING;
+    }
+    if (stage != PULLING) {
+        return;
+    }
+    since = now;
+    char status[96];
+    if (sent < total) {
+        snprintf(status, sizeof status, "UPDATE\nsaving the data log\n%lu of %lu KB", (unsigned long)(sent / 1024),
+                 (unsigned long)(total / 1024));
+    } else {
+        snprintf(status, sizeof status, "UPDATE\ndata log saved\nwaiting for the phone");
+    }
+    show(status);
+}
+
 static void ask(hci_con_handle_t con, const uint8_t *command, uint16_t length, uint32_t now, bool busy) {
     phone = con;
-    if (length < 9 || stage != IDLE || busy || !store_get_datalog()) {
+    if (length < 9 || (stage != IDLE && stage != PULLING) || busy || !store_get_datalog()) {
         queue_reply('E', 1, 1);
         return;
     }
@@ -94,9 +122,9 @@ static void ask(hci_con_handle_t con, const uint8_t *command, uint16_t length, u
         return;
     }
     log_line("update: the phone offers %lu bytes", (unsigned long)size);
-    snprintf(status_before, sizeof status_before, "%s", state->status);
-    wait_before = state->wait;
-    state->wait = WAIT_NONE;
+    if (stage == IDLE) {
+        keep_screen();
+    }
     char status[96];
     snprintf(status, sizeof status, "UPDATE\nnew firmware\nfrom the phone, %lu KB\npress: install",
              (unsigned long)(size / 1024));
@@ -168,7 +196,7 @@ bool ble_update_command(hci_con_handle_t con, const uint8_t *command, uint16_t l
         take(command, length, now);
         return true;
     case 'X':
-        if (stage == ASKING || stage == RECEIVING) {
+        if (stage == PULLING || stage == ASKING || stage == RECEIVING) {
             log_line("update: cancelled on the phone");
             finish(0);
         }
@@ -197,14 +225,16 @@ void ble_update_disconnected(void) {
     phone = HCI_CON_HANDLE_INVALID;
     reply_size = 0;
     // Installing needs the phone no more.
-    if (stage == ASKING || stage == RECEIVING) {
+    if (stage == PULLING || stage == ASKING || stage == RECEIVING) {
         log_line("update: the phone left");
         finish(0);
     }
 }
 
 void ble_update_poll(uint32_t now) {
-    if (stage == ASKING && now - since > ASK_MS) {
+    if (stage == PULLING && now - since > ASK_MS) {
+        finish(0);
+    } else if (stage == ASKING && now - since > ASK_MS) {
         finish(1);
     } else if (stage == RECEIVING && now - since > QUIET_MS) {
         finish(4);
@@ -215,6 +245,9 @@ void ble_update_poll(uint32_t now) {
 
 bool ble_update_click(uint32_t now) {
     switch (stage) {
+    case PULLING:
+        finish(0);
+        return true;
     case ASKING:
         start(now);
         return true;

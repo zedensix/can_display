@@ -7,11 +7,7 @@ import android.graphics.Rect
 import android.os.SystemClock
 import android.view.GestureDetector
 import android.view.MotionEvent
-import android.view.RoundedCorner
 import android.view.View
-import android.view.WindowInsets
-import android.widget.ImageButton
-import android.widget.ImageView
 import kotlin.math.abs
 
 // The dash drawn on a View, again every frame; a swipe across it turns
@@ -49,36 +45,5 @@ class DashView(context: Context, private val scene: String?) : View(context) {
     }
 }
 
-// What the phone's screens share: everything inside the safe area, clear
-// of the camera's cutout, the system bars and the screen's rounded
-// corners, whichever side the phone is turned to; a round icon button.
-fun safeArea(root: View) {
-    root.setOnApplyWindowInsetsListener { v, insets ->
-        val safe = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
-        // A corner of radius r cuts into a square at it up to 0.3 r from
-        // both edges: each side clear of its two corners' cut.
-        fun cut(a: Int, b: Int) = (CORNER_CUT * maxOf(insets.getRoundedCorner(a)?.radius ?: 0, insets.getRoundedCorner(b)?.radius ?: 0)).toInt()
-        v.setPadding(
-            maxOf(safe.left, cut(RoundedCorner.POSITION_TOP_LEFT, RoundedCorner.POSITION_BOTTOM_LEFT)),
-            maxOf(safe.top, cut(RoundedCorner.POSITION_TOP_LEFT, RoundedCorner.POSITION_TOP_RIGHT)),
-            maxOf(safe.right, cut(RoundedCorner.POSITION_TOP_RIGHT, RoundedCorner.POSITION_BOTTOM_RIGHT)),
-            maxOf(safe.bottom, cut(RoundedCorner.POSITION_BOTTOM_LEFT, RoundedCorner.POSITION_BOTTOM_RIGHT)),
-        )
-        WindowInsets.CONSUMED
-    }
-}
-
-private const val CORNER_CUT = 0.3f
-
+// Pixels for v dp on c's screen.
 fun dp(c: Context, v: Int): Int = (v * c.resources.displayMetrics.density).toInt()
-
-fun iconButton(c: Context, icon: Int, size: Int, onClick: () -> Unit) =
-    ImageButton(c).apply {
-        setImageResource(icon)
-        setColorFilter(0xFFBDBDBD.toInt())
-        setBackgroundResource(R.drawable.round_button)
-        val pad = dp(c, size) / 5
-        setPadding(pad, pad, pad, pad)
-        scaleType = ImageView.ScaleType.FIT_CENTER
-        setOnClickListener { onClick() }
-    }

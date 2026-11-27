@@ -48,6 +48,14 @@ class RecorderTest {
         assertNull(PullHeader.decode(ByteArray(4)))
     }
 
+    // 'R', where from (little-endian), then 1 for the pull before an
+    // update (ble.c: the dash shows it).
+    @Test
+    fun asksAPull() {
+        assertEquals(listOf(0x52, 0x80, 0x00, 0x01, 0x00, 0x00), Pull.request(0x10080, false).map { it.toInt() and 0xFF })
+        assertEquals(1.toByte(), Pull.request(Pull.FROM_OLDEST, true)[5])
+    }
+
     @Test
     fun pullTakesTheHeaderThenTheBytes() {
         var got: ByteArray? = null

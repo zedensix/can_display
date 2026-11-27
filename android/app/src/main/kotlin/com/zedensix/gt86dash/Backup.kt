@@ -37,6 +37,22 @@ object Backup {
         }
     }
 
+    // A file written into the folder picked, then deleted: whether the
+    // backups can go there, in result.
+    fun test(c: Context) {
+        val app = c.applicationContext
+        worker.execute {
+            result = try {
+                val folder = Settings(app).folder ?: throw Exception("no folder picked")
+                val written = toFolder(app, folder, "gt86-dash-test.txt", "GT86 Dash backup test\n".toByteArray())
+                DocumentsContract.deleteDocument(app.contentResolver, written)
+                "The folder takes the backups"
+            } catch (e: Exception) {
+                "Can't write into the folder: ${e.message}"
+            }
+        }
+    }
+
     // What changed since its last backup there, copied; how many (-1: off).
     private fun backUp(c: Context): Int {
         val settings = Settings(c)
@@ -66,8 +82,8 @@ object Backup {
     }
 
     // Into the folder picked (a document tree), over the file of that
-    // name if there's one.
-    private fun toFolder(c: Context, uri: String, name: String, bytes: ByteArray) {
+    // name if there's one; returns the file written.
+    private fun toFolder(c: Context, uri: String, name: String, bytes: ByteArray): Uri {
         val tree = Uri.parse(uri)
         val root = DocumentsContract.getTreeDocumentId(tree)
         val resolver = c.contentResolver
@@ -81,6 +97,7 @@ object Backup {
             ?: DocumentsContract.createDocument(resolver, DocumentsContract.buildDocumentUriUsingTree(tree, root), "application/octet-stream", name)
             ?: throw Exception("the folder refused $name")
         (resolver.openOutputStream(target, "wt") ?: throw Exception("can't write $name")).use { it.write(bytes) }
+        return target
     }
 
     private fun toWebdav(base: String, key: String, name: String, bytes: ByteArray) {

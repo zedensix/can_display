@@ -24,4 +24,7 @@ void ble_update_poll(uint32_t now);
 // ble_update_click takes a click while an update asks or runs: allow it,
 // or cancel it.
 bool ble_update_click(uint32_t now);
+// ble_update_pulling shows an update's pull of the data log (sent of total
+// bytes), the update's screen from its start to the end of the update.
+void ble_update_pulling(uint32_t sent, uint32_t total, uint32_t now);
 bool ble_updating(void);

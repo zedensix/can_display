@@ -186,7 +186,8 @@ bus, and the panel says which wire to look at:
    car): 10 frames pass it, and the dash goes on to its gauges. Nothing
    after 5s says WAITING FOR THE CAR: the bus sleeps until the ignition
    is on, and the test passes by itself once it wakes. Still nothing
-   with the ignition on: CAN-H and CAN-L not reaching OBD pins 6 and 14. Receive errors and no frame: CAN-H and
+   with the ignition on: the screen says the OBD plug isn't connected
+   (or CAN-H and CAN-L don't reach its pins 6 and 14). Receive errors and no frame: CAN-H and
    CAN-L swapped, or a crystal other than 8MHz.
 
 Retry (after a failure, not a silent bus) reruns it from a fresh boot; Settings sits beside it. The

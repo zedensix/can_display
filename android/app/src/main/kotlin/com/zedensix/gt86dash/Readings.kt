@@ -30,7 +30,11 @@ data class Readings(
     val mode: DriveMode = DriveMode.COMFORT,
     // Off the throttle the AFR reads lean from the fuel cut: no alarm.
     val offThrottle: Boolean = false,
-)
+) {
+    // Nothing from the car: the dash's bus silent (the OBD plug out, the
+    // ignition off).
+    val none get() = listOf(oil, coolant, afr, intake, battery, ethanol, rpm, outside).all { it == null }
+}
 
 // The lowest and highest of each gauge since the app started (or the
 // settings reset them), as the Pico's reading_t keeps them since boot: one

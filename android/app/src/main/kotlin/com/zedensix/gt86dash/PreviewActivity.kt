@@ -1,76 +1,74 @@
 package com.zedensix.gt86dash
 
-import android.app.Activity
-import android.content.Context
-import android.content.Intent
-import android.content.res.Configuration
-import android.graphics.Canvas
-import android.graphics.Rect
 import android.os.Bundle
-import android.os.SystemClock
-import android.view.Gravity
-import android.view.RoundedCorner
-import android.view.View
 import android.view.ViewGroup
-import android.view.ViewGroup.LayoutParams.MATCH_PARENT
-import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-import android.view.WindowInsets
-import android.widget.FrameLayout
-import android.widget.ImageButton
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
-import android.window.OnBackInvokedCallback
-import android.window.OnBackInvokedDispatcher
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.delay
 
 // The dash on the phone, full screen, turned as the phone is (portrait
-// unless it's turned), a swipe across it turning the views as the Pico's
-// encoder does; the lap timing, the map or the settings page in its place
-// (a Page; Back closes it). Its buttons, clear of every reading: in
-// portrait a navigation bar floating as glass along the bottom, Home
-// (back to the gauges; there, the main view), Laps, Map, Settings, the
-// one shown lit; in landscape a column each side, Home over Laps on the
-// left, Settings over Map on the right. It asks for Bluetooth's
+// unless it's turned; the manifest's configChanges keep the activity, and
+// the link, through the turn), a swipe across it turning the views as the
+// Pico's encoder does. Material 3 around it (Theme.kt): a navigation bar,
+// a rail in landscape, Home (back to the gauges; there, the main view),
+// Laps, Map and Settings, each page in the dash's place, Back closing it.
+// A firmware update starting opens its page (UpdatePage) over whatever
+// showed, the screen kept on while it runs. It asks for Bluetooth's
 // permissions, for the dash's readings. Started with a scene (adb shell am
 // start -n com.zedensix.gt86dash/.PreviewActivity --es scene track --ei
 // view 1), it holds that scene's fixed readings, for screenshots; --ez
 // settings true opens the settings.
-class PreviewActivity : Activity() {
-    private lateinit var root: FrameLayout
+class PreviewActivity : ComponentActivity() {
     private lateinit var dash: DashView
-    private lateinit var settingsPage: SettingsPage
-    private lateinit var drivesPage: DrivesPage
-    private lateinit var lapsPage: LapsPage
+    private lateinit var picker: DashPicker
 
-    // The page shown in the dash's place, and its view.
-    private var page: Page? = null
-    private var pageView: View? = null
-    private val back = OnBackInvokedCallback { closePage() }
+    private val askBluetooth = registerForActivityResult(RequestMultiplePermissions()) {}
 
-    // The icons and labels of the layout in use, each lit while its page
-    // shows (null: the gauges).
-    private var lit = listOf<Pair<Page?, View>>()
+    enum class Tab(val label: String, val icon: Int) {
+        HOME("Home", R.drawable.ic_home),
+        LAPS("Laps", R.drawable.ic_laps),
+        MAP("Map", R.drawable.ic_map),
+        SETTINGS("Settings", R.drawable.ic_settings),
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         dash = DashView(this, intent.getStringExtra("scene"))
         repeat(intent.getIntExtra("view", 0)) { dash.dash.nextView() }
-        settingsPage = SettingsPage(this) { closePage() }
-        drivesPage = DrivesPage(this) { closePage() }
-        lapsPage = LapsPage(this) { closePage() }
-        root = FrameLayout(this).apply { setBackgroundColor(Colors.BACKGROUND) }
-        safeArea(root)
-        setContentView(root)
-        if (intent.getBooleanExtra("settings", false)) openPage(settingsPage) else layOut()
-        if (!LiveLink.granted(this)) requestPermissions(LiveLink.permissions, 0)
-    }
-
-    // Turned, it lays itself out again; the manifest keeps the activity
-    // through the turn (configChanges): recreated, it would drop the link.
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-        page?.let { pageView = it.build(barRoom()) }
-        layOut()
+        picker = DashPicker(this, Settings(this))
+        val start = if (intent.getBooleanExtra("settings", false)) Tab.SETTINGS else Tab.HOME
+        setContent { DashTheme { App(start) } }
+        if (!LiveLink.granted(this)) askBluetooth.launch(LiveLink.permissions)
     }
 
     override fun onStart() {
@@ -85,152 +83,93 @@ class PreviewActivity : Activity() {
         super.onStop()
     }
 
-    override fun onResume() {
-        super.onResume()
-        page?.resume()
-    }
+    @Composable
+    private fun App(start: Tab) {
+        var tab by rememberSaveable { mutableStateOf(start) }
+        var updating by remember { mutableStateOf(false) }
+        val context = LocalContext.current
+        val askGps = rememberLauncherForActivityResult(RequestMultiplePermissions()) { Recorder.update() }
+        val wantGps = { context.wantGps { askGps.launch(it) } }
 
-    override fun onPause() {
-        page?.pause()
-        super.onPause()
-    }
-
-    override fun onDestroy() {
-        drivesPage.destroy()
-        super.onDestroy()
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, results: IntArray) {
-        if (requestCode == Recorder.LOCATION_REQUEST) Recorder.update() else if (page === settingsPage) settingsPage.permissionsAnswered()
-    }
-
-    // The folder for the backups, picked.
-    @Deprecated("Activity's own: no AndroidX here")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == RecordingSettings.FOLDER_REQUEST && resultCode == RESULT_OK) settingsPage.folderPicked(data?.data)
-    }
-
-    private fun portrait() = resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE
-
-    // What the floating bar takes off the bottom in portrait.
-    private fun barRoom() = if (portrait()) dp(this, BAR + 2 * BAR_MARGIN) else 0
-
-    // A page in the dash's place.
-    private fun openPage(p: Page) {
-        if (page === p) return
-        val shown = page
-        if (shown == null) onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, back) else shown.pause()
-        page = p
-        pageView = p.build(barRoom())
-        p.resume()
-        layOut()
-    }
-
-    private fun closePage() {
-        val p = page ?: return
-        page = null
-        pageView = null
-        p.pause()
-        onBackInvokedDispatcher.unregisterOnBackInvokedCallback(back)
-        layOut()
-    }
-
-    // Home: back to the gauges, or there to the main view.
-    private fun home() {
-        if (page != null) closePage() else dash.dash.home()
-    }
-
-    private fun update() {
-        lit.forEach { (p, v) -> tint(v, if (page === p) Colors.ACCENT else ICON) }
-    }
-
-    private fun tint(v: View, color: Int) {
-        if (v is ImageView) v.setColorFilter(color) else if (v is TextView) v.setTextColor(color)
-    }
-
-    private fun layOut() {
-        listOf<View?>(dash, pageView).forEach { v -> (v?.parent as? ViewGroup)?.removeView(v) }
-        root.removeAllViews()
-        val content = pageView ?: dash
-        if (portrait()) {
-            val frame = GlassFrame(this)
-            val bar = navigationBar()
-            frame.addView(content, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT).apply { bottomMargin = if (content === dash) barRoom() else 0 })
-            frame.addView(
-                bar,
-                FrameLayout.LayoutParams(MATCH_PARENT, dp(this, BAR), Gravity.BOTTOM).apply {
-                    val m = dp(this@PreviewActivity, BAR_MARGIN)
-                    setMargins(m + dp(this@PreviewActivity, 8), m, m + dp(this@PreviewActivity, 8), m)
-                },
-            )
-            frame.bar = bar
-            root.addView(frame, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-        } else {
-            root.addView(columns(content), FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-        }
-        update()
-    }
-
-    private fun columns(content: View): View {
-        val frame = LinearLayout(this)
-        val side = dp(this, BUTTON + 2 * MARGIN)
-        val home = iconButton(this, R.drawable.ic_home, BUTTON) { home() }
-        val laps = iconButton(this, R.drawable.ic_laps, BUTTON) { openPage(lapsPage) }
-        val map = iconButton(this, R.drawable.ic_map, BUTTON) { openPage(drivesPage) }
-        val cog = iconButton(this, R.drawable.ic_settings, BUTTON) { openPage(settingsPage) }
-        lit = listOf(null to home, lapsPage to laps, drivesPage to map, settingsPage to cog)
-        val top = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        frame.addView(column(home to top, laps to Gravity.CENTER), LinearLayout.LayoutParams(side, MATCH_PARENT))
-        frame.addView(content, LinearLayout.LayoutParams(0, MATCH_PARENT, 1f))
-        frame.addView(column(cog to top, map to Gravity.CENTER), LinearLayout.LayoutParams(side, MATCH_PARENT))
-        return frame
-    }
-
-    // Four items across the floating bar, each an icon over its label.
-    private fun navigationBar(): View {
-        val bar = LinearLayout(this).apply {
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(context, 6), 0, dp(context, 6), 0)
-        }
-        val items = mutableListOf<Pair<Page?, View>>()
-        fun item(page: Page?, icon: Int, label: String, onClick: () -> Unit) {
-            val image = ImageView(this).apply {
-                setImageResource(icon)
-                setColorFilter(ICON)
-            }
-            val text = pageText(this, label, 12f, R.font.barlow_condensed_semibold, ICON).apply { gravity = Gravity.CENTER }
-            val item = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
-                setBackgroundResource(R.drawable.navigation_item)
-                setOnClickListener { onClick() }
-                addView(image, LinearLayout.LayoutParams(dp(context, 24), dp(context, 24)))
-                addView(text)
-            }
-            bar.addView(item, LinearLayout.LayoutParams(0, MATCH_PARENT, 1f))
-            items += listOf(page to image, page to text)
-        }
-        item(null, R.drawable.ic_home, "Home") { home() }
-        item(lapsPage, R.drawable.ic_laps, "Laps") { openPage(lapsPage) }
-        item(drivesPage, R.drawable.ic_map, "Map") { openPage(drivesPage) }
-        item(settingsPage, R.drawable.ic_settings, "Settings") { openPage(settingsPage) }
-        lit = items
-        return bar
-    }
-
-    private fun column(vararg buttons: Pair<View, Int>) =
-        FrameLayout(this).apply {
-            val m = dp(this@PreviewActivity, MARGIN)
-            buttons.forEach { (b, gravity) ->
-                addView(b, FrameLayout.LayoutParams(dp(context, BUTTON), dp(context, BUTTON), gravity).apply { setMargins(m, m, m, m) })
+        // An update starting opens its page; the screen stays on through it.
+        val view = LocalView.current
+        LaunchedEffect(Unit) {
+            var was = false
+            while (true) {
+                val active = FirmwareUpdate.active
+                if (active && !was) updating = true
+                was = active
+                view.keepScreenOn = active
+                delay(WATCH_MS)
             }
         }
+        BackHandler(enabled = updating || tab != Tab.HOME) {
+            if (updating) updating = false else tab = Tab.HOME
+        }
+        fun select(t: Tab) {
+            if (t == Tab.HOME && tab == Tab.HOME && !updating) dash.dash.home()
+            updating = false
+            tab = t
+        }
+
+        val wide = landscape()
+        Scaffold(
+            bottomBar = {
+                if (!wide) {
+                    NavigationBar {
+                        Tab.entries.forEach { t ->
+                            NavigationBarItem(
+                                selected = !updating && tab == t,
+                                onClick = { select(t) },
+                                icon = { Icon(painterResource(t.icon), null) },
+                                label = { Text(t.label) },
+                            )
+                        }
+                    }
+                }
+            },
+        ) { padding ->
+            Row(Modifier.padding(padding).fillMaxSize()) {
+                if (wide) {
+                    NavigationRail {
+                        Spacer(Modifier.weight(1f))
+                        Tab.entries.forEach { t ->
+                            NavigationRailItem(
+                                selected = !updating && tab == t,
+                                onClick = { select(t) },
+                                icon = { Icon(painterResource(t.icon), null) },
+                                label = { Text(t.label) },
+                            )
+                        }
+                        Spacer(Modifier.weight(1f))
+                    }
+                }
+                Box(Modifier.weight(1f).fillMaxHeight()) {
+                    when {
+                        updating -> UpdatePage { updating = false }
+                        tab == Tab.HOME -> Gauges()
+                        tab == Tab.LAPS -> LapsPage(wantGps)
+                        tab == Tab.MAP -> DrivesPage(wantGps)
+                        else -> SettingsPage(picker)
+                    }
+                }
+            }
+        }
+    }
+
+    // The gauges' own View (Dash draws them as on the car), kept across
+    // pages so its view stays as it was turned.
+    @Composable
+    private fun Gauges() =
+        AndroidView(
+            factory = {
+                (dash.parent as? ViewGroup)?.removeView(dash)
+                dash
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
 
     private companion object {
-        const val BUTTON = 52
-        const val MARGIN = 10
-        const val BAR = 64
-        const val BAR_MARGIN = 12
-        const val ICON = 0xFFE6E6E6.toInt()
+        const val WATCH_MS = 250L
     }
 }

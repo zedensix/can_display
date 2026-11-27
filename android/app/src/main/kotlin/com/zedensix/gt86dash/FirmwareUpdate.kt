@@ -82,6 +82,7 @@ object FirmwareUpdate {
         synchronized(LiveLink) {
             if (stage != Stage.LOG_NOT_SAVED) return
             pulled = true
+            error = null
             enter(Stage.SAVING_LOG)
         }
     }
@@ -89,8 +90,10 @@ object FirmwareUpdate {
     fun cancel() {
         synchronized(LiveLink) {
             if (!active || stage == Stage.INSTALLING) return
-            val told = transferring
+            // The dash shows the update from its pull on.
+            val told = transferring || pullStarted
             stage = Stage.IDLE
+            error = null
             if (!told) return
             if (writing) cancelling = true else LiveLink.writeControl(UpdateCommand.CANCEL, true)
         }
@@ -191,12 +194,24 @@ object FirmwareUpdate {
                 }
             }
             !pullStarted -> {
-                pullStarted = Recorder.pullNow { pulled = true }
-                if (!pullStarted && now - stageAt > PULL_START_MS) enter(Stage.LOG_NOT_SAVED)
+                pullStarted = Recorder.pullNow(true) { pulled = true }
+                // Another pull under way (the recorder's: the whole log,
+                // the app just started) holds the link: the wait counts
+                // from its end.
+                if (LiveLink.pulling()) {
+                    stageAt = now
+                } else if (!pullStarted && now - stageAt > PULL_START_MS) {
+                    notSaved("The dash didn't take the request for it")
+                }
             }
             // Over without its bytes: given up.
-            !LiveLink.pulling() -> enter(Stage.LOG_NOT_SAVED)
+            !LiveLink.pulling() -> notSaved("The dash stopped sending it")
         }
+    }
+
+    private fun notSaved(why: String) {
+        error = why
+        enter(Stage.LOG_NOT_SAVED)
     }
 
     private fun send() {

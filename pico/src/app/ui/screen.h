@@ -21,7 +21,8 @@
 // Settings instead, and a click does it. On the door screen, a click
 // dismisses it until another door opens. Nothing coming in (a status with
 // nothing to do but wait, or Retry) and no input for SCREEN_IDLE_MS, the
-// screensaver comes on; the next input only wakes it.
+// screensaver comes on; the next input only wakes it, a status changing
+// (an update from the phone) too.
 
 typedef enum {
     PAGE_GAUGES,
@@ -63,9 +64,12 @@ typedef struct {
     bool editing;
     action_t action;
     choice_t choice;
-    // input_ms is the last input; idle, the screensaver on.
+    // input_ms is the last input, or the status changing (status, as last
+    // seen): an update's progress keeps the screen on; idle, the
+    // screensaver on.
     uint32_t input_ms;
     bool idle;
+    char status[sizeof((state_t *)0)->status];
     // doors_dismissed: the open doors (DOOR_* bits) whose screen a click
     // put away; a door shut leaves it, so opening it again shows it.
     uint8_t doors_dismissed;

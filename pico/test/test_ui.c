@@ -136,8 +136,19 @@ void test_choice_and_idle(void) {
 
     // The MCP2515 waiting for the car: a status, nothing to choose.
     state_set_status(&state, "WAITING FOR THE CAR");
-    screen_apply_input(&s, &state, 0, false, 6, &cfg, 200001 + SCREEN_IDLE_MS);
+    screen_apply_input(&s, &state, 0, false, 6, &cfg, 200002);
+    screen_apply_input(&s, &state, 0, false, 6, &cfg, 200002 + SCREEN_IDLE_MS);
     CHECK(s.idle, "no screensaver while the CAN bus sleeps");
+
+    // An update from the phone: its screen wakes the screensaver, without
+    // a click, and its progress keeps it on.
+    state_set_status(&state, "UPDATE\nsaving the data log\n0 of 900 KB");
+    CHECK(!screen_apply_input(&s, &state, 0, false, 6, &cfg, 300000) && !s.idle,
+          "an update's screen stayed under the screensaver");
+    state_set_status(&state, "UPDATE\nsaving the data log\n8 of 900 KB");
+    screen_apply_input(&s, &state, 0, false, 6, &cfg, 300000 + SCREEN_IDLE_MS - 1);
+    screen_apply_input(&s, &state, 0, false, 6, &cfg, 300000 + SCREEN_IDLE_MS + 10);
+    CHECK(!s.idle, "the screensaver came over an update's progress");
 }
 
 // Near the rev limiter the whole page flashes red; under it, it doesn't.

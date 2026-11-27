@@ -1,5 +1,8 @@
 #include "screen.h"
 
+#include <stdio.h>
+#include <string.h>
+
 static int clamp_int(int v, int lo, int hi) {
     return v < lo ? lo : v > hi ? hi : v;
 }
@@ -56,6 +59,10 @@ bool screen_shows_doors(const screen_t *s, const state_t *state, uint32_t now) {
 bool screen_apply_input(screen_t *s, const state_t *state, int detents, bool press, int views, settings_t *cfg,
                         uint32_t now) {
     s->doors_dismissed &= state_doors(state, now);
+    if (strcmp(s->status, state->status) != 0) {
+        snprintf(s->status, sizeof s->status, "%s", state->status);
+        s->input_ms = now;
+    }
     if (detents || press) {
         s->input_ms = now;
         if (s->idle) {

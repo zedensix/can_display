@@ -26,6 +26,7 @@ class LiveFrameTest {
         assertEquals(true, r.trip)
         assertEquals(DriveMode.TRACK, r.mode)
         assertEquals(false, r.offThrottle)
+        assertEquals(false, r.none)
     }
 
     @Test
@@ -34,6 +35,7 @@ class LiveFrameTest {
             bytes(0x01, 0x00, 0x80, 0x00, 0x80, 0x80, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00, 0x80, 0x7B, 0x00, 0x00, 0x10),
         )!!
         listOf(r.oil, r.coolant, r.intake, r.afr, r.battery, r.ethanol, r.rpm, r.outside).forEach { assertNull(it) }
+        assertEquals(true, r.none)
         assertEquals(DriveMode.COMFORT, r.mode)
     }
 

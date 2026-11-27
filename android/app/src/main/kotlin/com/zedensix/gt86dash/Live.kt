@@ -87,9 +87,9 @@ object LiveLink {
 
     fun granted(c: Context) = permissions.all { c.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
 
-    // The readings, if a frame came in lately.
+    // The readings, if a frame with any came in lately.
     fun readings(): Readings? =
-        latest.takeIf { status == Status.LIVE && SystemClock.uptimeMillis() - latestAt < SILENT_MS }
+        latest.takeIf { status == Status.LIVE && SystemClock.uptimeMillis() - latestAt < SILENT_MS && it?.none == false }
 
     @Synchronized
     fun start(c: Context) {
@@ -145,13 +145,17 @@ object LiveLink {
     // on Bluetooth's thread. False while not live, while a pull is under
     // way (one gone quiet past Pull.QUIET_MS is given up) or an update.
     @Synchronized
-    fun pull(from: Long, done: (PullHeader, ByteArray) -> Unit): Boolean {
+    fun pull(from: Long, forUpdate: Boolean, done: (PullHeader, ByteArray) -> Unit): Boolean {
         if (status != Status.LIVE || !dataReady || pulling() || FirmwareUpdate.transferring) return false
         val p = Pull(SystemClock.uptimeMillis(), done)
-        if (!writeControl(Pull.request(from), true)) return false
+        if (!writeControl(Pull.request(from, forUpdate), true)) return false
         pull = p
         return true
     }
+
+    // The pull under way: KB in and to come, once its header came.
+    @Synchronized
+    fun pullKb(): Pair<Int, Int>? = pull?.takeIf { pulling() }?.let { p -> p.total?.let { p.got / 1024 to it / 1024 } }
 
     @Synchronized
     fun pulling(): Boolean = pull?.let { SystemClock.uptimeMillis() - it.heardAt < Pull.QUIET_MS } == true

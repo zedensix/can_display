@@ -11,7 +11,8 @@
 
 // The data log on its way to a phone: the part from first on, total
 // bytes after a header: for Send log ('S') total alone, 4 bytes; for a
-// pull ('R', what's new since a position the phone kept) 18 bytes: total,
+// pull ('R', what's new since a position the phone kept, a 1 after it
+// for the one before an update) 18 bytes: total,
 // where the part starts in flash, where the log is now (the next pull's
 // position), the dash's milliseconds since boot and its session, the
 // first four u32 and the last a u16, little-endian.
@@ -34,7 +35,7 @@ static uint16_t header_size;
 static bool stack_up;
 static btstack_packet_callback_registration_t hci_registration;
 static hci_con_handle_t phone = HCI_CON_HANDLE_INVALID;
-static bool streaming, header_sent, live;
+static bool streaming, header_sent, live, update_pull;
 static uint32_t first, total, sent, now, received_at, live_at;
 // What the screen showed before Send log, put back after it.
 static char status_before[sizeof((state_t *)0)->status];
@@ -86,6 +87,8 @@ static void send_next_log_chunk(void) {
             snprintf(status, sizeof status, "SEND LOG\n%lu of %lu KB", (unsigned long)(sent / 1024),
                      (unsigned long)(total / 1024));
             state_set_status(state, status);
+        } else if (update_pull && sent / 8192 != before / 8192) {
+            ble_update_pulling(sent, total, now);
         }
     }
     if (sent < total) {
@@ -93,6 +96,9 @@ static void send_next_log_chunk(void) {
         return;
     }
     streaming = false;
+    if (update_pull) {
+        ble_update_pulling(total, total, now);
+    }
     if (!log_to_send) {
         return;
     }
@@ -106,7 +112,7 @@ static void send_next_log_chunk(void) {
 // pull sends what the data log holds since from, while it goes on
 // logging: the app's periodic pull, the gauges never paused. Not during
 // Send log, which has the log, nor during another pull.
-static void pull(hci_con_handle_t con, uint32_t from) {
+static void pull(hci_con_handle_t con, uint32_t from, bool for_update) {
     datalog_t *log = store_get_datalog();
     if (!log || log_to_send || streaming || ble_updating()) {
         return;
@@ -123,6 +129,10 @@ static void pull(hci_con_handle_t con, uint32_t from) {
     sent = 0;
     header_sent = false;
     streaming = true;
+    update_pull = for_update;
+    if (update_pull) {
+        ble_update_pulling(0, total, now);
+    }
     att_server_request_can_send_now_event(con);
 }
 
@@ -148,7 +158,7 @@ static int handle_att_write(hci_con_handle_t con, uint16_t handle, uint16_t mode
         return 0;
     }
     if (buffer[0] == 'R' && size >= 5) {
-        pull(con, little_endian_read_32(buffer, 1));
+        pull(con, little_endian_read_32(buffer, 1), size >= 6 && buffer[5] == 1);
         return 0;
     }
     if (!log_to_send) {

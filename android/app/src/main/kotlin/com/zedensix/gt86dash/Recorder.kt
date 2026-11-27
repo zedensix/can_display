@@ -2,7 +2,6 @@ package com.zedensix.gt86dash
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
@@ -48,9 +47,6 @@ object Recorder {
     val recording: Boolean get() = drive != null
 
     val hasFix: Boolean get() = lastFix != null
-
-    // The answer to the GPS's permission, asked by wantGps.
-    const val LOCATION_REQUEST = 11
 
     fun locationGranted(c: Context) = c.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
@@ -102,16 +98,16 @@ object Recorder {
 
     private fun pullIfDue() {
         val c = context ?: return
-        if (Settings(c).collect && SystemClock.uptimeMillis() - pulledAt >= PULL_MS) pullNow {}
+        if (Settings(c).collect && SystemClock.uptimeMillis() - pulledAt >= PULL_MS) pullNow(false) {}
     }
 
     // Pulls the dash's log now (before its firmware is updated, whatever
     // the setting): received runs once it's in, on Bluetooth's thread.
     // False if it can't be asked now (LiveLink.pull).
-    fun pullNow(received: () -> Unit): Boolean {
+    fun pullNow(forUpdate: Boolean, received: () -> Unit): Boolean {
         val c = context ?: return false
         val dash = LiveLink.device ?: return false
-        val asked = LiveLink.pull(Logs.from(c, dash)) { h, bytes ->
+        val asked = LiveLink.pull(Logs.from(c, dash), forUpdate) { h, bytes ->
             worker.execute { kept(c, dash, h, bytes) }
             received()
         }
@@ -191,12 +187,10 @@ object Recorder {
 }
 
 // Lap timing or a spirited drive turned on from the phone: the GPS's
-// permission asked if it isn't granted (PreviewActivity hands the answer
-// to the recorder), and the recorder told.
-fun Activity.wantGps() {
+// permission asked if it isn't granted (ask, the page's launcher, tells the
+// recorder its answer), and the recorder told.
+fun Context.wantGps(ask: (Array<String>) -> Unit) {
     val settings = Settings(this)
-    if ((settings.lapTiming || settings.spirited) && !Recorder.locationGranted(this)) {
-        requestPermissions(Recorder.locationPermissions, Recorder.LOCATION_REQUEST)
-    }
+    if ((settings.lapTiming || settings.spirited) && !Recorder.locationGranted(this)) ask(Recorder.locationPermissions)
     Recorder.update()
 }

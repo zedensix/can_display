@@ -44,7 +44,8 @@ class Dash(context: Context) {
             LiveLink.Status.NO_PERMISSION -> "ALLOW BLUETOOTH" to "on the phone, for GT86 Dash to find the dash"
             LiveLink.Status.BLUETOOTH_OFF -> "BLUETOOTH IS OFF" to "turn it on, on the phone"
             LiveLink.Status.SEARCHING -> "LOOKING FOR THE DASH" to "it's on with the contact"
-            LiveLink.Status.CONNECTING, LiveLink.Status.LIVE -> "CONNECTING" to "GT86 DASH"
+            LiveLink.Status.CONNECTING -> "CONNECTING" to "GT86 DASH"
+            LiveLink.Status.LIVE -> "CONNECTED TO THE DASH" to "no data coming in from the car"
         }
         c.drawColor(Colors.BACKGROUND)
         size(area)
